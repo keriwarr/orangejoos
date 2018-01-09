@@ -61,7 +61,7 @@ IDENT = lambda word: Lexeme('IDENT', len(word), word)
 # Number
 
 
-def NUM(val, ln): return Lexeme('NUM', val, ln)
+def NUM(val, ln): return Lexeme('NUM', ln, val)
 
 
 class Scanner(object):
@@ -181,7 +181,7 @@ class Scanner(object):
                 except:
                     pass
 
-        return Lexeme('BAD', 1, s._peek(0))
+        return Lexeme('BAD', 1, s._peek())
 
 if __name__ == '__main__':
     s = Scanner("""
