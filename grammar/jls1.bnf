@@ -1,0 +1,754 @@
+# This grammar file is from the Java Language Spec 1.
+# Most of this was copied from JLS 1 chapter 19 - LALR(1) Grammar. All
+# production rules involving literals were also added.
+#
+# If a statement has the suffix "?", it is optional.
+
+# TODO(joey): This grammar should be translated to the LALR(1) syntax.
+# With the LALR syntax, a provided parser can be used to generate a parser
+# DFA.
+
+# Literals rules from chapter 3.10.
+
+# PRAGMA(TOKENS)
+
+RawInputCharacter:
+  # any Unicode character
+
+UnicodeInputCharacter:
+  UnicodeEscape
+  RawInputCharacter
+
+UnicodeEscape:
+  \ UnicodeMarker HexDigit HexDigit HexDigit HexDigit
+
+UnicodeMarker:
+  u
+  UnicodeMarker u
+
+InputCharacter:
+  # but not CR or LF
+  UnicodeInputCharacter
+
+Separator: one of
+  ( ) { } [ ] , .
+
+Operator: one of
+  = > < ! ~ ?:
+  == <= >= != & & | | ++ --
+  + - * / & | ^ % << >> >> >
+  += -= *= /= &= |= ^= %= <<= >>= >> >=
+
+BooleanLiteral: one of
+  true false
+
+CharacterLiteral:
+  ' SingleCharacter '
+  ' EscapeSequence '
+
+SingleCharacter:
+  # but not ' or \
+  InputCharacter
+
+# The escape sequences are described in §3.10.6.
+# As specified in §3.4, the characters CR and LF are never an InputCharacter
+# they are recognized as constituting a LineTerminator.
+# It is a compile - time error for the character following the SingleCharacter or
+# EscapeSequence to be other than a '.
+# It is a compile - time error for a line terminator to appear after the opening '
+# and before the closing '.
+
+Identifier:
+  # but not a Keyword or BooleanLiteral or NullLiteral
+  IdentifierChars
+
+IdentifierChars:
+  JavaLetter
+  IdentifierChars JavaLetterOrDigit
+
+JavaLetter:
+  a
+  # any Unicode character that is a Java letter(see below)
+
+JavaLetterOrDigit:
+  # any Unicode character that is a Java letter - or-digit(see below)
+  # Letters and digits may be drawn from the entire Unicode character
+
+# An integer literal may be expressed in decimal (base 10), hexadecimal
+# (base 16), or octal(base 8)
+IntegerLiteral:
+  DecimalIntegerLiteral
+  HexIntegerLiteral
+  OctalIntegerLiteral
+
+DecimalIntegerLiteral:
+  DecimalNumeral IntegerTypeSuffix?
+
+HexIntegerLiteral:
+  HexNumeral IntegerTypeSuffix?
+
+OctalIntegerLiteral:
+  OctalNumeral IntegerTypeSuffix?
+
+IntegerTypeSuffix: one of
+  l L
+
+DecimalNumeral:
+  0
+  NonZeroDigit Digits?
+
+Digits:
+  Digit
+  Digits Digit
+
+Digit:
+  0
+  NonZeroDigit
+
+NonZeroDigit: one of
+  1 2 3 4 5 6 7 8 9
+
+HexNumeral:
+  0 x HexDigit
+  0 X HexDigit
+  HexNumeral HexDigit
+
+HexDigit: one of
+  0 1 2 3 4 5 6 7 8 9 a b c d e f A B C D E F
+
+OctalNumeral:
+  0 OctalDigit
+  OctalNumeral OctalDigit
+
+OctalDigit: one of
+  0 1 2 3 4 5 6 7
+
+FloatingPointLiteral:
+  Digits . Digits? ExponentPart? FloatTypeSuffix?
+  . Digits ExponentPart? FloatTypeSuffix?
+  Digits ExponentPart FloatTypeSuffix?
+  Digits ExponentPart? FloatTypeSuffix
+
+ExponentPart:
+  ExponentIndicator SignedInteger
+
+ExponentIndicator: one of
+  e E
+
+SignedInteger:
+  Sign? Digits
+
+Sign:
+  -
+  +
+
+FloatTypeSuffix:
+  f F d D
+
+NullLiteral:
+  null
+
+StringLiteral:
+  " StringCharacters? "
+
+StringCharacters:
+  StringCharacter
+  StringCharacters StringCharacter
+
+StringCharacter:
+  # but not " or \
+  InputCharacter
+  EscapeSequence
+
+EscapeSequence:
+  # \u0008: backspace BS
+  \ b
+  # \u0009: horizontal tab HT
+  \ t
+  # \u000a: linefeed LF
+  \ n
+  # \u000c: form feed FF
+  \ f
+  # \u000d: carriage return CR
+  \ r
+  # \u0022: double quote"
+  \ "
+  # \u0027: single quote '
+  \ '
+  # \u005c: backslash \
+  \ \
+  # \u0000 to \u00ff: from octal value
+  OctalEscape
+
+OctalEscape:
+  \ OctalDigit
+  \ OctalDigit OctalDigit
+  \ ZeroToThree OctalDigit OctalDigit
+
+ZeroToThree: one of
+  0 1 2 3
+
+
+# It is a compile-time error if the character following a backslash in an escape is
+# not an ASCII b, t, n, f, r, ", ', \, 0, 1, 2, 3, 4, 5, 6, or 7. The Unicode escape \u is
+# processed earlier (§3.3). (Octal escapes are provided for compatibility with C, but
+# can express only Unicode values \u0000 through \u00FF, so Unicode escapes are
+# usually preferred.)
+
+# Production rules from chapter 19
+
+# PRAGMA(GRAMMAR)
+
+Goal:
+  CompilationUnit
+
+Literal:
+  IntegerLiteral
+  FloatingPointLiteral
+  BooleanLiteral
+  CharacterLiteral
+  StringLiteral
+  NullLiteral
+
+Type:
+  PrimitiveType
+  ReferenceType
+
+PrimitiveType:
+  NumericType
+  boolean
+
+NumericType:
+  IntegralType
+  FloatingPointType
+
+IntegralType:
+  byte
+  short
+  int
+  long
+  char
+
+FloatingPointType:
+  float
+  double
+
+ReferenceType:
+  ClassOrInterfaceType
+  ArrayType
+
+ClassOrInterfaceType:
+  Name
+
+ClassType:
+  ClassOrInterfaceType
+
+InterfaceType:
+  ClassOrInterfaceType
+
+ArrayType:
+  PrimitiveType [ ]
+  Name [ ]
+  ArrayType [ ]
+
+Name:
+  SimpleName
+  QualifiedName
+
+SimpleName:
+  Identifier
+
+QualifiedName:
+  Name . Identifier
+
+CompilationUnit:
+  PackageDeclaration? ImportDeclarations? TypeDeclarations?
+
+ImportDeclarations:
+  ImportDeclaration
+  ImportDeclarations ImportDeclaration
+
+TypeDeclarations:
+  TypeDeclaration
+  TypeDeclarations TypeDeclaration
+
+PackageDeclaration:
+  package Name ;
+
+ImportDeclaration:
+  SingleTypeImportDeclaration
+  TypeImportOnDemandDeclaration
+
+SingleTypeImportDeclaration:
+  import Name ;
+
+TypeImportOnDemandDeclaration:
+  import Name . * ;
+
+TypeDeclaration:
+  ClassDeclaration
+  InterfaceDeclaration
+  ;
+
+Modifiers:
+  Modifier
+  Modifiers Modifier
+
+Modifier:
+  public
+  protected
+  private
+  static
+  abstract
+  final
+  native
+  synchronized
+  transient
+  volatile
+
+ClassDeclaration:
+  Modifiers? class Identifier Super? Interfaces? ClassBody
+
+Super:
+  extends ClassType
+
+Interfaces:
+  implements InterfaceTypeList
+
+InterfaceTypeList:
+  InterfaceType
+  InterfaceTypeList , InterfaceType
+
+ClassBody:
+  { ClassBodyDeclarations? }
+
+ClassBodyDeclarations:
+  ClassBodyDeclaration
+  ClassBodyDeclarations ClassBodyDeclaration
+
+ClassBodyDeclaration:
+  ClassMemberDeclaration
+  StaticInitializer
+  ConstructorDeclaration
+
+ClassMemberDeclaration:
+  FieldDeclaration
+  MethodDeclaration
+
+FieldDeclaration:
+  Modifiers? Type VariableDeclarators ;
+
+VariableDeclarators:
+  VariableDeclarator
+  VariableDeclarators , VariableDeclarator
+
+VariableDeclarator:
+  VariableDeclaratorId
+  VariableDeclaratorId = VariableInitializer
+
+VariableDeclaratorId:
+  Identifier
+  VariableDeclaratorId [ ]
+
+VariableInitializer:
+  Expression
+  ArrayInitializer
+
+MethodDeclaration:
+  MethodHeader MethodBody
+
+MethodHeader:
+  Modifiers? Type MethodDeclarator Throws?
+  Modifiers? void MethodDeclarator Throws?
+
+MethodDeclarator:
+  Identifier ( FormalParameterList? )
+  MethodDeclarator [ ]
+
+FormalParameterList:
+  FormalParameter
+  FormalParameterList , FormalParameter
+
+FormalParameter:
+  Type VariableDeclaratorId
+
+Throws:
+  throws ClassTypeList
+
+ClassTypeList:
+  ClassType
+  ClassTypeList , ClassType
+
+MethodBody:
+  Block
+  ;
+
+StaticInitializer:
+  static Block
+
+ConstructorDeclaration:
+  Modifiers? ConstructorDeclarator Throws? ConstructorBody
+
+ConstructorDeclarator:
+  SimpleName ( FormalParameterList? )
+
+ConstructorBody:
+  { ExplicitConstructorInvocation? BlockStatements? }
+
+ExplicitConstructorInvocation:
+  this ( ArgumentList? ) ;
+  super ( ArgumentList? ) ;
+
+InterfaceDeclaration:
+  Modifiers? interface Identifier ExtendsInterfaces? InterfaceBody
+
+ExtendsInterfaces:
+  extends InterfaceType
+  ExtendsInterfaces , InterfaceType
+
+InterfaceBody:
+  { InterfaceMemberDeclarations? }
+
+InterfaceMemberDeclarations:
+  InterfaceMemberDeclaration
+  InterfaceMemberDeclarations InterfaceMemberDeclaration
+
+InterfaceMemberDeclaration:
+  ConstantDeclaration
+  AbstractMethodDeclaration
+
+ConstantDeclaration:
+  FieldDeclaration
+
+AbstractMethodDeclaration:
+  MethodHeader ;
+
+ArrayInitializer:
+  { VariableInitializers? ,? }
+
+VariableInitializers:
+  VariableInitializer
+  VariableInitializers , VariableInitializer
+
+Block:
+  { BlockStatements? }
+
+BlockStatements:
+  BlockStatement
+  BlockStatements BlockStatement
+
+BlockStatement:
+  LocalVariableDeclarationStatement
+  Statement
+
+LocalVariableDeclarationStatement:
+  LocalVariableDeclaration ;
+
+LocalVariableDeclaration:
+  Type VariableDeclarators
+
+Statement:
+  StatementWithoutTrailingSubstatement
+  LabeledStatement
+  IfThenStatement
+  IfThenElseStatement
+  WhileStatement
+  ForStatement
+
+StatementNoShortIf:
+  StatementWithoutTrailingSubstatement
+  LabeledStatementNoShortIf
+  IfThenElseStatementNoShortIf
+  WhileStatementNoShortIf
+  ForStatementNoShortIf
+
+StatementWithoutTrailingSubstatement:
+  Block
+  EmptyStatement
+  ExpressionStatement
+  SwitchStatement
+  DoStatement
+  BreakStatement
+  ContinueStatement
+  ReturnStatement
+  SynchronizedStatement
+  ThrowStatement
+  TryStatement
+
+EmptyStatement:
+  ;
+
+LabeledStatement:
+  Identifier : Statement
+
+LabeledStatementNoShortIf:
+  Identifier : StatementNoShortIf
+
+ExpressionStatement:
+  StatementExpression ;
+
+StatementExpression:
+  Assignment
+  PreIncrementExpression
+  PreDecrementExpression
+  PostIncrementExpression
+  PostDecrementExpression
+  MethodInvocation
+  ClassInstanceCreationExpression
+
+IfThenStatement:
+  if ( Expression ) Statement
+
+IfThenElseStatement:
+  if ( Expression ) StatementNoShortIf else Statement
+
+IfThenElseStatementNoShortIf:
+  if ( Expression ) StatementNoShortIf else StatementNoShortIf
+
+SwitchStatement:
+  switch ( Expression ) SwitchBlock
+
+SwitchBlock:
+  { SwitchBlockStatementGroups? SwitchLabels? }
+
+SwitchBlockStatementGroups:
+  SwitchBlockStatementGroup
+  SwitchBlockStatementGroups SwitchBlockStatementGroup
+
+SwitchBlockStatementGroup:
+  SwitchLabels BlockStatements
+
+SwitchLabels:
+  SwitchLabel
+  SwitchLabels SwitchLabel
+
+SwitchLabel:
+  case ConstantExpression :
+  default :
+
+WhileStatement:
+  while ( Expression ) Statement
+
+WhileStatementNoShortIf:
+  while ( Expression ) StatementNoShortIf
+
+DoStatement:
+  do Statement while ( Expression ) ;
+
+ForStatement:
+  for ( ForInit? ; Expression? ; ForUpdate? )
+  Statement
+
+ForStatementNoShortIf:
+  for ( ForInit? ; Expression? ; ForUpdate? )
+  StatementNoShortIf
+
+ForInit:
+  StatementExpressionList
+  LocalVariableDeclaration
+
+ForUpdate:
+  StatementExpressionList
+
+StatementExpressionList:
+  StatementExpression
+  StatementExpressionList , StatementExpression
+
+BreakStatement:
+  break Identifier? ;
+
+ContinueStatement:
+  continue Identifier? ;
+
+ReturnStatement:
+  return Expression? ;
+
+ThrowStatement:
+  throw Expression ;
+
+SynchronizedStatement:
+  synchronized ( Expression ) Block
+
+TryStatement:
+  try Block Catches
+  try Block Catches? Finally
+
+Catches:
+  CatchClause
+  Catches CatchClause
+
+CatchClause:
+  catch ( FormalParameter ) Block
+
+Finally:
+  finally Block
+
+Primary:
+  PrimaryNoNewArray
+  ArrayCreationExpression
+
+PrimaryNoNewArray:
+  Literal
+  this
+  ( Expression )
+  ClassInstanceCreationExpression
+  FieldAccess
+  MethodInvocation
+  ArrayAccess
+
+ClassInstanceCreationExpression:
+  new ClassType ( ArgumentList? )
+
+ArgumentList:
+  Expression
+  ArgumentList , Expression
+
+ArrayCreationExpression:
+  new PrimitiveType DimExprs Dims?
+  new ClassOrInterfaceType DimExprs Dims?
+
+DimExprs:
+  DimExpr
+  DimExprs DimExpr
+
+DimExpr:
+  [ Expression ]
+
+Dims:
+  [ ]
+  Dims [ ]
+
+FieldAccess:
+  Primary . Identifier
+  super . Identifier
+
+MethodInvocation:
+  Name ( ArgumentList? )
+  Primary . Identifier ( ArgumentList? )
+  super . Identifier ( ArgumentList? )
+
+ArrayAccess:
+  Name [ Expression ]
+  PrimaryNoNewArray [ Expression ]
+
+PostfixExpression:
+  Primary
+  Name
+  PostIncrementExpression
+  PostDecrementExpression
+
+PostIncrementExpression:
+  PostfixExpression ++
+
+PostDecrementExpression:
+  PostfixExpression --
+
+UnaryExpression:
+  PreIncrementExpression
+  PreDecrementExpression
+  + UnaryExpression
+  - UnaryExpression
+  UnaryExpressionNotPlusMinus
+
+PreIncrementExpression:
+  ++ UnaryExpression
+
+PreDecrementExpression:
+  -- UnaryExpression
+
+UnaryExpressionNotPlusMinus:
+  PostfixExpression
+  ~ UnaryExpression
+  ! UnaryExpression
+  CastExpression
+
+CastExpression:
+  ( PrimitiveType Dims? ) UnaryExpression
+  ( Expression ) UnaryExpressionNotPlusMinus
+  ( Name Dims ) UnaryExpressionNotPlusMinus
+
+MultiplicativeExpression:
+  UnaryExpression
+  MultiplicativeExpression * UnaryExpression
+  MultiplicativeExpression / UnaryExpression
+  MultiplicativeExpression % UnaryExpression
+
+AdditiveExpression:
+  MultiplicativeExpression
+  AdditiveExpression + MultiplicativeExpression
+  AdditiveExpression - MultiplicativeExpression
+
+ShiftExpression:
+  AdditiveExpression
+  ShiftExpression << AdditiveExpression
+  ShiftExpression >> AdditiveExpression
+  ShiftExpression >>> AdditiveExpression
+
+RelationalExpression:
+  ShiftExpression
+  RelationalExpression < ShiftExpression
+  RelationalExpression > ShiftExpression
+  RelationalExpression <= ShiftExpression
+  RelationalExpression >= ShiftExpression
+  RelationalExpression instanceof ReferenceType
+
+EqualityExpression:
+  RelationalExpression
+  EqualityExpression == RelationalExpression
+  EqualityExpression != RelationalExpression
+
+AndExpression:
+  EqualityExpression
+  AndExpression & EqualityExpression
+
+ExclusiveOrExpression:
+  AndExpression
+  ExclusiveOrExpression ^ AndExpression
+
+InclusiveOrExpression:
+  ExclusiveOrExpression
+  InclusiveOrExpression | ExclusiveOrExpression
+
+ConditionalAndExpression:
+  InclusiveOrExpression
+  ConditionalAndExpression && InclusiveOrExpression
+
+ConditionalOrExpression:
+  ConditionalAndExpression
+  ConditionalOrExpression || ConditionalAndExpression
+
+ConditionalExpression:
+  ConditionalOrExpression
+  ConditionalOrExpression ? Expression : ConditionalExpression
+
+AssignmentExpression:
+  ConditionalExpression
+  Assignment
+
+Assignment:
+  LeftHandSide AssignmentOperator AssignmentExpression
+
+LeftHandSide:
+  Name
+  FieldAccess
+  ArrayAccess
+
+AssignmentOperator:
+  =
+  *=
+  /=
+  %=
+  +=
+  -=
+  <<=
+  >>=
+  >>>=
+  &=
+  ^=
+  |=
+
+Expression:
+  AssignmentExpression
+
+ConstantExpression:
+  Expression

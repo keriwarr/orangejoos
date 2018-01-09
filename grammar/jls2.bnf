@@ -1,3 +1,5 @@
+# This grammar file is from the Java Language Spec 2.
+
 # FIXME(joey): Currently this is the full grammar as found in JLS2.
 # There are also a few errors introduced while copying.
 # - Opt suffixes are sometimes part of the rule name, and some times act

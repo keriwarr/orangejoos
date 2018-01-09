@@ -38,6 +38,8 @@ tools/joos_scraper
 - Hook up the provided LALR(1) parser, in order to generate a parser
   DFA.
 - Use the parser DFA to parse the tokens.
+- Read through the JLS spec for compiler errors. That is, errors that
+  are not explicit in the grammar.
 
 [grammar/joos1s.bnf]: grammar/joos1s.bnf
 
