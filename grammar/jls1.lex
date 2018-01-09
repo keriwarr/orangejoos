@@ -3,14 +3,6 @@
 #
 # If a statement has the suffix "?", it is optional.
 
-( 
-  return Token(LPAREN)
-) 
-  return Token(RPAREN)
-{ 
-  return Token(LBRACK)
-} 
-  return Token(RBRACK)
 
 RawInputCharacter:
   # any Unicode character
