@@ -1,5 +1,6 @@
 # This grammar file is from the Java Language Spec 1.
-# Most of this was copied from JLS 1 chapter 3.10 - Literal Rules.
+# It specifies all of the tokens definitions, in a CFG-style.
+# This was copied from JLS 1 chapter 3.10 - Literal Rules.
 #
 # If a statement has the suffix "?", it is optional.
 
@@ -26,10 +27,9 @@ Separator: one of
   ( ) { } [ ] , .
 
 Operator: one of
-  = > < ! ~ ?:
-  == <= >= != & & | | ++ --
-  + - * / & | ^ % << >> >> >
-  += -= *= /= &= |= ^= %= <<= >>= >> >=
+  = > < !
+  == <= >= != && ||
+  + - * / %
 
 BooleanLiteral: one of
   true false
