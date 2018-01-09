@@ -19,6 +19,9 @@ _SEPARATOR_CHARS = [
 class Lexeme(object):
 
     def __init__(self, typ, ln, sem=None):
+        """
+        ln is the source code string length of the token.
+        """
         self.typ = typ
         self.ln = ln
         self.sem = sem
@@ -45,6 +48,8 @@ GT = Lexeme('GT', 1)
 NOT = Lexeme('NOT', 1)
 AND = Lexeme('AND', 2)
 OR = Lexeme('OR', 2)
+E_AND = Lexeme('E_AND', 1)
+E_OR = Lexeme('E_OR', 1)
 
 # Separators
 LPAREN = Lexeme('LPAREN', 1)
@@ -60,6 +65,29 @@ COMMA = Lexeme('COMMA', 1)
 
 # Identifier
 IDENT = lambda word: Lexeme('IDENT', len(word), word)
+
+# String
+
+
+def STRING(word, ln=None):
+    """
+    ln is defaulted to the word length. ln will be explicitly specified
+    if there were escape characters as they are only one char in the
+    string but two in source code.
+    """
+    if ln is None:
+        ln = len(word)
+    return Lexeme('STRING', ln, word)
+
+
+def CHAR(word, ln=1):
+    """
+    ln is defaulted to 1. ln will be explicitly specified if there were
+    escape characters as they are only one char in the string but two in
+    source code.
+    """
+    return Lexeme('CHAR', ln, word)
+
 
 # Number
 
@@ -78,7 +106,11 @@ class Scanner(object):
     def lex(self):
         while len(self._s) > 0:
             self._skip_whitespace()
-            lexeme = self._scan()
+            try:
+                lexeme = self._scan()
+            except Exception as e:
+                print("ERROR: lexemes=%s\n%s" % (self._lexemes, e))
+
             self._lexemes.append(lexeme)
             self._proceed(lexeme)
 
@@ -94,7 +126,33 @@ class Scanner(object):
     def _proceed(self, lexeme):
         self._s = self._s[lexeme.ln:]
 
+    def _get_escaped_char(self, ch):
+        if ch == 'b':
+            return '\b'
+        elif ch == 't':
+            return '\t'
+        elif ch == 'n':
+            return '\n'
+        elif ch == 'f':
+            return '\f'
+        elif ch == 'r':
+            return '\r'
+
+        # TODO(joey): I am not sure if this is supposed
+        # allow any other character to work. This is
+        # escaping:
+        #   ' " \ 0
+        # We may want to whitelist only those above characters.
+        return ch
+
     def _scan(self):
+        """
+        """
+
+        # FIXME(joey): Handle EOF in cases where we continually peek
+        # characters. This only applies to string and character
+        # literals. Identifiers should be returned.
+
         # Operators
         if self._peek() == '=':
             if self._peek(1) == '=':
@@ -136,10 +194,14 @@ class Scanner(object):
             if self._peek(1) == '&':
                 # &&
                 return AND
+            # &
+            return E_AND
         elif self._peek() == '|':
             if self._peek(1) == '|':
                 # ||
                 return OR
+            # |
+            return E_OR
 
         # Separators
         if self._peek() == '(':
@@ -162,20 +224,21 @@ class Scanner(object):
             return DOT
 
         # Identifiers
-        if s._peek().isalpha():
+        if self._peek().isalpha():
             word = ""
             i = 0
-            while s._peek(i).isalpha():
-                word += s._peek(i)
+            while self._peek(i).isalpha():
+                word += self._peek(i)
                 i += 1
             if len(word) > 0:
                 return IDENT(word)
 
-        if s._peek().isdigit():
+        # Parse numbers.
+        if self._peek().isdigit():
             num = ""
             i = 0
-            while s._peek(i).isdigit():
-                num += s._peek(i)
+            while self._peek(i).isdigit():
+                num += self._peek(i)
                 i += 1
             if len(num) > 0:
                 try:
@@ -184,7 +247,40 @@ class Scanner(object):
                 except:
                     pass
 
-        return Lexeme('BAD', 1, s._peek())
+        # Parse string and character literals.
+        if self._peek() == "\"" or self._peek() == "\'":
+            quote_type = "\""
+            if self._peek() == "\'":
+                quote_type = "\'"
+
+            string = ""
+            # Start reading the next character.
+            i = 1
+            escaped_chars = 0
+            while self._peek(i) != quote_type:
+                ch = self._peek(i)
+                # Check if the char is escaping the next char. If it is,
+                # get the escaped char.
+                if ch == '\\':
+                    escaped_ch = self._peek(i + 1)
+                    ch = self._get_escaped_char(escaped_ch)
+                    escaped_chars += 1
+                    # Move forward another character.
+                    i += 1
+                string += ch
+                i += 1
+
+            # When scanning character literals longer than 1, it is
+            # invalid.
+            # FIXME(joey): Handle this error better, for example exit early.
+            if quote_type == "\'" and len(string) > 1:
+                return Lexeme('BAD', len(string) + escaped_chars + 2, string)
+
+            # Also count the quotation characters and escaping
+            # backslashes.
+            return STRING(string, len(string) + escaped_chars + 2)
+
+        return Lexeme('BAD', 1, self._peek())
 
 
 if __name__ == '__main__':
@@ -197,7 +293,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     input_file = sys.argv[1]
-
+    print("Reading %s" % input_file)
     lines = None
     with open(input_file, 'r') as file:
         lines = file.readlines()
@@ -207,7 +303,9 @@ if __name__ == '__main__':
     lexemes = s.lex()
     for lexeme in lexemes:
         if lexeme.typ == 'BAD':
+            print("=== BAD ===")
+            print(lexemes)
             sys.exit(42)
 
-    print("=== DONE ===")
-    print(lexemes)
+    # print("=== DONE ===")
+    # print(lexemes)
