@@ -1,3 +1,4 @@
+import sys
 from enum import Enum, auto
 
 
@@ -183,11 +184,28 @@ class Scanner(object):
 
         return Lexeme('BAD', 1, s._peek())
 
-if __name__ == '__main__':
-    s = Scanner("""
-    void main() {
-        return 10;
-    }
-    """)
 
-    print(s.lex())
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("""Usage: pass the source code file to scan.
+
+        For example,
+
+                python3 {filename} main.java""".format(filename=sys.argv[0]))
+        sys.exit(1)
+
+    input_file = sys.argv[1]
+
+    lines = None
+    with open(input_file, 'r') as file:
+        lines = file.readlines()
+
+    s = Scanner("\n".join(lines))
+
+    lexemes = s.lex()
+    for lexeme in lexemes:
+        if lexeme.typ == 'BAD':
+            sys.exit(42)
+
+    print("=== DONE ===")
+    print(lexemes)
