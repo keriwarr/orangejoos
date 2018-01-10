@@ -50,9 +50,7 @@ if __name__ == "__main__":
     productions = {}
     current_production = None
     tokens = set()
-
-    section = "TOKENS"
-    current_section = None
+    rhs = set()
 
     # Scan through each line of the grammar.
     for line in lines:
@@ -60,16 +58,8 @@ if __name__ == "__main__":
         # the grammar.
         line = line.rstrip()
 
-        # Filter the section. This is to make a distinction between
-        # tokens and grammar rules.
-        pragma = re.search(r'^# PRAGMA\((.*)\)$', line)
-        if pragma is not None:
-            current_section = pragma.group(1)
-            continue
-        elif current_section != section:
-            continue
-
         is_one_of = False
+        is_tokens_rule = False
 
         # Skip empty lines.
         if line == "":
@@ -93,7 +83,10 @@ if __name__ == "__main__":
                 # Ignore the optional modifier on the token for now.
                 if token[-1] == '?':
                     token = token[:-1]
-                tokens.add(token)
+                if is_tokens_rule:
+                    tokens.add(token)
+                else:
+                    rhs.add(token)
 
             productions[current_production].append(rule)
             continue
@@ -101,11 +94,19 @@ if __name__ == "__main__":
         rule_line = re.search(r'(.*):( one of)?$', line)
         if rule_line is not None:
             current_production = rule_line.group(1)
+            tokens_prefix = re.search(r'^TOKENS(.*)', current_production)
+            if tokens_prefix is not None:
+                current_production = tokens_prefix.group(1)
+                is_tokens_rule = True
+            else:
+                is_tokens_rule = False
+
             is_one_of = len(rule_line.groups()) > 2
             productions[current_production] = []
         else:
             print("BAD LINE: " + line)
 
     print("productions: %s" % productions)
-    print("tokens: %s" % "\n".join(sorted(tokens - set(productions.keys()))))
+    print("missing RHS: %s" % "\n".join(sorted(rhs - set(productions.keys()))))
+    print("tokens: %s" % "\n".join(sorted(tokens)))
 

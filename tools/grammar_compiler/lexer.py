@@ -1,6 +1,9 @@
 import sys
 from enum import Enum, auto
 
+# TODO(joey): Add a test including != which is not in the basic tests.
+
+# TODO(joey): Add comment scanning.
 
 _SEPARATOR_CHARS = [
     '[',
@@ -14,7 +17,56 @@ _SEPARATOR_CHARS = [
     '',
     ' ',
     '\n',
+    '\r',
 ]
+
+_BOOL_LITERALS = set([
+    "true",
+    "false",
+])
+
+_NULL_LITERAL = set([
+    "null",
+])
+
+_KEYWORDS = set([
+    # Types.
+    "boolean",
+    "byte",
+    "int",
+    "short",
+    "void",
+    "char",
+
+    # Modifiers.
+    "abstract",
+    "private",
+    "protected",
+    "public",
+    "final",
+    "static",
+    "while",
+
+    # Classes
+    "interface",
+    "class",
+    "extends",
+    "implements",
+    "native",
+    "new",
+    "package",
+
+    # Control flow
+    "if",
+    "else",
+    "return",
+    "for",
+
+    # ???
+    "import",
+    "instanceof",
+])
+
 
 class Lexeme(object):
 
@@ -31,37 +83,43 @@ class Lexeme(object):
             return "<Lexeme typ=%s ln=%d>" % (self.typ, self.ln)
         return "<Lexeme typ=%s ln=%d sem=%s>" % (self.typ, self.ln, self.sem)
 
-# Lexeme types
+
+OP = lambda op, ln: Lexeme('OP', ln, op)
+SEP = lambda sep: Lexeme('SEP', 1, sep)
 
 # Operators
-ASSIGN = Lexeme('ASSIGN', 1)
-EQUAL = Lexeme('EQUAL', 2)
-ADD = Lexeme('ADD', 1)
-SUB = Lexeme('SUB', 1)
-MULT = Lexeme('MULT', 1)
-DIV = Lexeme('DIV', 1)
-MOD = Lexeme('MOD', 1)
-LEQ = Lexeme('LEQ', 2)
-LT = Lexeme('LT', 1)
-GEQ = Lexeme('GEQ', 2)
-GT = Lexeme('GT', 1)
-NOT = Lexeme('NOT', 1)
-AND = Lexeme('AND', 2)
-OR = Lexeme('OR', 2)
-E_AND = Lexeme('E_AND', 1)
-E_OR = Lexeme('E_OR', 1)
+ASSIGN = OP('=', 1)
+EQ = OP('==', 2)
+NEQ = OP('!=', 2)
+ADD = OP('+', 1)
+SUB = OP('-', 1)
+MULT = OP('*', 1)
+DIV = OP('/', 1)
+MOD = OP('%', 1)
+LEQ = OP('<=', 2)
+LT = OP('<', 1)
+GEQ = OP('>=', 2)
+GT = OP('>', 1)
+NOT = OP('!', 1)
+AND = OP('&&', 2)
+OR = OP('||', 2)
+E_AND = OP('&', 1)
+E_OR = OP('|', 1)
 
 # Separators
-LPAREN = Lexeme('LPAREN', 1)
-RPAREN = Lexeme('RPAREN', 1)
-LBRACE = Lexeme('LBRACE', 1)
-RBRACE = Lexeme('RBRACE', 1)
-LBRACK = Lexeme('LBRACK', 1)
-RBRACK = Lexeme('RBRACK', 1)
+LPAREN = SEP('(')
+RPAREN = SEP(')')
+LBRACE = SEP('{')
+RBRACE = SEP('}')
+LBRACK = SEP('[')
+RBRACK = SEP(']')
 
 SEMICOL = Lexeme('SEMICOL', 1)
 DOT = Lexeme('DOT', 1)
 COMMA = Lexeme('COMMA', 1)
+
+
+def KEYWORD(word): return Lexeme('KEYWORD', len(word), word)
 
 # Identifier
 IDENT = lambda word: Lexeme('IDENT', len(word), word)
@@ -128,22 +186,28 @@ class Scanner(object):
 
     def _get_escaped_char(self, ch):
         if ch == 'b':
+            # backspace BS
             return '\b'
         elif ch == 't':
+            # horizontal tab HT
             return '\t'
         elif ch == 'n':
+            # linefeed LF
             return '\n'
         elif ch == 'f':
+            # form feed FF
             return '\f'
         elif ch == 'r':
+            # carriage return CR
             return '\r'
+        elif ch in ['0', '1', '2', '3', '4', '5', '6', '7']:
+            # ascii values 0-7.
+            return chr(int(ch))
 
-        # TODO(joey): I am not sure if this is supposed
-        # allow any other character to work. This is
-        # escaping:
-        #   ' " \ 0
-        # We may want to whitelist only those above characters.
-        return ch
+        # It is a compile-time error if the character following a
+        # backslash in an escape is not an ASCII b, t, n, f, r, ", ', \,
+        # 0, 1, 2, 3, 4, 5, 6, or 7.
+        return None
 
     def _scan(self):
         """
@@ -157,14 +221,21 @@ class Scanner(object):
         if self._peek() == '=':
             if self._peek(1) == '=':
                 # ==
-                return EQUAL
+                return EQ
             # =
             return ASSIGN
+        elif self._peek() == '!':
+            if self._peek(1) == '=':
+                # ==
+                return NEQ
+            # !
+            return NOT
         elif self._peek() == '+':
             # +
             return ADD
         elif self._peek() == '-':
             # -
+            # TODO(joey): We may need to support unary minus.
             return SUB
         elif self._peek() == '*':
             # *
@@ -187,9 +258,6 @@ class Scanner(object):
                 return GEQ
             # >
             return GT
-        elif self._peek() == '!':
-            # !
-            return NOT
         elif self._peek() == '&':
             if self._peek(1) == '&':
                 # &&
@@ -231,6 +299,10 @@ class Scanner(object):
                 word += self._peek(i)
                 i += 1
             if len(word) > 0:
+                if word in _BOOL_LITERALS or word in _NULL_LITERAL:
+                    return KEYWORD(word)
+                if word in _KEYWORDS:
+                    return KEYWORD(word)
                 return IDENT(word)
 
         # Parse numbers.
@@ -243,6 +315,7 @@ class Scanner(object):
             if len(num) > 0:
                 try:
                     val = int(num)
+                    # TODO(joey): We may need to parse number a suffix.
                     return NUM(val, len(num))
                 except:
                     pass
@@ -267,6 +340,10 @@ class Scanner(object):
                     escaped_chars += 1
                     # Move forward another character.
                     i += 1
+                    # It is a compile error if a character escaped is
+                    # not a valid one.
+                    if ch is None:
+                        return Lexeme('BAD', len(string) + escaped_chars + 2, string)
                 string += ch
                 i += 1
 
@@ -278,7 +355,10 @@ class Scanner(object):
 
             # Also count the quotation characters and escaping
             # backslashes.
+            if quote_type == "\'":
+                return CHAR(string, len(string) + escaped_chars + 2)
             return STRING(string, len(string) + escaped_chars + 2)
+
 
         return Lexeme('BAD', 1, self._peek())
 

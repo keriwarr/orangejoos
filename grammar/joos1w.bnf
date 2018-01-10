@@ -1,0 +1,515 @@
+# This grammar file is from the Java Language Spec 1.
+# Most of this was copied from JLS 1 chapter 19 - LALR(1) Grammar. All
+# production rules involving literals were also added.
+#
+# If a statement has the suffix "?", it is optional.
+
+# TODO(joey): This grammar should be translated to the LALR(1) syntax.
+# With the LALR syntax, a provided parser can be used to generate a parser
+# DFA.
+
+# The following rules evaluate to lexemes that contain the content of
+# specified tokens.
+
+# Tokens are terminal tokens that appear in the production rules.
+# Lexeme.sem will be the values listed here.
+TOKENS=ExtraTokens:
+  abstract
+  boolean
+  byte
+  char
+  class
+  else
+  extends
+  false
+  final
+  for
+  if
+  implements
+  import
+  instanceof
+  int
+  interface
+  native
+  new
+  null
+  package
+  private
+  protected
+  public
+  return
+  short
+  static
+  super
+  this
+  true
+  void
+  while
+
+TOKENS=Separator: one of
+  ( ) { } [ ] , .
+
+TOKENS=Operator: one of
+  = > < ! ~
+  == <= >= != && ||
+  + - * / %
+
+TOKENS=BooleanLiteral: one of
+  true false
+
+TOKENS=NullLiteral: one of
+  null
+
+CharacterLiteral:
+  LEXEME(CHAR)
+
+IntegerLiteral:
+  LEXEME(NUM)
+
+StringLiteral:
+  LEXEME(STRING)
+
+Identifier:
+  LEXEME(IDENT)
+
+# The following rules are production rules. They are all from Ch. 19
+# with some rules omittedwhich are not supported by Joos1W
+
+Goal:
+  CompilationUnit
+
+Literal:
+  IntegerLiteral
+  BooleanLiteral
+  CharacterLiteral
+  StringLiteral
+  NullLiteral
+
+Type:
+  PrimitiveType
+  ReferenceType
+
+PrimitiveType:
+  NumericType
+  boolean
+
+NumericType:
+  IntegralType
+
+IntegralType:
+  byte
+  short
+  int
+  char
+
+ReferenceType:
+  ClassOrInterfaceType
+  ArrayType
+
+ClassOrInterfaceType:
+  Name
+
+ClassType:
+  ClassOrInterfaceType
+
+InterfaceType:
+  ClassOrInterfaceType
+
+ArrayType:
+  PrimitiveType [ ]
+  Name [ ]
+  ArrayType [ ]
+
+Name:
+  SimpleName
+  QualifiedName
+
+SimpleName:
+  Identifier
+
+QualifiedName:
+  Name . Identifier
+
+CompilationUnit:
+  PackageDeclaration? ImportDeclarations? TypeDeclarations?
+
+ImportDeclarations:
+  ImportDeclaration
+  ImportDeclarations ImportDeclaration
+
+TypeDeclarations:
+  TypeDeclaration
+  TypeDeclarations TypeDeclaration
+
+PackageDeclaration:
+  package Name ;
+
+ImportDeclaration:
+  SingleTypeImportDeclaration
+  TypeImportOnDemandDeclaration
+
+SingleTypeImportDeclaration:
+  import Name ;
+
+TypeImportOnDemandDeclaration:
+  import Name . * ;
+
+TypeDeclaration:
+  ClassDeclaration
+  InterfaceDeclaration
+  ;
+
+Modifiers:
+  Modifier
+  Modifiers Modifier
+
+Modifier:
+  # TODO(joey) Evaluate if this is correct.
+  public
+  protected
+  private
+  static
+  abstract
+  final
+  native
+
+ClassDeclaration:
+  Modifiers? class Identifier Super? Interfaces? ClassBody
+
+Super:
+  extends ClassType
+
+Interfaces:
+  implements InterfaceTypeList
+
+InterfaceTypeList:
+  InterfaceType
+  InterfaceTypeList , InterfaceType
+
+ClassBody:
+  { ClassBodyDeclarations? }
+
+ClassBodyDeclarations:
+  ClassBodyDeclaration
+  ClassBodyDeclarations ClassBodyDeclaration
+
+ClassBodyDeclaration:
+  ClassMemberDeclaration
+  StaticInitializer
+  ConstructorDeclaration
+
+ClassMemberDeclaration:
+  FieldDeclaration
+  MethodDeclaration
+
+FieldDeclaration:
+  Modifiers? Type VariableDeclarators ;
+
+VariableDeclarators:
+  VariableDeclarator
+  VariableDeclarators , VariableDeclarator
+
+VariableDeclarator:
+  VariableDeclaratorId
+  VariableDeclaratorId = VariableInitializer
+
+VariableDeclaratorId:
+  Identifier
+  VariableDeclaratorId [ ]
+
+VariableInitializer:
+  Expression
+  ArrayInitializer
+
+MethodDeclaration:
+  MethodHeader MethodBody
+
+MethodHeader:
+  Modifiers? Type MethodDeclarator
+  Modifiers? void MethodDeclarator
+
+MethodDeclarator:
+  Identifier ( FormalParameterList? )
+  MethodDeclarator [ ]
+
+FormalParameterList:
+  FormalParameter
+  FormalParameterList , FormalParameter
+
+FormalParameter:
+  Type VariableDeclaratorId
+
+ClassTypeList:
+  ClassType
+  ClassTypeList , ClassType
+
+MethodBody:
+  Block
+  ;
+
+StaticInitializer:
+  static Block
+
+ConstructorDeclaration:
+  Modifiers? ConstructorDeclarator ConstructorBody
+
+ConstructorDeclarator:
+  SimpleName ( FormalParameterList? )
+
+ConstructorBody:
+  { BlockStatements? }
+
+InterfaceDeclaration:
+  Modifiers? interface Identifier ExtendsInterfaces? InterfaceBody
+
+ExtendsInterfaces:
+  extends InterfaceType
+  ExtendsInterfaces , InterfaceType
+
+InterfaceBody:
+  { InterfaceMemberDeclarations? }
+
+InterfaceMemberDeclarations:
+  InterfaceMemberDeclaration
+  InterfaceMemberDeclarations InterfaceMemberDeclaration
+
+InterfaceMemberDeclaration:
+  ConstantDeclaration
+  AbstractMethodDeclaration
+
+ConstantDeclaration:
+  FieldDeclaration
+
+AbstractMethodDeclaration:
+  MethodHeader ;
+
+ArrayInitializer:
+  { VariableInitializers? ,? }
+
+VariableInitializers:
+  VariableInitializer
+  VariableInitializers , VariableInitializer
+
+Block:
+  { BlockStatements? }
+
+BlockStatements:
+  BlockStatement
+  BlockStatements BlockStatement
+
+BlockStatement:
+  LocalVariableDeclarationStatement
+  Statement
+
+LocalVariableDeclarationStatement:
+  LocalVariableDeclaration ;
+
+LocalVariableDeclaration:
+  # FIXME(joey): We need to ensure these VariableDeclarator has an
+  # assignment during weeding.
+  Type VariableDeclarators
+
+Statement:
+  StatementWithoutTrailingSubstatement
+  IfThenStatement
+  IfThenElseStatement
+  WhileStatement
+  ForStatement
+
+StatementNoShortIf:
+  StatementWithoutTrailingSubstatement
+  IfThenElseStatementNoShortIf
+  WhileStatementNoShortIf
+  ForStatementNoShortIf
+
+StatementWithoutTrailingSubstatement:
+  Block
+  EmptyStatement
+  ExpressionStatement
+  ReturnStatement
+
+EmptyStatement:
+  ;
+
+ExpressionStatement:
+  StatementExpression ;
+
+StatementExpression:
+  Assignment
+  MethodInvocation
+  ClassInstanceCreationExpression
+
+IfThenStatement:
+  if ( Expression ) Statement
+
+IfThenElseStatement:
+  if ( Expression ) StatementNoShortIf else Statement
+
+IfThenElseStatementNoShortIf:
+  if ( Expression ) StatementNoShortIf else StatementNoShortIf
+
+WhileStatement:
+  while ( Expression ) Statement
+
+WhileStatementNoShortIf:
+  while ( Expression ) StatementNoShortIf
+
+ForStatement:
+  for ( ForInit? ; Expression? ; ForUpdate? )
+  Statement
+
+ForStatementNoShortIf:
+  for ( ForInit? ; Expression? ; ForUpdate? )
+  StatementNoShortIf
+
+# FIXME(joey): We probably do not want an expression list.
+ForInit:
+  StatementExpressionList
+  LocalVariableDeclaration
+
+ForUpdate:
+  StatementExpressionList
+
+StatementExpressionList:
+  StatementExpression
+  StatementExpressionList , StatementExpression
+
+ReturnStatement:
+  return Expression? ;
+
+Primary:
+  PrimaryNoNewArray
+  ArrayCreationExpression
+
+PrimaryNoNewArray:
+  Literal
+  # TODO(joey): we may not need to support this
+  this
+  ( Expression )
+  ClassInstanceCreationExpression
+  FieldAccess
+  MethodInvocation
+  ArrayAccess
+
+ClassInstanceCreationExpression:
+  new ClassType ( ArgumentList? )
+
+ArgumentList:
+  Expression
+  ArgumentList , Expression
+
+ArrayCreationExpression:
+  new PrimitiveType DimExprs Dims?
+  new ClassOrInterfaceType DimExprs Dims?
+
+DimExprs:
+  DimExpr
+  DimExprs DimExpr
+
+DimExpr:
+  [ Expression ]
+
+Dims:
+  [ ]
+  Dims [ ]
+
+FieldAccess:
+  Primary . Identifier
+  super . Identifier
+
+MethodInvocation:
+  Name ( ArgumentList? )
+  Primary . Identifier ( ArgumentList? )
+  super . Identifier ( ArgumentList? )
+
+ArrayAccess:
+  Name [ Expression ]
+  PrimaryNoNewArray [ Expression ]
+
+PostfixExpression:
+  Primary
+  Name
+
+UnaryExpression:
+  - UnaryExpression
+  UnaryExpressionNotPlusMinus
+
+UnaryExpressionNotPlusMinus:
+  PostfixExpression
+  ~ UnaryExpression
+  ! UnaryExpression
+  CastExpression
+
+CastExpression:
+  ( PrimitiveType Dims? ) UnaryExpression
+  ( Expression ) UnaryExpressionNotPlusMinus
+  ( Name Dims ) UnaryExpressionNotPlusMinus
+
+MultiplicativeExpression:
+  UnaryExpression
+  MultiplicativeExpression * UnaryExpression
+  MultiplicativeExpression / UnaryExpression
+  MultiplicativeExpression % UnaryExpression
+
+AdditiveExpression:
+  MultiplicativeExpression
+  AdditiveExpression + MultiplicativeExpression
+  AdditiveExpression - MultiplicativeExpression
+
+RelationalExpression:
+  AdditiveExpression
+  RelationalExpression < AdditiveExpression
+  RelationalExpression > AdditiveExpression
+  RelationalExpression <= AdditiveExpression
+  RelationalExpression >= AdditiveExpression
+  RelationalExpression instanceof ReferenceType
+
+EqualityExpression:
+  RelationalExpression
+  EqualityExpression == RelationalExpression
+  EqualityExpression != RelationalExpression
+
+AndExpression:
+  EqualityExpression
+  AndExpression & EqualityExpression
+
+ExclusiveOrExpression:
+  AndExpression
+  ExclusiveOrExpression ^ AndExpression
+
+InclusiveOrExpression:
+  ExclusiveOrExpression
+  InclusiveOrExpression | ExclusiveOrExpression
+
+ConditionalAndExpression:
+  InclusiveOrExpression
+  ConditionalAndExpression && InclusiveOrExpression
+
+ConditionalOrExpression:
+  ConditionalAndExpression
+  ConditionalOrExpression || ConditionalAndExpression
+
+ConditionalExpression:
+  ConditionalOrExpression
+  ConditionalOrExpression ? Expression : ConditionalExpression
+
+AssignmentExpression:
+  ConditionalExpression
+  Assignment
+
+Assignment:
+  LeftHandSide AssignmentOperator AssignmentExpression
+
+LeftHandSide:
+  Name
+  FieldAccess
+  ArrayAccess
+
+AssignmentOperator:
+  =
+
+Expression:
+  AssignmentExpression
+
+ConstantExpression:
+  Expression
