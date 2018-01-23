@@ -1,0 +1,13 @@
+name: orangejoos
+version: 0.1.0
+
+authors:
+  - slantin <slantinga95@gmail.com>
+
+targets:
+  orangejoos:
+    main: src/orangejoos.cr
+
+crystal: 0.24.1
+
+license: MIT

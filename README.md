@@ -1,5 +1,6 @@
 # orangejoos
 
+<<<<<<< HEAD
 A Joos1W compiler in Kotlin. Joos1W is a subset of Java 1.3.
 
 
@@ -49,3 +50,30 @@ tools/joos_scraper
 Java Specifications: Version 1 and Version 2.
 
 Modern Compiler Implementation in Java, Appel.
+=======
+TODO: Write a description here
+
+## Installation
+
+TODO: Write installation instructions here
+
+## Usage
+
+TODO: Write usage instructions here
+
+## Development
+
+TODO: Write development instructions here
+
+## Contributing
+
+1. Fork it ( https://github.com/[your-github-name]/orangejoos/fork )
+2. Create your feature branch (git checkout -b my-new-feature)
+3. Commit your changes (git commit -am 'Add some feature')
+4. Push to the branch (git push origin my-new-feature)
+5. Create a new Pull Request
+
+## Contributors
+
+- [[your-github-name]](https://github.com/[your-github-name]) slantin - creator, maintainer
+>>>>>>> 1fc7c80... crystal init
