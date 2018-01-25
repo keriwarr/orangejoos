@@ -2,8 +2,6 @@
 
 A compiler JOOS1W, written in the Crystal lang.
 
----
-
 ## Installation
 
 Install crystal. `brew install crystal-lang`.
