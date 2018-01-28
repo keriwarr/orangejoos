@@ -51,26 +51,26 @@ TOKENS=Separator: one of
 
 TOKENS=Operator: one of
   = > < ! ~
-  == <= >= != && ||
+  == <= >= != && || | &
   + - * / %
 
-TOKENS=BooleanLiteral: one of
+BooleanLiteral: one of
   true false
 
-TOKENS=NullLiteral: one of
+NullLiteral:
   null
 
 CharacterLiteral:
-  LEXEME(CHAR)
+  LEXEME(CharacterLiteral)
 
 IntegerLiteral:
-  LEXEME(NUM)
+  LEXEME(NumberLiteral)
 
 StringLiteral:
-  LEXEME(STRING)
+  LEXEME(StringLiteral)
 
 Identifier:
-  LEXEME(IDENT)
+  LEXEME(Identifier)
 
 # The following rules are production rules. They are all from Ch. 19
 # with some rules omittedwhich are not supported by Joos1W
@@ -473,13 +473,9 @@ AndExpression:
   EqualityExpression
   AndExpression & EqualityExpression
 
-ExclusiveOrExpression:
-  AndExpression
-  ExclusiveOrExpression ^ AndExpression
-
 InclusiveOrExpression:
-  ExclusiveOrExpression
-  InclusiveOrExpression | ExclusiveOrExpression
+  AndExpression
+  InclusiveOrExpression | AndExpression
 
 ConditionalAndExpression:
   InclusiveOrExpression
@@ -489,12 +485,8 @@ ConditionalOrExpression:
   ConditionalAndExpression
   ConditionalOrExpression || ConditionalAndExpression
 
-ConditionalExpression:
-  ConditionalOrExpression
-  ConditionalOrExpression ? Expression : ConditionalExpression
-
 AssignmentExpression:
-  ConditionalExpression
+  ConditionalOrExpression
   Assignment
 
 Assignment:
