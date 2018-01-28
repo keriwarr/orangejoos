@@ -84,8 +84,11 @@ class Lexeme(object):
         return "<Lexeme typ=%s ln=%d sem=%s>" % (self.typ, self.ln, self.sem)
 
 
-OP = lambda op, ln: Lexeme('OP', ln, op)
-SEP = lambda sep: Lexeme('SEP', 1, sep)
+def OP(op, ln): return Lexeme('Operator', ln, op)
+
+
+def SEP(sep): return Lexeme('Separator', 1, sep)
+
 
 # Operators
 ASSIGN = OP('=', 1)
@@ -114,15 +117,16 @@ RBRACE = SEP('}')
 LBRACK = SEP('[')
 RBRACK = SEP(']')
 
-SEMICOL = Lexeme('SEMICOL', 1)
-DOT = Lexeme('DOT', 1)
-COMMA = Lexeme('COMMA', 1)
+SEMICOL = Lexeme('Separator', 1, ';')
+DOT = Lexeme('Separator', 1, '.')
+COMMA = Lexeme('Separator', 1, ',')
 
 
-def KEYWORD(word): return Lexeme('KEYWORD', len(word), word)
+def KEYWORD(word): return Lexeme('Keyword', len(word), word)
+
 
 # Identifier
-IDENT = lambda word: Lexeme('IDENT', len(word), word)
+def IDENT(word): return Lexeme('Identifier', len(word), word)
 
 # String
 
@@ -135,7 +139,7 @@ def STRING(word, ln=None):
     """
     if ln is None:
         ln = len(word)
-    return Lexeme('STRING', ln, word)
+    return Lexeme('StringLiteral', ln, word)
 
 
 def CHAR(word, ln=1):
@@ -144,13 +148,13 @@ def CHAR(word, ln=1):
     escape characters as they are only one char in the string but two in
     source code.
     """
-    return Lexeme('CHAR', ln, word)
+    return Lexeme('CharLiteral', ln, word)
 
 
 # Number
 
 
-def NUM(val, ln): return Lexeme('NUM', ln, val)
+def NUM(val, ln): return Lexeme('NumberLiteral', ln, val)
 
 
 class Scanner(object):
@@ -277,13 +281,13 @@ class Scanner(object):
         elif self._peek() == ')':
             return RPAREN
         elif self._peek() == '[':
-            return LBRACE
-        elif self._peek() == ']':
-            return RBRACE
-        elif self._peek() == '{':
             return LBRACK
-        elif self._peek() == '}':
+        elif self._peek() == ']':
             return RBRACK
+        elif self._peek() == '{':
+            return LBRACE
+        elif self._peek() == '}':
+            return RBRACE
         elif self._peek() == ';':
             return SEMICOL
         elif self._peek() == ',':
@@ -359,7 +363,6 @@ class Scanner(object):
                 return CHAR(string, len(string) + escaped_chars + 2)
             return STRING(string, len(string) + escaped_chars + 2)
 
-
         return Lexeme('BAD', 1, self._peek())
 
 
@@ -373,7 +376,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     input_file = sys.argv[1]
-    print("Reading %s" % input_file)
+    # print("Reading %s" % input_file)
     lines = None
     with open(input_file, 'r') as file:
         lines = file.readlines()
@@ -384,8 +387,10 @@ if __name__ == '__main__':
     for lexeme in lexemes:
         if lexeme.typ == 'BAD':
             print("=== BAD ===")
-            print(lexemes)
+            # print(lexemes)
             sys.exit(42)
 
     # print("=== DONE ===")
+    for lex in lexemes:
+        print("%s %d %s" % (lex.typ, lex.ln, lex.sem))
     # print(lexemes)
