@@ -1,3 +1,10 @@
 /doc/
 /bin/
 /.shards/
+
+# Java
+
+*.class
+
+# Python
+*.pyc
