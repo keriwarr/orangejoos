@@ -355,12 +355,10 @@ WhileStatementNoShortIf:
   while ( Expression ) StatementNoShortIf
 
 ForStatement:
-  for ( ForInit? ; Expression? ; ForUpdate? )
-  Statement
+  for ( ForInit? ; Expression? ; ForUpdate? ) Statement
 
 ForStatementNoShortIf:
-  for ( ForInit? ; Expression? ; ForUpdate? )
-  StatementNoShortIf
+  for ( ForInit? ; Expression? ; ForUpdate? ) StatementNoShortIf
 
 # FIXME(joey): We probably do not want an expression list.
 ForInit:
