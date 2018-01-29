@@ -1,42 +1,60 @@
+# Type are the categories of Lexemes.
 enum Type
+  # Keywords are reserved identifiers that have a specific
+  # meaning to the language. For example, "for", "private", ...
   Keyword
+  # Identifiers are words that refer to items such as class names,
+  # package names, variables, and more.
   Identifier
+  # Separators is a bucket for tokens which cause separation. This
+  # includes the typical brackets along with dots, semicolons, and commas.
   Separator
+  # Operators are all unary or binary operators, including assignment.
   Operator
+  # Number literals are integers.
   NumberLiteral
+  # Character literals are single letter literals.
   CharacterLiteral
+  # String literals...
   StringLiteral
 
   Bad
 end
 
-OpEQ     = "=="
-OpASSIGN = "="
-OpNEQ    = "!="
-OpNOT    = "!"
-OpADD    = "+"
-OpSUB    = "-"
-OpMULT   = "*"
-OpDIV    = "/"
-OpMOD    = "%"
-OpLEQ    = "<="
-OpLT     = "<"
-OpGEQ    = ">="
-OpGT     = ">"
-OpAND    = "&&"
-OpEAND   = "&"
-OpOR     = "||"
-OpEOR    = "|"
+# Operators are all of the supported operators.
+module Operator
+  EQ     = "=="
+  ASSIGN = "="
+  NEQ    = "!="
+  NOT    = "!"
+  ADD    = "+"
+  SUB    = "-"
+  MULT   = "*"
+  DIV    = "/"
+  MOD    = "%"
+  LEQ    = "<="
+  LT     = "<"
+  GEQ    = ">="
+  GT     = ">"
+  AND    = "&&"
+  OR     = "||"
+  # EAND is an eager AND.
+  EAND = "&"
+  # EOR is an eager OR.
+  EOR = "|"
+end
 
-LPAREN  = "("
-RPAREN  = ")"
-LBRACK  = "["
-RBRACK  = "]"
-LBRACE  = "{"
-RBRACE  = "}"
-SEMICOL = ";"
-COMMA   = ","
-DOT     = "."
+module Separator
+  LPAREN  = "("
+  RPAREN  = ")"
+  LBRACK  = "["
+  RBRACK  = "]"
+  LBRACE  = "{"
+  RBRACE  = "}"
+  SEMICOL = ";"
+  COMMA   = ","
+  DOT     = "."
+end
 
 BOOL_LITERALS = Set{
   "true",

@@ -70,74 +70,74 @@ class Scanner
     when '='
       case self.peek(1)
       # ==
-      when '=' then return Lexeme.new(Type::Operator, 2, OpEQ)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::EQ)
         # =
-      else return Lexeme.new(Type::Operator, 1, OpASSIGN)
+      else return Lexeme.new(Type::Operator, 1, Operator::ASSIGN)
       end
     when '!'
       case self.peek(1)
       # !=
-      when '=' then return Lexeme.new(Type::Operator, 2, OpNEQ)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::NEQ)
         # !
-      else return Lexeme.new(Type::Operator, 1, OpNOT)
+      else return Lexeme.new(Type::Operator, 1, Operator::NOT)
       end
       # +
-    when '+' then return Lexeme.new(Type::Operator, 1, OpADD)
+    when '+' then return Lexeme.new(Type::Operator, 1, Operator::ADD)
       # -
-    when '-' then return Lexeme.new(Type::Operator, 1, OpSUB)
+    when '-' then return Lexeme.new(Type::Operator, 1, Operator::SUB)
       # *
-    when '*' then return Lexeme.new(Type::Operator, 1, OpMULT)
+    when '*' then return Lexeme.new(Type::Operator, 1, Operator::MULT)
       # /
-    when '/' then return Lexeme.new(Type::Operator, 1, OpDIV)
+    when '/' then return Lexeme.new(Type::Operator, 1, Operator::DIV)
       # %
-    when '%' then return Lexeme.new(Type::Operator, 1, OpMOD)
+    when '%' then return Lexeme.new(Type::Operator, 1, Operator::MOD)
     when '<'
       case self.peek(1)
       # <=
-      when '=' then return Lexeme.new(Type::Operator, 2, OpLEQ)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::LEQ)
         # <
-      else return Lexeme.new(Type::Operator, 1, OpLT)
+      else return Lexeme.new(Type::Operator, 1, Operator::LT)
       end
     when '>'
       case self.peek(1)
       # >=
-      when '=' then return Lexeme.new(Type::Operator, 2, OpGEQ)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::GEQ)
         # >
-      else return Lexeme.new(Type::Operator, 1, OpGT)
+      else return Lexeme.new(Type::Operator, 1, Operator::GT)
       end
     when '&'
       case self.peek(1)
       # &&
-      when '&' then return Lexeme.new(Type::Operator, 2, OpAND)
+      when '&' then return Lexeme.new(Type::Operator, 2, Operator::AND)
         # &
-      else return Lexeme.new(Type::Operator, 1, OpEAND)
+      else return Lexeme.new(Type::Operator, 1, Operator::EAND)
       end
     when '|'
       case self.peek(1)
       # ||
-      when '|' then return Lexeme.new(Type::Operator, 2, OpOR)
+      when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR)
         # |
-      else return Lexeme.new(Type::Operator, 1, OpEOR)
+      else return Lexeme.new(Type::Operator, 1, Operator::EOR)
       end
       # === Separators ===
       # (
-    when '(' then return Lexeme.new(Type::Separator, 1, LPAREN)
+    when '(' then return Lexeme.new(Type::Separator, 1, Separator::LPAREN)
       # )
-    when ')' then return Lexeme.new(Type::Separator, 1, RPAREN)
+    when ')' then return Lexeme.new(Type::Separator, 1, Separator::RPAREN)
       # [
-    when '[' then return Lexeme.new(Type::Separator, 1, LBRACK)
+    when '[' then return Lexeme.new(Type::Separator, 1, Separator::LBRACK)
       # ]
-    when ']' then return Lexeme.new(Type::Separator, 1, RBRACK)
+    when ']' then return Lexeme.new(Type::Separator, 1, Separator::RBRACK)
       # {
-    when '{' then return Lexeme.new(Type::Separator, 1, LBRACE)
+    when '{' then return Lexeme.new(Type::Separator, 1, Separator::LBRACE)
       # }
-    when '}' then return Lexeme.new(Type::Separator, 1, RBRACE)
+    when '}' then return Lexeme.new(Type::Separator, 1, Separator::RBRACE)
       # ;
-    when ';' then return Lexeme.new(Type::Separator, 1, SEMICOL)
+    when ';' then return Lexeme.new(Type::Separator, 1, Separator::SEMICOL)
       # ,
-    when ',' then return Lexeme.new(Type::Separator, 1, COMMA)
+    when ',' then return Lexeme.new(Type::Separator, 1, Separator::COMMA)
       # .
-    when '.' then return Lexeme.new(Type::Separator, 1, DOT)
+    when '.' then return Lexeme.new(Type::Separator, 1, Separator::DOT)
       # === Identifiers and keywords ===
     when .ascii_letter?
       word = ""
