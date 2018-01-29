@@ -108,6 +108,11 @@ KEYWORDS = Set{
 abstract class ParseNode
   # Generates a pretty printable string representation of the ParseNode.
   abstract def pprint(depth : Int32)
+
+  # Gets the parse token representation of a node, as it appears in the
+  # prediction table. This is used during the parse stage for prediction
+  # table lookups.
+  abstract def parse_token : String
 end
 
 # A Lexeme is an individual token. Lexemes are produced during the
@@ -129,6 +134,25 @@ class Lexeme < ParseNode
   def initialize(@typ : Type, @size : Int32, @sem : String)
   end
 
+  # Implements `ParseNode.parse_token()`.
+  # Fetches the parse token string. It is one of:
+  # - Literal or identifier, where the semantic definition is not
+  #   required. Denoted with "LEXEME(Type)".
+  # - Terminal tokens. e.g. a keyword, "else", or an operator "+"
+  def parse_token
+    case @typ
+    when Type::Identifier       then "LEXEME(Identifier)"
+    when Type::Keyword          then @sem
+    when Type::Operator         then @sem
+    when Type::Separator        then @sem
+    when Type::NumberLiteral    then "LEXEME(NumberLiteral)"
+    when Type::StringLiteral    then "LEXEME(StringLiteral)"
+    when Type::CharacterLiteral then "LEXEME(CharacterLiteral)"
+      # ??, all other types which should be none of them.
+    else @sem
+    end
+  end
+
   def to_s
     # TODO(joey): Handle cases for literals. Ideally, the case
     # statements in Parser.parse are moved to an abstract fcn on
@@ -136,7 +160,7 @@ class Lexeme < ParseNode
     @sem
   end
 
-  # Implements ParseNode.pprint.
+  # Implements `ParseNode.pprint()`.
   def pprint(depth : Int32 = 0)
     indent = "  " * depth
     return "#{indent}#{@typ} #{@size} #{@sem}"

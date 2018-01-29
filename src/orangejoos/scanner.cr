@@ -1,12 +1,10 @@
 require "./lexeme.cr"
+require "./compiler_errors.cr"
 
-class ScanningError < Exception
-end
-
-# Scanner scans the input from a program and produces lexemes.
-#
+# The Scanner scans the input from a program and produces lexemes.
 # All valid tokens are enumerated as a switch case in scan_lexeme().
-#
+# The switch case represents multiple regular languages for each type of
+# token, converted to a switch case.
 class Scanner
   # Scanner takes the input, an array of bytes to break it into tokens.
   def initialize(@input : Array(Char))
@@ -15,16 +13,17 @@ class Scanner
     @lexemes = Array(Lexeme).new
   end
 
-  # scan() takes the input, an array of bytes, and breaks it into tokens.
-  # throws an UnscannableException if the input cannot be successfully scanned.
-  # or something like that
+  # Generates tokens from an input string.
+  #
+  # Raises `ScanningStageError` if the input cannot be successfully
+  # scanned.
   def scan
     self.skip_whitespace
     while @input.size > 0
       begin
         lexeme = self.scan_lexeme
       rescue
-        raise ScanningError.new(@lexemes.to_s)
+        raise ScanningStageError.new(@lexemes.to_s)
       end
       @lexemes.push(lexeme)
       self.proceed(lexeme)
@@ -40,30 +39,45 @@ class Scanner
     end
   end
 
-  def peek(i : Number)
+  # Peeks i characters ahead in the input.
+  # FIXME(joey): Does not handle EOFs well. This may break on badly on
+  # bad input, but that will end up with a ScanningStageError.
+  def peek(i : Int32)
     return @input[i]
   end
 
+  # Gets the escaped character code point represented by a character.
   def get_escaped_char(ch : Char)
     case ch
-    # backspace BS
+    # backspace BS.
     when 'b' then return '\b'
-      # horizontal tab HT
+      # horizontal tab HT.
     when 't' then return '\t'
-      # linefeed LF
+      # linefeed LF.
     when 'n' then return '\n'
-      # form feed FF
+      # form feed FF.
     when 'f' then return '\f'
-      # carriage return CR
-    when 'r'            then return '\r'
-    when '\\'           then return '\\'
-    when '"'            then return '"'
-    when '\''           then return '\''
+      # carriage return CR.
+    when 'r' then return '\r'
+      # escaped slash.
+    when '\\' then return '\\'
+      # escaped quote.
+    when '"' then return '"'
+      # escaped single quote.
+    when '\'' then return '\''
+      # escaped 0-9 code points.
     when .ascii_number? then return ch.to_i.chr
-    else                     return nil
+      # nil represents a failure.
+    else return nil
     end
   end
 
+  # Move forward in the input by the lexeme.
+  def proceed(lexeme : Lexeme)
+    @input = @input[lexeme.size, @input.size]
+  end
+
+  # Produces a lexeme for the input.
   def scan_lexeme
     case self.peek(0)
     # === Operators ===
@@ -216,10 +230,5 @@ class Scanner
       # === No lexeme matched ===
     end
     return Lexeme.new(Type::Bad, 1, self.peek(0).to_s)
-  end
-
-  def proceed(lexeme : Lexeme)
-    # Remove the first lexeme.length items.
-    @input = @input[lexeme.size, @input.size]
   end
 end

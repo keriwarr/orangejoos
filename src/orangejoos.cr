@@ -28,7 +28,7 @@ when "scan"
     contents = File.read(file)
     begin
       results = Scanner.new(contents.chars).scan
-    rescue ex : ScanningError
+    rescue ex : ScanningStageError
       puts "Failed to parse with exception: #{ex}"
       exit 42
     end
@@ -120,7 +120,7 @@ when "parse"
     contents = File.read(file)
     begin
       results = Scanner.new(contents.chars).scan
-    rescue ex : ScanningError
+    rescue ex : ScanningStageError
       puts "Failed to parse with exception: #{ex}"
       exit 42
     end

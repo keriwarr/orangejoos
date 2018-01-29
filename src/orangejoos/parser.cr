@@ -1,6 +1,11 @@
 require "./lexeme.cr"
+require "./compiler_errors.cr"
 require "./lalr1_table.cr"
 
+# A ParseTree is a parse node that represents a non-terminal rule.
+# It consists of a list of *tokens* that are the RHS of the rule.
+# TODO(joey): Move the parse tree into a separate file to split out
+# dependencies.
 class ParseTree < ParseNode
   @tokens : Array(ParseNode)
   getter name : String
@@ -12,6 +17,12 @@ class ParseTree < ParseNode
     @tokens = Array(ParseNode).new(token)
   end
 
+  # Implements `ParseNode.parse_token()`.
+  def parse_token
+    @name
+  end
+
+  # Implements `ParseNode.pprint()`.
   def pprint(depth : Int32 = 0)
     indent = "  " * depth
     children = @tokens.map { |tok| tok.pprint(depth + 1) }.join("\n")
@@ -19,6 +30,10 @@ class ParseTree < ParseNode
   end
 end
 
+# The Parser takes *input*, a list of lexemes, and produces the parse
+# tree. It checks for the correct syntantical structure of the code
+# during `parse()`. If the input does not conform, a SyntaxStageError is
+# produced.
 class Parser
   @state : Int32
 
@@ -34,6 +49,7 @@ class Parser
     @state_stack = Deque(Int32).new
   end
 
+  # Generates a parse tree from the input the parser was provided.
   def parse
     lookahead = nil
     while lookahead != nil || @input.size > 0
@@ -44,28 +60,9 @@ class Parser
         @input.shift
       end
 
-      # Get the lookahead string of the parse token. It is one of:
-      # - Literal (denoted with LEXEME(LiteralType))
-      # - Terminal token name. e.g. a keyword, "else", or an operator "+"
-      # - A parse node, resulting from a reduce step of parsing.
-      if lookahead.is_a?(ParseTree)
-        lookahead_str = lookahead.name
-      elsif lookahead.is_a?(Lexeme)
-        lookahead_str = case lookahead.typ
-                        when Type::Identifier       then "LEXEME(Identifier)"
-                        when Type::Keyword          then lookahead.sem
-                        when Type::NumberLiteral    then "LEXEME(NumberLiteral)"
-                        when Type::StringLiteral    then "LEXEME(StringLiteral)"
-                        when Type::CharacterLiteral then "LEXEME(CharacterLiteral)"
-                          # ??
-                        else lookahead.sem
-                        end
-      else
-        raise Exception.new("Unexpected")
-        lookahead_str = ""
-      end
+      # Do a lookup in the prediction table with {State, ParseToken}.
+      action = @table.get_next_action(@state, lookahead.parse_token)
 
-      action = @table.get_next_action(@state, lookahead_str)
       # Do either a reduce or a shift.
       #
       # For shift: take the lookahead and "read" it and then put it

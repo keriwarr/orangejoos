@@ -39,6 +39,8 @@ end
 # The LALR1Table is initialized from reading the lr1 parse table
 # generated from the CS444 code. This class provides interfaces for
 # using the prediction table, via. `get_rule` and `get_next_action`.
+# See the following reference for the format of the table file:
+#   https://www.student.cs.uwaterloo.ca/~cs444/jlalr/lr1.html
 class LALR1Table
   getter start : String
   @start : String
