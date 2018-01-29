@@ -80,16 +80,30 @@ KEYWORDS = Set{
   "return",
   "for",
 
-  # ???
+  # Misc.
   "import",
   "instanceof",
 }
 
-abstract class ParseTree
+# A ParseNode is an abstract type for nodes that are operated on during
+# the parse stage.
+abstract class ParseNode
+  # Generates a pretty printable string representation of the ParseNode.
   abstract def pprint(depth : Int32)
 end
 
-class Lexeme < ParseTree
+# A Lexeme is an individual token. Lexemes are produced during the
+# scanning phase and are used during parsing. A Lexeme is a ParseNode,
+# representing the leafs of the parse tree.
+#
+# - The *typ* of a Lexeme represents the token category (refer to Type).
+# - The *size* of a Lexeme represents the size of the Lexeme in source
+#   code. For string or character literals the size will be larger than
+#   the body of the token due to surrounding quotes and escaped
+#   charaters.
+# - The *sem* is the semantic body of the token. It is the scanned
+#   content.
+class Lexeme < ParseNode
   getter typ : Type
   getter size : Int32
   getter sem : String
@@ -98,10 +112,13 @@ class Lexeme < ParseTree
   end
 
   def to_s
-    # FIXME(joey): Handle cases for literals.
+    # TODO(joey): Handle cases for literals. Ideally, the case
+    # statements in Parser.parse are moved to an abstract fcn on
+    # ParseNode.
     @sem
   end
 
+  # Implements ParseNode.pprint.
   def pprint(depth : Int32 = 0)
     indent = "  " * depth
     return "#{indent}#{@typ} #{@size} #{@sem}"

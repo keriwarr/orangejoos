@@ -1,15 +1,15 @@
 require "./lexeme.cr"
 require "./lalr1_table.cr"
 
-class ParseNode < ParseTree
-  @tokens : Array(ParseTree)
+class ParseTree < ParseNode
+  @tokens : Array(ParseNode)
   getter name : String
 
-  def initialize(@name : String, @tokens : Array(ParseTree))
+  def initialize(@name : String, @tokens : Array(ParseNode))
   end
 
-  def initialize(@name : String, token : ParseTree)
-    @tokens = Array(ParseTree).new(token)
+  def initialize(@name : String, token : ParseNode)
+    @tokens = Array(ParseNode).new(token)
   end
 
   def pprint(depth : Int32 = 0)
@@ -24,11 +24,11 @@ class Parser
 
   def initialize(@table : LALR1Table, input : Array(Lexeme))
     # Transform the input into a deque, to allow peeking (via. push_to_front)
-    @input = Deque(ParseTree).new(input)
+    @input = Deque(ParseNode).new(input)
     # The state always begins at 0.
     @state = 0
     # Stack of tokens.
-    @stack = Deque(ParseTree).new
+    @stack = Deque(ParseNode).new
     # Stack of the state for each token.
     # FIXME(joey): Make the stack of tuples.
     @state_stack = Deque(Int32).new
@@ -48,7 +48,7 @@ class Parser
       # - Literal (denoted with LEXEME(LiteralType))
       # - Terminal token name. e.g. a keyword, "else", or an operator "+"
       # - A parse node, resulting from a reduce step of parsing.
-      if lookahead.is_a?(ParseNode)
+      if lookahead.is_a?(ParseTree)
         lookahead_str = lookahead.name
       elsif lookahead.is_a?(Lexeme)
         lookahead_str = case lookahead.typ
@@ -91,7 +91,7 @@ class Parser
         # Recover the state of the latest item on the stack along with
         # reducing items off the stack.
         tokens = (0...rule.reduce_size).map { |tree| @state = @state_stack.pop; @stack.pop }
-        node = ParseNode.new(rule.lhs, tokens)
+        node = ParseTree.new(rule.lhs, tokens)
 
         # puts "Rule ##{action.state}, reduce size #{rule.reduce_size}: #{rule.to_s}"
         # puts "Tokens #{tokens}"

@@ -1,8 +1,11 @@
+# An ActionType is a prediction table action.
 enum ActionType
   Reduce
   Shift
 end
 
+# An Action represents the prediction table action, which is an NFA
+# transition.
 class Action
   getter typ : ActionType
   getter state : Int32
@@ -15,6 +18,8 @@ class Action
   end
 end
 
+# A Rule is a production rule from a non-terminal to a list of terminals
+# and non-terminals.
 class Rule
   getter lhs : String
   getter rhs : String
@@ -31,6 +36,9 @@ class Rule
   end
 end
 
+# The LALR1Table is initialized from reading the lr1 parse table
+# generated from the CS444 code. This class provides interfaces for
+# using the prediction table, via. `get_rule` and `get_next_action`.
 class LALR1Table
   getter start : String
   @start : String
@@ -86,15 +94,21 @@ class LALR1Table
     end
     @input = @input[2 + transitions_count, @input.size]
 
+    # If there is remaining input then something went wrong with either
+    # reading the table data, or the generation of the table data.
     if @input.size > 0
       raise Exception.new("ERROR: remaining input on table, #{@input.size} lines: #{@input}")
     end
   end
 
+  # Fetches the rule for an index. When doing reduction actions a rule
+  # will be fetched.
   def get_rule(idx : Int32)
     @rules[idx]
   end
 
+  # Fetches the next action given the current state and the lookahead.
+  # This simply does a lookup in the prediction table.
   def get_next_action(state : Int32, lookahead : String)
     key = Tuple(Int32, String).new(state, lookahead)
     return @transitions.fetch(key)
