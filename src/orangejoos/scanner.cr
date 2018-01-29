@@ -9,10 +9,9 @@ end
 #
 class Scanner
   # Scanner takes the input, an array of bytes to break it into tokens.
-  def initialize(input : Array(Char))
+  def initialize(@input : Array(Char))
     # TODO(joey): Might be worth looking into StringScanner for
     # cool-ness (and speed?).
-    @input = input
     @lexemes = Array(Lexeme).new
   end
 

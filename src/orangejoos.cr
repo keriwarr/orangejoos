@@ -134,7 +134,9 @@ when "parse"
       end
     end
 
-    parse_tree = Parser.new(table, results).parse
+    parse_trees = Parser.new(table, results).parse
+    parse_trees.each { |tree| puts tree.pprint }
+    # puts parse_tree.pprint
   end
 else
   puts "Usage: orangejoos [command]

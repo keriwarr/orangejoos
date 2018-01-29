@@ -3,6 +3,7 @@ require "./lalr1_table.cr"
 
 class ParseNode < ParseTree
   @tokens : Array(ParseTree)
+  getter name : String
 
   def initialize(@name : String, @tokens : Array(ParseTree))
   end
@@ -11,8 +12,10 @@ class ParseNode < ParseTree
     @tokens = Array(ParseTree).new(token)
   end
 
-  def name
-    @name
+  def pprint(depth : Int32 = 0)
+    indent = "  " * depth
+    children = @tokens.map { |tok| tok.pprint(depth + 1) }.join("\n")
+    return "#{indent}#{@name}\n#{children}"
   end
 end
 
@@ -59,7 +62,7 @@ class Parser
       end
 
       action = @table.get_next_action(@state, lookahead_str)
-      puts "For {#{@state}, \"#{lookahead.to_s}\"} got action=#{action.to_s}"
+      # puts "For {#{@state}, \"#{lookahead.to_s}\"} got action=#{action.to_s}"
       if action.typ == ActionType::Shift
         @stack.push(lookahead)
         @state_stack.push(@state)
@@ -75,13 +78,16 @@ class Parser
         node = ParseNode.new(rule.lhs, tokens)
         @stack.push(node)
 
-        puts "Rule ##{action.state}, reduce size #{rule.reduce_size}: #{rule.to_s}"
-        puts "Tokens #{tokens}"
+        # puts "Rule ##{action.state}, reduce size #{rule.reduce_size}: #{rule.to_s}"
+        # puts "Tokens #{tokens}"
         lookahead = node
       end
     end
-    puts "Stack: #{@stack}"
-    puts "State: #{@state}"
-    puts "Input: #{@input}"
+
+    # puts "Stack: #{@stack}"
+    # puts "State: #{@state}"
+    # puts "Input: #{@input}"
+    # puts @stack.size
+    return @stack.to_a
   end
 end

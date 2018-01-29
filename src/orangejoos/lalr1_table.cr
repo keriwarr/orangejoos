@@ -4,32 +4,22 @@ enum ActionType
 end
 
 class Action
-  def initialize(@typ : ActionType, @next_state : Int32)
-  end
+  getter typ : ActionType
+  getter state : Int32
 
-  def typ
-    @typ
-  end
-
-  def state
-    @next_state
+  def initialize(@typ : ActionType, @state : Int32)
   end
 
   def to_s
-    return "#{@typ} #{@next_state}"
+    return "#{@typ} #{@state}"
   end
 end
 
 class Rule
+  getter lhs : String
+  getter rhs : String
+
   def initialize(@lhs : String, @rhs : String)
-  end
-
-  def lhs
-    @lhs
-  end
-
-  def rhs
-    @rhs
   end
 
   def reduce_size
@@ -42,6 +32,7 @@ class Rule
 end
 
 class LALR1Table
+  getter start : String
   @start : String
 
   def initialize(@input : Array(String))
@@ -98,10 +89,6 @@ class LALR1Table
     if @input.size > 0
       raise Exception.new("ERROR: remaining input on table, #{@input.size} lines: #{@input}")
     end
-  end
-
-  def start
-    return @start
   end
 
   def get_rule(idx : Int32)

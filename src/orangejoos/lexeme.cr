@@ -85,26 +85,16 @@ KEYWORDS = Set{
   "instanceof",
 }
 
-class ParseTree
+abstract class ParseTree
+  abstract def pprint(depth : Int32)
 end
 
 class Lexeme < ParseTree
-  def initialize(typ : Type, len : Int32, sem : String)
-    @typ = typ
-    @len = len
-    @sem = sem
-  end
+  getter typ : Type
+  getter size : Int32
+  getter sem : String
 
-  def size
-    @len
-  end
-
-  def typ
-    @typ
-  end
-
-  def sem
-    @sem
+  def initialize(@typ : Type, @size : Int32, @sem : String)
   end
 
   def to_s
@@ -112,7 +102,8 @@ class Lexeme < ParseTree
     @sem
   end
 
-  def pprint
-    return "#{@typ} #{@len} #{@sem}"
+  def pprint(depth : Int32 = 0)
+    indent = "  " * depth
+    return "#{indent}#{@typ} #{@size} #{@sem}"
   end
 end
