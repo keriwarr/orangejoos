@@ -4,7 +4,7 @@ enum Type
   Separator
   Operator
   NumberLiteral
-  CharLiteral
+  CharacterLiteral
   StringLiteral
 
   Bad
@@ -28,7 +28,6 @@ OpEAND   = "&"
 OpOR     = "||"
 OpEOR    = "|"
 
-# TODO(joey): Not sure if brace and bracket are the correct names.
 LPAREN  = "("
 RPAREN  = ")"
 LBRACK  = "["
@@ -86,7 +85,10 @@ KEYWORDS = Set{
   "instanceof",
 }
 
-class Lexeme
+class ParseTree
+end
+
+class Lexeme < ParseTree
   def initialize(typ : Type, len : Int32, sem : String)
     @typ = typ
     @len = len
@@ -101,7 +103,16 @@ class Lexeme
     @typ
   end
 
+  def sem
+    @sem
+  end
+
   def to_s
+    # FIXME(joey): Handle cases for literals.
+    @sem
+  end
+
+  def pprint
     return "#{@typ} #{@len} #{@sem}"
   end
 end

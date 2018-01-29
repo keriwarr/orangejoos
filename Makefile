@@ -2,6 +2,7 @@
 CRYSTAL_SRCS := $(find src -name '*.cr')
 JLALR_SRCS := $(find tools/jlalr -name '*.java')
 
+.PHONY: orangejoos
 orangejoos: ## orangejoos is the general compiler.
 orangejoos: $(CRYSTAL_SRCS)
 	crystal build ./src/orangejoos.cr

@@ -34,8 +34,8 @@ TODO: Write usage instructions here
   the CFG file.
 - [ ] Read in the prediction table into the compiler.
 - [ ] Parse a list of tokens using the prediction table. Refer to the
-  Compilers textbook for an algorithm for a top-down (or bottom-up??)
-  parsing with a prediction table with a stack.
+  Compilers textbook for an algorithm for a bottom-up
+  parsing with a prediction table and a stack.
 - [ ] Add syntatical analysis not included in the grammar. For example:
   - Checking for permitted valid modifiers on fields or methods.
   - Checking the existance of a main function.

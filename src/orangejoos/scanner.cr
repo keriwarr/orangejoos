@@ -211,7 +211,7 @@ class Scanner
       # Ensure quotation characters and escaped characters are
       # included in the lexeme size.
       if quote_typ == '\''
-        return Lexeme.new(Type::CharLiteral, str.size + escaped_chars + 2, str)
+        return Lexeme.new(Type::CharacterLiteral, str.size + escaped_chars + 2, str)
       end
       return Lexeme.new(Type::StringLiteral, str.size + escaped_chars + 2, str)
       # === No lexeme matched ===
