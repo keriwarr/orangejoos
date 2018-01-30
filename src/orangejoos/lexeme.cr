@@ -17,6 +17,8 @@ enum Type
   CharacterLiteral
   # String literals...
   StringLiteral
+  # EOF is a special type to denote the end-of-file during parsing.
+  EOF
 
   Bad
 end
@@ -141,7 +143,10 @@ class Lexeme < ParseNode
   # - Terminal tokens. e.g. a keyword, "else", or an operator "+"
   def parse_token
     case @typ
-    when Type::Identifier       then "LEXEME(Identifier)"
+    when Type::Identifier then "LEXEME(Identifier)"
+      # EOF is able to be represented as "EOF" as this does not conflict
+      # with any other rules.
+    when Type::EOF              then "EOF"
     when Type::Keyword          then @sem
     when Type::Operator         then @sem
     when Type::Separator        then @sem

@@ -45,7 +45,7 @@ class Parser
     # Transform the input into a deque, to allow peeking (via. push_to_front)
     @input = Deque(ParseNode).new(input)
     # Push a trailing EOF keyword for parsing.
-    @input.push(Lexeme.new(Type::Keyword, 3, "EOF"))
+    @input.push(Lexeme.new(Type::EOF, 0, ""))
     # The state always begins at 0.
     @state = 0
     # Stack of tokens.
