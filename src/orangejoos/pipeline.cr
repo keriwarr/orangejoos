@@ -1,20 +1,20 @@
-class SourceFile
-  property tokens : Array(Lexeme)
-  property parse_tree : ParseTree
+require "./lexeme.cr"
+require "./lalr1_table.cr"
+require "./parse_tree.cr"
 
-  getter path : String
-  getter contents : String
+class SourceFile
+  property! tokens : Array(Lexeme)
+  property! parse_tree : ParseTree
+
+  getter! path : String
+  getter! contents : String
 
   def initialize(@path : String)
-    # Welp, these are needed to squelch non-initialized errors.
-    @tokens = [] of Lexeme
-    @parse_tree = uninitialized ParseTree
-    @contents = ""
   end
 
   def read!
-    @contents = File.read(@path)
-    return @contents
+    @contents = File.read(path)
+    return contents
   end
 end
 
