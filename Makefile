@@ -10,7 +10,6 @@ orangejoos: $(CRYSTAL_SRCS)
 jlalr1: ## JLALR1 is the LALR(1) prediction table generated, provided by CS444.
 jlalr1: $(JLALR_SRCS)
 	javac ./tools/jlalr/Jlalr1.java
-	java -cp ./tools/ jlalr.Jlalr1
 
 .PHONY: clean
 clean:

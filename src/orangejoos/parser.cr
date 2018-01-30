@@ -28,6 +28,10 @@ class ParseTree < ParseNode
     children = @tokens.map { |tok| tok.pprint(depth + 1) }.join("\n")
     return "#{indent}#{@name}\n#{children}"
   end
+
+  def to_s
+    return "#{@name}"
+  end
 end
 
 # The Parser takes *input*, a list of lexemes, and produces the parse
@@ -40,6 +44,8 @@ class Parser
   def initialize(@table : LALR1Table, input : Array(Lexeme))
     # Transform the input into a deque, to allow peeking (via. push_to_front)
     @input = Deque(ParseNode).new(input)
+    # Push a trailing EOF keyword for parsing.
+    @input.push(Lexeme.new(Type::Keyword, 3, "EOF"))
     # The state always begins at 0.
     @state = 0
     # Stack of tokens.
@@ -50,7 +56,7 @@ class Parser
   end
 
   # Generates a parse tree from the input the parser was provided.
-  def parse
+  def parse : ParseTree
     lookahead = nil
     while lookahead != nil || @input.size > 0
       # When there is no next lookahead, shift the next value from the input.
@@ -74,32 +80,29 @@ class Parser
       # Finally, consider the newly produced LHS as the lookahead to do
       # the next state transition. The state will be the state of the
       # most recently popped stack element.
-      #
-      # puts "For {#{@state}, \"#{lookahead.to_s}\"} got action=#{action.to_s}"
       if action.typ == ActionType::Shift
         @stack.push(lookahead)
         @state_stack.push(@state)
         @state = action.state
         lookahead = nil
       elsif action.typ == ActionType::Reduce
-        # Push the lookahead back to the head of the deque.
-        @input.insert(0, lookahead)
+        # Push the lookahead back to the head of the input.
+        @input.unshift(lookahead)
         rule = @table.get_rule(action.state)
         # Recover the state of the latest item on the stack along with
         # reducing items off the stack.
         tokens = (0...rule.reduce_size).map { |tree| @state = @state_stack.pop; @stack.pop }
-        node = ParseTree.new(rule.lhs, tokens)
+        node = ParseTree.new(rule.lhs, tokens.reverse)
 
-        # puts "Rule ##{action.state}, reduce size #{rule.reduce_size}: #{rule.to_s}"
-        # puts "Tokens #{tokens}"
         lookahead = node
       end
     end
 
-    # puts "Stack: #{@stack}"
-    # puts "State: #{@state}"
-    # puts "Input: #{@input}"
-    # puts @stack.size
-    return @stack.to_a
+    # FIXME(joey): Make sure there is only one parse item and it is a parse tree.
+    node = @stack[0]
+    if !node.is_a?(ParseTree)
+      raise ParseStageError.new("Huzza")
+    end
+    return node
   end
 end

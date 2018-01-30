@@ -76,7 +76,7 @@ Identifier:
 # with some rules omittedwhich are not supported by Joos1W
 
 Goal:
-  CompilationUnit
+  CompilationUnit EOF
 
 Literal:
   IntegerLiteral
