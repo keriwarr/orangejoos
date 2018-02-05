@@ -1,5 +1,6 @@
 require "./lexeme.cr"
 require "./compiler_errors.cr"
+require "util"
 
 # The Scanner scans the input from a program and produces lexemes.
 # All valid tokens are enumerated as a switch case in scan_lexeme().
@@ -46,32 +47,6 @@ class Scanner
     return @input[i]
   end
 
-  # Gets the escaped character code point represented by a character.
-  def get_escaped_char(ch : Char)
-    case ch
-    # backspace BS.
-    when 'b' then return '\b'
-      # horizontal tab HT.
-    when 't' then return '\t'
-      # linefeed LF.
-    when 'n' then return '\n'
-      # form feed FF.
-    when 'f' then return '\f'
-      # carriage return CR.
-    when 'r' then return '\r'
-      # escaped slash.
-    when '\\' then return '\\'
-      # escaped quote.
-    when '"' then return '"'
-      # escaped single quote.
-    when '\'' then return '\''
-      # escaped 0-9 code points.
-    when .ascii_number? then return ch.to_i.chr
-      # nil represents a failure.
-    else return nil
-    end
-  end
-
   # Move forward in the input by the lexeme.
   def proceed(lexeme : Lexeme)
     @input = @input[lexeme.size, @input.size]
@@ -80,79 +55,61 @@ class Scanner
   # Produces a lexeme for the input.
   def scan_lexeme
     case self.peek(0)
-    # === Operators ===
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                              OPERATORS                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when '='
       case self.peek(1)
-      # ==
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::EQ)
-        # =
-      else return Lexeme.new(Type::Operator, 1, Operator::ASSIGN)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::EQ)    # ==
+      else return Lexeme.new(Type::Operator, 1, Operator::ASSIGN)         # =
       end
     when '!'
       case self.peek(1)
-      # !=
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::NEQ)
-        # !
-      else return Lexeme.new(Type::Operator, 1, Operator::NOT)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::NEQ)   # !=
+      else return Lexeme.new(Type::Operator, 1, Operator::NOT)            # !
       end
-      # +
-    when '+' then return Lexeme.new(Type::Operator, 1, Operator::ADD)
-      # -
-    when '-' then return Lexeme.new(Type::Operator, 1, Operator::SUB)
-      # *
-    when '*' then return Lexeme.new(Type::Operator, 1, Operator::MULT)
-      # /
-    when '/' then return Lexeme.new(Type::Operator, 1, Operator::DIV)
-      # %
-    when '%' then return Lexeme.new(Type::Operator, 1, Operator::MOD)
+    when '+' then return Lexeme.new(Type::Operator, 1, Operator::ADD)     # +
+    when '-' then return Lexeme.new(Type::Operator, 1, Operator::SUB)     # -
+    when '*' then return Lexeme.new(Type::Operator, 1, Operator::MULT)    # *
+    when '/' then return Lexeme.new(Type::Operator, 1, Operator::DIV)     # /
+    when '%' then return Lexeme.new(Type::Operator, 1, Operator::MOD)     # %
     when '<'
       case self.peek(1)
-      # <=
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::LEQ)
-        # <
-      else return Lexeme.new(Type::Operator, 1, Operator::LT)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::LEQ)   # <=
+      else return Lexeme.new(Type::Operator, 1, Operator::LT)             # <
       end
     when '>'
       case self.peek(1)
-      # >=
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::GEQ)
-        # >
-      else return Lexeme.new(Type::Operator, 1, Operator::GT)
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::GEQ)   # >=
+      else return Lexeme.new(Type::Operator, 1, Operator::GT)             # >
       end
     when '&'
       case self.peek(1)
-      # &&
-      when '&' then return Lexeme.new(Type::Operator, 2, Operator::AND)
-        # &
-      else return Lexeme.new(Type::Operator, 1, Operator::EAND)
+      when '&' then return Lexeme.new(Type::Operator, 2, Operator::AND)   # &&
+      else return Lexeme.new(Type::Operator, 1, Operator::EAND)           # &
       end
     when '|'
       case self.peek(1)
-      # ||
-      when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR)
-        # |
-      else return Lexeme.new(Type::Operator, 1, Operator::EOR)
+      when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR)    # ||
+      else return Lexeme.new(Type::Operator, 1, Operator::EOR)            # |
       end
-      # === Separators ===
-      # (
+    
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                             SEPERATORS                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when '(' then return Lexeme.new(Type::Separator, 1, Separator::LPAREN)
-      # )
     when ')' then return Lexeme.new(Type::Separator, 1, Separator::RPAREN)
-      # [
     when '[' then return Lexeme.new(Type::Separator, 1, Separator::LBRACK)
-      # ]
     when ']' then return Lexeme.new(Type::Separator, 1, Separator::RBRACK)
-      # {
     when '{' then return Lexeme.new(Type::Separator, 1, Separator::LBRACE)
-      # }
     when '}' then return Lexeme.new(Type::Separator, 1, Separator::RBRACE)
-      # ;
     when ';' then return Lexeme.new(Type::Separator, 1, Separator::SEMICOL)
-      # ,
     when ',' then return Lexeme.new(Type::Separator, 1, Separator::COMMA)
-      # .
     when '.' then return Lexeme.new(Type::Separator, 1, Separator::DOT)
-      # === Identifiers and keywords ===
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                        IDENTIFIERS & KEYWORDS                           #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when .ascii_letter?
       word = ""
       i = 0
@@ -172,7 +129,10 @@ class Scanner
           return Lexeme.new(Type::Identifier, word.size, word)
         end
       end
-      # === Number literal ===
+    
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                            NUMBER LITERAL                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when .ascii_number?
       num_str = ""
       i = 0
@@ -187,7 +147,10 @@ class Scanner
         # bounds here. We also need to be aware of the Crystal int size.
         return Lexeme.new(Type::NumberLiteral, num_str.size, num_str)
       end
-      # === String and character literals ===
+    
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                       STRING & CHARACTER LITERAL                        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when '\'', '"'
       quote_typ = self.peek(0)
       str = ""
@@ -200,7 +163,7 @@ class Scanner
         # the escaped char.
         if ch == '\\'
           escaped_ch = self.peek(i + 1)
-          ch = self.get_escaped_char(escaped_ch)
+          ch = Util.get_escaped_char(escaped_ch)
           escaped_chars += 1
           # Move forward another character.
           i += 1
@@ -210,12 +173,12 @@ class Scanner
             return Lexeme.new(Type::Bad, str.size + escaped_chars + 2, str)
           end
         end
+        
         str += ch
         i += 1
       end
 
-      # When scanning character literals longer than 1, it is
-      # invalid.
+      # When scanning character literals longer than 1, it is invalid.
       # FIXME(joey): Handle this error better, for example exit early.
       if quote_typ == '\'' && str.size != 1
         return Lexeme.new(Type::Bad, str.size + escaped_chars + 2, str)
@@ -227,7 +190,7 @@ class Scanner
         return Lexeme.new(Type::CharacterLiteral, str.size + escaped_chars + 2, str)
       end
       return Lexeme.new(Type::StringLiteral, str.size + escaped_chars + 2, str)
-      # === No lexeme matched ===
+      # No Lexeme matched
     end
     return Lexeme.new(Type::Bad, 1, self.peek(0).to_s)
   end

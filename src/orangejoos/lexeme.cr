@@ -19,7 +19,7 @@ enum Type
   StringLiteral
   # EOF is a special type to denote the end-of-file during parsing.
   EOF
-
+  # BAD is badddd
   Bad
 end
 
