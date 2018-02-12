@@ -16,6 +16,7 @@ clean:
 	find . -name '*.class' | xargs -I{} rm {}
 	rm -f joosc.jar
 	rm -f orangejoos orangejoos.dwarf
+	rm -f orangejoos.zip
 
 grammar/joos1w.cfg: ## The context-free grammar file.
 grammar/joos1w.cfg: grammar/joos1w.bnf tools/jlalr/bnf_to_cfg.py
@@ -24,3 +25,8 @@ grammar/joos1w.cfg: grammar/joos1w.bnf tools/jlalr/bnf_to_cfg.py
 grammar/joos1w.lr1: ## The LALR(1) prediction table.
 grammar/joos1w.lr1: grammar/joos1w.cfg jlalr1
 	java -cp ./tools/ jlalr.Jlalr1 < grammar/joos1w.cfg > $@
+
+.PHONY: orangejoos.zip
+orangejoos.zip: ## Zip up the compiler for submission on marmoset.
+orangejoos.zip:
+	zip -r $@ . -x orangejoos.zip .git/\* .idea/\* docs/\* test/\* tools/\* spec/\*

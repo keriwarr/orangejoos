@@ -10,6 +10,14 @@ Install crystal. `brew install crystal-lang`.
 
 TODO: Write usage instructions here
 
+### Submission
+
+A submittable zip can be made using `make orangejoos.zip`. Head over to
+[marmoset](https://marmoset.student.cs.uwaterloo.ca/) to submit the zip.
+
+It uses `joosc`, a wrapper shell script, which calls the compiler with a
+basic set of parameters.
+
 ## Development
 
 ## Progress
