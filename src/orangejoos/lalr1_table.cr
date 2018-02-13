@@ -24,11 +24,18 @@ class Rule
   getter lhs : String
   getter rhs : String
 
-  def initialize(@lhs : String, @rhs : String)
+  def initialize(@lhs : String, rhs : String)
+    @rhs = rhs.strip
   end
 
   def reduce_size
-    @rhs.split(" ").size
+    # When the RHS is empty, return 0. For example, the empty
+    # "CompilationUnit" rule does this to parse files with no class or
+    # interface declarations.
+    if rhs.size == 0
+      return 0
+    end
+    return @rhs.split(" ").size
   end
 
   def to_s
