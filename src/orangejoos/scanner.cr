@@ -193,10 +193,10 @@ class Scanner
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                        IDENTIFIERS & KEYWORDS                           #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    when .ascii_letter?
+    when .ascii_letter?, '_', '$'
       word = ""
       i = 0
-      while self.peek(i).ascii_letter? || self.peek(i).ascii_number?
+      while self.peek(i).ascii_letter? || self.peek(i).ascii_number? || ['_', '$'].includes?(self.peek(i))
         word += self.peek(i)
         i += 1
       end
