@@ -14,6 +14,19 @@ module AST
     abstract def pprint(depth : Int32) : String
   end
 
+  class Typ < Node
+    def initialize(@val : String)
+    end
+
+    def name
+      @val
+    end
+
+    def pprint(depth : Int32)
+      return @val
+    end
+  end
+
   class Literal < Node
     getter val : String
 
@@ -76,6 +89,7 @@ module AST
     end
   end
 
+  # A modifier. Bascially, just an identifier/string/keyword.
   class Modifier < Node
     property name : String
 
@@ -102,6 +116,7 @@ module AST
     end
   end
 
+  # A top-level class declaration.
   class ClassDecl < TypeDecl
     property! super_class : Name
     getter interfaces : Array(Name) = [] of Name
@@ -127,11 +142,12 @@ module AST
     end
   end
 
+  # A top-level interface declaration.
   class InterfaceDecl < TypeDecl
     getter extensions : Array(Name) = [] of Name
-    getter interface_body : Array(Node) = [] of Node
+    getter body : Array(MemberDeclaration) = [] of MemberDeclaration
 
-    def initialize(@name : String, @modifiers : Array(Modifier), @extensions : Array(Name), @interface_body : Array(Node))
+    def initialize(@name : String, @modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDeclaration))
     end
 
     def pprint(depth : Int32)
@@ -140,10 +156,12 @@ module AST
       if extensions.size > 0
         extensions_str = extensions.map {|i| i.name }.join(", ")
       end
-      mods = modifiers.map {|i| i.name }.join(", ")
+      mods = modifiers.map {|i| i.name }
+      decls = body.map {|b| b.pprint(depth+1)}.join("\n")
       return "#{indent}Interface #{name}:
 #{indent}  Modifiers: #{mods}
-#{indent}  Extensions: #{extensions_str}"
+#{indent}  Extensions: #{extensions_str}
+#{indent}  Decls:\n#{decls}"
     end
   end
 
@@ -182,6 +200,27 @@ module AST
     end
   end
 
+  # Represents member declarations. This includes method and constant
+  # declarations.
+  abstract class MemberDeclaration < Node
+    getter modifiers : Array(Modifier) = [] of Modifier
+  end
+
+  class FieldDecl < MemberDeclaration
+    property typ : Typ
+    property decls : Array(VariableDecl) = [] of VariableDecl
+
+    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decls : Array(VariableDecl))
+    end
+
+    def pprint(depth : Int32)
+      mods = modifiers.map {|i| i.name }.join(",")
+      indent = INDENT.call(depth)
+      declarations = decls.map {|d| d.pprint(0) }.join(",")
+      return "#{indent} fields=[#{declarations}] type=#{typ.name} mods=#{mods}"
+    end
+  end
+
   # File is the top-level AST node, holding the top-level declarations
   # such as package, imports, and classes/interfaces.
   class File < Node
@@ -203,6 +242,32 @@ module AST
       end
       decs = decls.map {|i| i.pprint(depth+1) }.join("\n")
       return "File:\n#{pkg}#{imps}#{decs}"
+    end
+  end
+
+  # Represents an expressio nwhich is a variable declaration.
+  # TOOD(joey): Maybe this just needs to be an expr?
+  class VarInit < Node
+    def initialize
+    end
+
+    def pprint(depth : Int32)
+      return "VarInit: TODO"
+    end
+  end
+
+  # Represents a variable declaration: a name, a cardinality and an
+  # optional initialization.
+  class VariableDecl < Node
+    property name : String
+    property cardinality : Int32 = 0
+    property init : VarInit
+
+    def initialize(@name : String, @cardinality : Int32, @init : VarInit)
+    end
+
+    def pprint(depth : Int32)
+      return "VarDecl: #{name} card=#{cardinality} init={#{init.pprint(0)}}"
     end
   end
 end
