@@ -68,8 +68,9 @@ From the assignment page:
 - [ ] A native method must be static.
 - [ ] The type void may only be used as the return type of a method.
 - [ ] A formal parameter of a method must not have an initializer.
-- [ ] A class/interface must be declared in a .java file with the same
-  base name as the class/interface.
+- [ ] File must be a `.java` file.
+- [ ] A class/interface must be declared in a file with the same base
+  name as the class/interface.
 - [ ] An interface cannot contain fields or constructors.
 - [ ] An interface method cannot be static, final, or native.
 - [ ] An interface method cannot have a body.
