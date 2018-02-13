@@ -1,10 +1,12 @@
 require "./lexeme.cr"
+require "./ast.cr"
 require "./lalr1_table.cr"
 require "./parse_tree.cr"
 
 class SourceFile
   property! tokens : Array(Lexeme)
   property! parse_tree : ParseTree
+  property! ast : AST::File
 
   getter! path : String
   getter! contents : String
@@ -31,7 +33,7 @@ class Pipeline
     @parser = OptionParser.parse(args) do |parser|
       parser.banner = "Usage: orangejoos compile [arguments] [files...]
 Stages:
-  scan -> parse -> ..."
+  scan -> parse -> simplify -> ..."
 
       # Pipeline parse.
       parser.on("-s STAGE", "--stage=STAGE", "Specifies the compiler stage to stop execution at. (Required)") { |stage| @end_stage = stage.downcase }
@@ -75,6 +77,17 @@ Stages:
     end
     file.parse_tree = parse_tree
     return parse_tree
+  end
+
+  def do_simplify!(file : SourceFile)
+    begin
+     ast = Simplification.new(file.parse_tree).simplify.as(AST::File)
+    rescue ex : SimplifyStageError
+      STDERR.puts "Failed to simplify with exception: #{ex}"
+      exit 42
+    end
+    file.ast = ast
+    return ast
   end
 
   def load_parse_table
@@ -137,7 +150,19 @@ Stages:
     # Parse the tokens of each source file.
     source_files.each { |file| do_parse!(@table, file) }
 
-    # XXX: debug print parse trees.
-    source_files.each { |file| STDERR.puts "=== FILE: #{file.path} ===\n#{file.parse_tree.pprint}" }
+    # # XXX: debug print parse trees.
+    source_files.each { |file| puts "=== FILE: #{file.path} ===\n#{file.parse_tree.pprint}" }
+
+    if @end_stage == "parse"
+      exit 0
+    end
+
+    # Simplify the parse trees into abstract syntax trees.
+    source_files.each { |file| do_simplify!(file) }
+
+    if @end_stage == "simplify"
+      exit 0
+    end
+
   end
 end

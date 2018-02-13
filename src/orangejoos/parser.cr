@@ -23,7 +23,7 @@ class Parser
     @input.push(Lexeme.new(Type::EOF, 0, ""))
     # The state always begins at 0.
     @state = 0
-    # Stack of tokens.
+    # Stack of tokens and the state.
     @stack = Deque(ParseNode).new
     # Stack of the state for each token.
     # FIXME(joey): Make the stack of tuples.
