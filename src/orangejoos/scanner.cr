@@ -2,6 +2,8 @@ require "./lexeme.cr"
 require "./compiler_errors.cr"
 require "util"
 
+NEWLINES = Set{'\n', '\r'}
+
 # The Scanner scans the input from a program and produces lexemes.
 # All valid tokens are enumerated as a switch case in scan_lexeme().
 # The switch case represents multiple regular languages for each type of
@@ -48,6 +50,11 @@ class Scanner
     return @input[i].unsafe_chr
   end
 
+  # Checks if the i-th character in the input is the EOF (or past EOF).
+  def eof?(i : Int32)
+    return @input.size <= i
+  end
+
   # Move forward in the input by the lexeme.
   def proceed(lexeme : Lexeme)
     # Move the slice by lexeme.size chrs.
@@ -66,7 +73,7 @@ class Scanner
     if self.peek(0) == '/' && self.peek(1) == '/'
       eol = 0
       # FIXME(joey): Handle EOF.
-      while self.peek(eol) != '\n'
+      while !self.eof?(eol) && !NEWLINES.includes?(self.peek(eol))
         eol += 1
       end
       # Grab the comment content. It is everything after the "//".
