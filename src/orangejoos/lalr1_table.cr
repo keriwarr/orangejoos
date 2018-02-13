@@ -116,6 +116,13 @@ class LALR1Table
     @rules[idx]
   end
 
+  # Checks to see if an action is valid in the lookahead table. If it is
+  # not, then the action respresents an invalid program.
+  def has_action(state : Int32, lookahead : String)
+    key = Tuple(Int32, String).new(state, lookahead)
+    return @transitions.has_key?(key)
+  end
+
   # Fetches the next action given the current state and the lookahead.
   # This simply does a lookup in the prediction table.
   def get_next_action(state : Int32, lookahead : String)

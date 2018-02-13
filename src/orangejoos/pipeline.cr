@@ -67,7 +67,12 @@ Stages:
   end
 
   def do_parse!(table : LALR1Table, file : SourceFile)
-    parse_tree = Parser.new(table, file.tokens).parse
+    begin
+      parse_tree = Parser.new(table, file.tokens).parse
+    rescue ex : ParseStageError
+      puts "Failed to parse with exception: #{ex}"
+      exit 42
+    end
     file.parse_tree = parse_tree
     return parse_tree
   end
