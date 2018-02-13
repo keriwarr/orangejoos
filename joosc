@@ -1,2 +1,0 @@
-#!/bin/bash
-./orangejoos compile -t grammar/joos1w.lr1 $@
