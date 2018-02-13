@@ -48,7 +48,7 @@ Stages:
     begin
       tokens = Scanner.new(file.contents.to_slice).scan
     rescue ex : ScanningStageError
-      puts "Failed to parse with exception: #{ex}"
+      puts "Failed to scan with exception: #{ex}"
       exit 42
     end
 

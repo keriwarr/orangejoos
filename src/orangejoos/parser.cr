@@ -3,6 +3,8 @@ require "./compiler_errors.cr"
 require "./lalr1_table.cr"
 require "./parse_tree.cr"
 
+COMMENT_TYPES = Set{Type::Comment, Type::MultilineComment, Type::JavadocComment}
+
 # The Parser takes *input*, a list of lexemes, and produces the parse
 # tree. It checks for the correct syntantical structure of the code
 # during `parse()`. If the input does not conform, a SyntaxStageError is
@@ -13,8 +15,7 @@ class Parser
   def initialize(@table : LALR1Table, input : Array(Lexeme))
     # Filter out any comment types from the input. These are ignored
     # during parsing.
-    comment_types = Set{Type::Comment, Type::MultilineComment, Type::JavadocComment}
-    input = input.reject {|lexeme| comment_types.includes?(lexeme.typ)}
+    input = input.reject {|lexeme| COMMENT_TYPES.includes?(lexeme.typ)}
 
     # Transform the input into a deque, to allow peeking (via. push_to_front)
     @input = Deque(ParseNode).new(input)

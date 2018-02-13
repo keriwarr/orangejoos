@@ -23,8 +23,8 @@ class Scanner
     while @input.size > 0
       begin
         lexeme = self.scan_lexeme
-      rescue
-        raise ScanningStageError.new(@lexemes.to_s)
+      rescue ex : Exception
+        raise ScanningStageError.new(ex, @lexemes)
       end
       @lexemes.push(lexeme)
       self.proceed(lexeme)
