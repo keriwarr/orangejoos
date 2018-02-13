@@ -2,6 +2,7 @@ require "./lexeme.cr"
 require "./ast.cr"
 require "./lalr1_table.cr"
 require "./parse_tree.cr"
+require "./weeding.cr"
 
 class SourceFile
   property! tokens : Array(Lexeme)
@@ -33,7 +34,7 @@ class Pipeline
     @parser = OptionParser.parse(args) do |parser|
       parser.banner = "Usage: orangejoos compile [arguments] [files...]
 Stages:
-  scan -> parse -> simplify -> ..."
+  scan -> parse -> simplify -> weed -> ..."
 
       # Pipeline parse.
       parser.on("-s STAGE", "--stage=STAGE", "Specifies the compiler stage to stop execution at. (Required)") { |stage| @end_stage = stage.downcase }
@@ -88,6 +89,15 @@ Stages:
     end
     file.ast = ast
     return ast
+  end
+
+  def do_weed!(file : SourceFile)
+    begin
+     Weeding.new(file.ast).weed
+    rescue ex : WeedingStageError
+      STDERR.puts "Found weeding error: #{ex}"
+      exit 42
+    end
   end
 
   def load_parse_table
@@ -161,6 +171,16 @@ Stages:
     source_files.each { |file| do_simplify!(file) }
 
     if @end_stage == "simplify"
+      exit 0
+    end
+
+    # # XXX: debug print ast.
+    source_files.each { |file| puts "=== FILE: #{file.path} ===\n#{file.ast.pprint}" }
+
+    # Weed out any errors from parsing.
+    source_files.each { |file| do_weed!(file) }
+
+    if @end_stage == "weed"
       exit 0
     end
 

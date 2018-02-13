@@ -12,3 +12,7 @@ end
 # A SimplifyStageError is an error encountered during the simplify stage.
 class SimplifyStageError < Exception
 end
+
+# A WeedingStageError is an error encountered during the weeding stage.
+class WeedingStageError < Exception
+end
