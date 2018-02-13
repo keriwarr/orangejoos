@@ -106,7 +106,6 @@ module AST
     property! super_class : Name
     getter interfaces : Array(Name) = [] of Name
 
-
     def initialize(@name : String, @modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name))
     end
 
@@ -129,12 +128,22 @@ module AST
   end
 
   class InterfaceDecl < TypeDecl
-    def initialize
-      @name = "bye"
+    getter extensions : Array(Name) = [] of Name
+    getter interface_body : Array(Node) = [] of Node
+
+    def initialize(@name : String, @modifiers : Array(Modifier), @extensions : Array(Name), @interface_body : Array(Node))
     end
 
     def pprint(depth : Int32)
-      return "TODO"
+      indent = INDENT.call(depth)
+      extensions_str = ""
+      if extensions.size > 0
+        extensions_str = extensions.map {|i| i.name }.join(", ")
+      end
+      mods = modifiers.map {|i| i.name }.join(", ")
+      return "#{indent}Interface #{name}:
+#{indent}  Modifiers: #{mods}
+#{indent}  Extensions: #{extensions_str}"
     end
   end
 

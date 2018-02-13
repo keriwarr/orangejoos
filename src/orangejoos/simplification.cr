@@ -221,6 +221,24 @@ class Simplification
 
       class_descl = AST::ClassDecl.new(name.val, modifiers, super_class, interfaces)
       return class_descl.as(AST::ClassDecl)
+    when "InterfaceDeclaration"
+      name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+
+      modifiers = [] of AST::Modifier
+      if (modifiers_tree = tree.tokens.get_tree("Modifiers")); !modifiers_tree.nil?
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+      end
+
+      extensions = [] of AST::Name
+      if (extensions_tree = tree.tokens.get_tree("ExtendsInterfaces")); !extensions_tree.nil?
+        extensions = simplify_tree(extensions_tree).as(Array(AST::Name))
+      end
+
+      # TODO(joey): InterfaceBody
+      interface_body = [] of AST::Node
+
+      class_descl = AST::InterfaceDecl.new(name.val, modifiers, extensions, interface_body)
+      return class_descl.as(AST::InterfaceDecl)
     else
       raise Exception.new("unexepected tree name=#{tree.name}")
     end
