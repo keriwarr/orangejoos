@@ -94,10 +94,15 @@ module AST
   # node.
   abstract class TypeDecl < Node
     property! name : String
+    getter modifiers : Array(Modifier) = [] of Modifier
+
+    def has_mod(modifier : String)
+      # FIXME(joey): This is terrible and we can use a set instead.
+      modifiers.select {|m| m.name == modifier}.size > 0
+    end
   end
 
   class ClassDecl < TypeDecl
-    getter modifiers : Array(Modifier) = [] of Modifier
     property! super_class : Name
     getter interfaces : Array(Name) = [] of Name
 

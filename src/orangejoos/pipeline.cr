@@ -161,7 +161,7 @@ Stages:
     source_files.each { |file| do_parse!(@table, file) }
 
     # # XXX: debug print parse trees.
-    source_files.each { |file| puts "=== FILE: #{file.path} ===\n#{file.parse_tree.pprint}" }
+    source_files.each { |file| puts "=== FILE parse tree: #{file.path} ===\n#{file.parse_tree.pprint}" }
 
     if @end_stage == "parse"
       exit 0
@@ -175,7 +175,7 @@ Stages:
     end
 
     # # XXX: debug print ast.
-    source_files.each { |file| puts "=== FILE: #{file.path} ===\n#{file.ast.pprint}" }
+    source_files.each { |file| puts "=== FILE abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
 
     # Weed out any errors from parsing.
     source_files.each { |file| do_weed!(file) }

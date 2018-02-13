@@ -60,7 +60,7 @@ From the assignment page:
 
 - [x] All characters in the input program must be in the range of 7-bit
   ASCII (0 to 127).
-- [ ] A class cannot be both abstract and final.
+- [x] A class cannot be both abstract and final.
 - [ ] A method has a body if and only if it is neither abstract nor
   native.
 - [ ] An abstract method cannot be static or final.
@@ -89,7 +89,7 @@ From the specification:
 - [ ] Check for the existance of a main function and the correct
   signature.
 - [ ] Check the size of numbers are valid.
-- [ ] Check the length of character literals (should happen in
+- [x] Check the length of character literals (should happen in
   scanning).
 - [ ] Repeated function definitions.
 - Refer to the JLS1 spec to find more rules.
