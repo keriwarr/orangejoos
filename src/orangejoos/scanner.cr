@@ -25,8 +25,14 @@ class Scanner
     while @input.size > 0
       begin
         lexeme = self.scan_lexeme
+      rescue ex : ScanningStageError
+        # Re-raise any ScanningStageError
+        raise ex
       rescue ex : Exception
-        raise ScanningStageError.new(ex, @lexemes)
+        # When other exceptions are encountered, also print out the
+        # lexemes
+        puts "lexemes=#{@lexemes}"
+        raise ex
       end
       @lexemes.push(lexeme)
       self.proceed(lexeme)
@@ -101,6 +107,9 @@ class Scanner
 
       # FIXME(joey): Handle EOF.
       while true
+        if self.eof?(end_of_comment)
+          raise ScanningStageError.new("unterminated multi-line comment.", @lexemes)
+        end
         if self.peek(end_of_comment) == '*' && self.peek(end_of_comment + 1) == '/'
           break
         end

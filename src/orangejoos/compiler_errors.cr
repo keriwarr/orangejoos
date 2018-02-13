@@ -4,7 +4,7 @@ end
 
 # A ScanningStageError is an error encountered during the scan stage.
 class ScanningStageError < Exception
-  def initialize(exp : Exception, lexemes : Array(Lexeme))
-    super("lexemes=#{lexemes}. exception=#{exp.backtrace.join("\n")}")
+  def initialize(exp : String, lexemes : Array(Lexeme))
+    super("lexemes=#{lexemes}. exception=#{exp}")
   end
 end
