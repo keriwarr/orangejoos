@@ -11,6 +11,11 @@ class Parser
   @state : Int32
 
   def initialize(@table : LALR1Table, input : Array(Lexeme))
+    # Filter out any comment types from the input. These are ignored
+    # during parsing.
+    comment_types = Set{Type::Comment, Type::MultilineComment, Type::JavadocComment}
+    input = input.reject {|lexeme| comment_types.includes?(lexeme.typ)}
+
     # Transform the input into a deque, to allow peeking (via. push_to_front)
     @input = Deque(ParseNode).new(input)
     # Push a trailing EOF keyword for parsing.

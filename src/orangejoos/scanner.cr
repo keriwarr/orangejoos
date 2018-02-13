@@ -8,7 +8,7 @@ require "util"
 # token, converted to a switch case.
 class Scanner
   # Scanner takes the input, an array of bytes to break it into tokens.
-  def initialize(@input : Array(Char))
+  def initialize(@input : Bytes)
     # TODO(joey): Might be worth looking into StringScanner for
     # cool-ness (and speed?).
     @lexemes = Array(Lexeme).new
@@ -35,8 +35,9 @@ class Scanner
 
   # Skips all the of preceding whitespace in the input.
   def skip_whitespace
-    while @input.size > 0 && @input.first.ascii_whitespace?
-      @input = @input[1, @input.size]
+    while @input.size > 0 && @input.first.unsafe_chr.ascii_whitespace?
+      # Move the slice by 1 chr.
+      @input = @input + 1
     end
   end
 
@@ -44,16 +45,74 @@ class Scanner
   # FIXME(joey): Does not handle EOFs well. This may break on badly on
   # bad input, but that will end up with a ScanningStageError.
   def peek(i : Int32)
-    return @input[i]
+    return @input[i].unsafe_chr
   end
 
   # Move forward in the input by the lexeme.
   def proceed(lexeme : Lexeme)
-    @input = @input[lexeme.size, @input.size]
+    # Move the slice by lexeme.size chrs.
+    @input = @input + lexeme.size
   end
 
   # Produces a lexeme for the input.
   def scan_lexeme
+    # Comments are outside of switch statement due to the conflict
+    # with / (DIV). By having this greedily check for a comment
+    # beforehand, we don't need to worry about embedding this logic
+    # inside the operator case.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                         SINGLE LINE COMMENTS                            #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    if self.peek(0) == '/' && self.peek(1) == '/'
+      eol = 0
+      # FIXME(joey): Handle EOF.
+      while self.peek(eol) != '\n'
+        eol += 1
+      end
+      # Grab the comment content. It is everything after the "//".
+      comment = String.new(@input[2, eol - 2])
+      return Lexeme.new(Type::Comment, eol, comment)
+    end
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                          MULTI-LINE COMMENTS                            #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    if self.peek(0) == '/' && self.peek(1) == '*'
+      javadoc_comment = false
+      end_of_comment = 2
+
+      # If the comment is a Javadoc comment, i.e. it begins with "/**",
+      # then we need to track this to determine the different comment
+      # closing and to offset the end.
+      if self.peek(2) == '*'
+        javadoc_comment == true
+        # When there is a javadoc "/**", we also shift the possible end
+        # of the comment by one. This prevents re-using the second '*'
+        # as an end comment.
+        end_of_comment = 3
+      end
+
+      # FIXME(joey): Handle EOF.
+      while true
+        if self.peek(end_of_comment) == '*' && self.peek(end_of_comment + 1) == '/'
+          break
+        end
+        end_of_comment += 1
+      end
+
+      # Grab the multi-line comment content. If it is a Javadoc comment,
+      # we shift the comment contents by one. Because `end_of_comment`
+      # does not include "*/", we also need to offset it for the lexeme
+      # size.
+      if javadoc_comment
+        comment = String.new(@input[3, end_of_comment - 3])
+        return Lexeme.new(Type::JavadocComment, end_of_comment + 2, comment)
+      else
+        comment = String.new(@input[2, end_of_comment - 2])
+        return Lexeme.new(Type::MultilineComment, end_of_comment + 2, comment)
+      end
+    end
+
     case self.peek(0)
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                              OPERATORS                                  #

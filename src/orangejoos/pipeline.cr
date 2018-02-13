@@ -46,7 +46,7 @@ Stages:
 
   def do_scan!(file : SourceFile)
     begin
-      tokens = Scanner.new(file.contents.chars).scan
+      tokens = Scanner.new(file.contents.to_slice).scan
     rescue ex : ScanningStageError
       puts "Failed to parse with exception: #{ex}"
       exit 42

@@ -11,6 +11,12 @@ enum Type
   Separator
   # Operators are all unary or binary operators, including assignment.
   Operator
+  # Comment ...
+  Comment
+  # MultilineComment ...
+  MultilineComment
+  # JavadocComment ...
+  JavadocComment
   # Number literals are integers.
   NumberLiteral
   # Character literals are single letter literals.
@@ -153,6 +159,9 @@ class Lexeme < ParseNode
     when Type::NumberLiteral    then "LEXEME(NumberLiteral)"
     when Type::StringLiteral    then "LEXEME(StringLiteral)"
     when Type::CharacterLiteral then "LEXEME(CharacterLiteral)"
+    when Type::Comment then "COMMENT"
+    when Type::MultilineComment then "MULTILINECOMMENT"
+    when Type::JavadocComment then "JAVADOC"
       # ??, all other types which should be none of them.
     else @sem
     end
