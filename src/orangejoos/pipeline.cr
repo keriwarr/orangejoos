@@ -107,6 +107,10 @@ Stages:
     # Check that all of the paths exist.
     @paths.each do |path|
       if File.exists?(path)
+        if !(/\.java$/ =~ path)
+          STDERR.puts "ERROR: path is not a .java file"
+          exit 42
+        end
         source_files.push(SourceFile.new(path))
       elsif Dir.exists?(path)
         Dir.glob("**/*.java").each do |file|
@@ -114,7 +118,7 @@ Stages:
         end
       else
         STDERR.puts "ERROR: path #{path} does not exist"
-        exit 1
+        exit 2
       end
     end
 

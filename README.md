@@ -58,7 +58,7 @@ basic set of parameters.
 
 From the assignment page:
 
-- [ ] All characters in the input program must be in the range of 7-bit
+- [x] All characters in the input program must be in the range of 7-bit
   ASCII (0 to 127).
 - [ ] A class cannot be both abstract and final.
 - [ ] A method has a body if and only if it is neither abstract nor
@@ -68,7 +68,7 @@ From the assignment page:
 - [ ] A native method must be static.
 - [ ] The type void may only be used as the return type of a method.
 - [ ] A formal parameter of a method must not have an initializer.
-- [ ] File must be a `.java` file.
+- [x] File must be a `.java` file.
 - [ ] A class/interface must be declared in a file with the same base
   name as the class/interface.
 - [ ] An interface cannot contain fields or constructors.
