@@ -54,8 +54,9 @@ TOKENS=Operator: one of
   == <= >= != && || | &
   + - * / %
 
-BooleanLiteral: one of
-  true false
+BooleanLiteral:
+  true
+  false
 
 NullLiteral:
   null
