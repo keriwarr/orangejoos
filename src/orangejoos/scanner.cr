@@ -93,7 +93,7 @@ class Scanner
       when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR)    # ||
       else return Lexeme.new(Type::Operator, 1, Operator::EOR)            # |
       end
-    
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                             SEPERATORS                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -113,7 +113,7 @@ class Scanner
     when .ascii_letter?
       word = ""
       i = 0
-      while self.peek(i).ascii_letter?
+      while self.peek(i).ascii_letter? || self.peek(i).ascii_number?
         word += self.peek(i)
         i += 1
       end
@@ -129,7 +129,7 @@ class Scanner
           return Lexeme.new(Type::Identifier, word.size, word)
         end
       end
-    
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                            NUMBER LITERAL                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -147,7 +147,7 @@ class Scanner
         # bounds here. We also need to be aware of the Crystal int size.
         return Lexeme.new(Type::NumberLiteral, num_str.size, num_str)
       end
-    
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                       STRING & CHARACTER LITERAL                        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -173,7 +173,7 @@ class Scanner
             return Lexeme.new(Type::Bad, str.size + escaped_chars + 2, str)
           end
         end
-        
+
         str += ch
         i += 1
       end
