@@ -31,7 +31,7 @@ class Scanner
       rescue ex : Exception
         # When other exceptions are encountered, also print out the
         # lexemes
-        puts "lexemes=#{@lexemes}"
+        STDERR.puts "lexemes=#{@lexemes}"
         raise ex
       end
       @lexemes.push(lexeme)

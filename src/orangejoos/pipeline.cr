@@ -48,7 +48,7 @@ Stages:
     begin
       tokens = Scanner.new(file.contents.to_slice).scan
     rescue ex : ScanningStageError
-      puts "Failed to scan with exception: #{ex}"
+      STDERR.puts "Failed to scan with exception: #{ex}"
       exit 42
     end
 
@@ -56,8 +56,8 @@ Stages:
     # FIXME(joey): Collect errors.
     tokens.each do |res|
       if res.typ == Type::Bad
-        puts "Failed to parse, got tokens: "
-        puts tokens
+        STDERR.puts "Failed to parse, got tokens: "
+        STDERR.puts tokens
         exit 42
       end
     end
@@ -70,7 +70,7 @@ Stages:
     begin
       parse_tree = Parser.new(table, file.tokens).parse
     rescue ex : ParseStageError
-      puts "Failed to parse with exception: #{ex}"
+      STDERR.puts "Failed to parse with exception: #{ex}"
       exit 42
     end
     file.parse_tree = parse_tree
@@ -79,14 +79,14 @@ Stages:
 
   def load_parse_table
     if @table_file == ""
-      puts @parser
-      puts "ERROR: no LALR1 table file was not provided"
+      STDERR.puts @parser
+      STDERR.puts "ERROR: no LALR1 table file was not provided"
       exit 1
     end
 
     # Check that the table file exists.
     if !File.exists?(@table_file)
-      puts "ERROR: file #{@table_file} does not exist"
+      STDERR.puts "ERROR: file #{@table_file} does not exist"
       exit 1
     end
 
@@ -97,8 +97,8 @@ Stages:
 
   def exec
     if @paths.size == 0
-      puts @parser
-      puts "ERROR: no paths were provided"
+      STDERR.puts @parser
+      STDERR.puts "ERROR: no paths were provided"
       exit 1
     end
 
@@ -113,7 +113,7 @@ Stages:
           source_files.push(SourceFile.new(file))
         end
       else
-        puts "ERROR: path #{path} does not exist"
+        STDERR.puts "ERROR: path #{path} does not exist"
         exit 1
       end
     end
@@ -134,6 +134,6 @@ Stages:
     source_files.each { |file| do_parse!(@table, file) }
 
     # XXX: debug print parse trees.
-    source_files.each { |file| puts "=== FILE: #{file.path} ===\n#{file.parse_tree.pprint}" }
+    source_files.each { |file| STDERR.puts "=== FILE: #{file.path} ===\n#{file.parse_tree.pprint}" }
   end
 end

@@ -6,7 +6,7 @@ when "compile"
   pipeline = Pipeline.new(ARGV[1, ARGV.size])
   pipeline.exec
 else
-  puts "Usage: orangejoos [command]
+  STDERR.puts "Usage: orangejoos [command]
 
 Commands:
   compile - compiles source code"
