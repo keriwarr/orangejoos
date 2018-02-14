@@ -150,6 +150,9 @@ Stages:
     # Scan the tokens of each source file.
     source_files.each { |file| do_scan!(file) }
 
+    # XXX: debug print lexemes trees.
+    source_files.each { |file| puts "=== FILE lexemes: #{file.path} ===\n#{file.tokens}" }
+
     if @end_stage == "scan"
       exit 0
     end
@@ -160,7 +163,7 @@ Stages:
     # Parse the tokens of each source file.
     source_files.each { |file| do_parse!(@table, file) }
 
-    # # XXX: debug print parse trees.
+    # XXX: debug print parse trees.
     source_files.each { |file| puts "=== FILE parse tree: #{file.path} ===\n#{file.parse_tree.pprint}" }
 
     if @end_stage == "parse"
@@ -174,7 +177,7 @@ Stages:
       exit 0
     end
 
-    # # XXX: debug print ast.
+    # XXX: debug print ast.
     source_files.each { |file| puts "=== FILE abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
 
     # Weed out any errors from parsing.

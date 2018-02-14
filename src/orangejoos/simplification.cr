@@ -2,7 +2,14 @@ require "./compiler_errors.cr"
 require "./parse_tree.cr"
 require "./ast.cr"
 
-# I am sorry for this mess of hecticness :(
+# I am sorry for this mess :(
+# In short, the simplify functions take parse rules and flattent them.
+# Along the way, they generate AST nodes.
+#
+# `simplify_tree` returns arrays of AST nodes, `simplify` returns
+# individual AST nodes.
+
+
 # TODO(joey): some notes on clean up to be done here:
 # - Replace tokens.to_a[i] access for children.
 # - Clean up casting. This is done to consoldiate rules within a few

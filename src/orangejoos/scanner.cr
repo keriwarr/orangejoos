@@ -245,20 +245,64 @@ class Scanner
         # Check if the char is escaping the next char. If it is, get
         # the escaped char.
         if ch == '\\'
+          if self.eof?(i+1)
+            raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
+          end
           escaped_ch = self.peek(i + 1)
-          ch = Util.get_escaped_char(escaped_ch)
-          escaped_chars += 1
-          # Move forward another character.
-          i += 1
-          # It is a compile error if a character escaped is
-          # not a valid one.
-          if ch.nil?
-            raise ScanningStageError.new("invalid escape character, got: #{escaped_ch}", @lexemes)
+          if escaped_ch.ascii_number?
+            # Read in an escaped octal value.
+            num_str = "#{escaped_ch}"
+
+            if self.eof?(i+2)
+              raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
+            end
+
+            # Escaped octal value with 2 digits.
+            escaped_ch = self.peek(i + 2)
+            if escaped_ch.ascii_number?
+              num_str += escaped_ch
+
+              if self.eof?(i+3)
+                raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
+              end
+
+              # Escaped octal value with 3 digits.
+              escaped_ch = self.peek(i + 3)
+              if escaped_ch.ascii_number?
+                num_str += escaped_ch
+              end
+            end
+
+            # If the octal is larger than 377 (255 in decimal) than it
+            # is out of Uint8 bounds.
+            if num_str.size == 3 && num_str[0] > '3'
+              raise ScanningStageError.new("escaped octal out of bounds, got: #{num_str}", @lexemes)
+            end
+            # Parse the octal number.
+            num = num_str.to_u8(8)
+            escaped_chars += num_str.size
+            i += num_str.size
+            ch = num.unsafe_chr
+          else
+            ch = Util.get_escaped_char(escaped_ch)
+            escaped_chars += 1
+            # Move forward another character.
+            i += 1
+            # It is a compile error if a character escaped is
+            # not a valid one.
+            if ch.nil?
+              raise ScanningStageError.new("invalid escape character, got: #{escaped_ch}", @lexemes)
+            end
           end
         end
 
         str += ch
         i += 1
+
+        # Check if the string is unterminated and we've hit the EOF.
+        if self.eof?(i)
+          raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
+        end
       end
 
       # When scanning character literals longer than 1, it is invalid.
