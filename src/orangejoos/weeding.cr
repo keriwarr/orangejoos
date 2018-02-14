@@ -29,7 +29,7 @@ class Weeding
           end
         end
 
-        if !found_constructor
+        if !decl.has_mod("abstract") && !found_constructor
           raise WeedingStageError.new("class #{decl.name} has no constructors")
         end
       end

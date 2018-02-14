@@ -1,4 +1,5 @@
 public class A {
+  public A() {}
   public int m1(int x) {
     return 42;
   }
