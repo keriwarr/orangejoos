@@ -15,6 +15,25 @@ class Weeding
         raise WeedingStageError.new("class #{decl.name} is both final and abstract.")
       end
 
+
+      if decl.is_a?(AST::ClassDecl)
+        # Check to make sure there is at least one constructor.
+        found_constructor = false
+        decl.body.each do |body|
+          # Make sure all constructors have the correct name.
+          if body.is_a?(AST::ConstructorDecl)
+            found_constructor = true
+            if body.name.name != decl.name
+              raise WeedingStageError.new("class #{decl.name} has a constructor named #{body.name.name}")
+            end
+          end
+        end
+
+        if !found_constructor
+          raise WeedingStageError.new("class #{decl.name} has no constructors")
+        end
+      end
+
       if decl.is_a?(AST::InterfaceDecl)
         decl.body.each do |body|
           # An interface cannot have fields.

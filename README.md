@@ -76,7 +76,7 @@ From the assignment page:
 - [x] An interface method cannot be static, final, or native.
 - [x] An interface method cannot have a body. _(with grammar)_
 - [ ] Every type (Class, Interface, Field, Method) requires a visiblity modifier (private, protected, public).
-- [ ] Every class must contain at least one explicit constructor.
+- [x] Every class must contain at least one explicit constructor.
 - [ ] No field can be final.
 - [ ] No multidimensional array types or multidimensional array creation
   expressions are allowed.
