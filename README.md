@@ -71,10 +71,10 @@ From the assignment page:
 - [x] File must be a `.java` file.
 - [ ] A class/interface must be declared in a file with the same base
   name as the class/interface.
-- [x] An interface cannot contain fields
-- [ ] An interface cannot contain constructors.
+- [x] An interface cannot contain fields. _(with grammar)_
+- [x] An interface cannot contain constructors. _(with grammar)_
 - [x] An interface method cannot be static, final, or native.
-- [ ] An interface method cannot have a body.
+- [ ] An interface method cannot have a body. _(with grammar)_
 - [ ] Every class must contain at least one explicit constructor.
 - [ ] No field can be final.
 - [ ] No multidimensional array types or multidimensional array creation

@@ -363,13 +363,16 @@ ForStatement:
 ForStatementNoShortIf:
   for ( ForInit? ; Expression? ; ForUpdate? ) StatementNoShortIf
 
-# FIXME(joey): We probably do not want an expression list.
+# FIXME(joey): The following two rules (ForInit, ForUpdate) were
+# modified to use StatementExpression instead of
+# StatementExpressionList. This is because Joos1W does not support
+# complex for loops.
 ForInit:
-  StatementExpressionList
+  StatementExpression
   LocalVariableDeclaration
 
 ForUpdate:
-  StatementExpressionList
+  StatementExpression
 
 StatementExpressionList:
   StatementExpression
