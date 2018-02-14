@@ -224,10 +224,10 @@ class Scanner
         i += 1
       end
       if num_str.size > 0
-        # Check that the number is in the appropriate integer bounds.
-        if num_str > "2147483648"
-          raise ScanningStageError.new("number literal exceeds bounds", @lexemes)
-        end
+        # FIXME(joey): Catch an error if the number is invalid or
+        # causes overflow/underflow.
+        # TODO(joey): We can throw an error if the number is out of
+        # bounds here. We also need to be aware of the Crystal int size.
         return Lexeme.new(Type::NumberLiteral, num_str.size, num_str)
       end
 
