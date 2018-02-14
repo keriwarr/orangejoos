@@ -29,6 +29,16 @@ class Weeding
           end
 
           if body.is_a?(AST::MethodDecl)
+            # A method requires an access modifier, either protected or public.
+            if !body.has_mod("public") && !body.has_mod("protected")
+              raise WeedingStageError.new("method #{decl.name}.#{body.name} has no access modifier (public/private)")
+            end
+
+            # A method cannot be both static and final.
+            if body.has_mod("static") && body.has_mod("final")
+              raise WeedingStageError.new("method #{decl.name}.#{body.name} cannot be both static and final")
+            end
+
             # An abstract method cannot be static or final.
             if body.has_mod("abstract") && (body.has_mod("static") || body.has_mod("final"))
               raise WeedingStageError.new("method #{decl.name}.#{body.name} cannot be both abstract and static/final")
@@ -40,11 +50,25 @@ class Weeding
             end
 
             # An non-abstract method requires a body.
-            if !body.has_mod("abstract") && !body.body?
+            if !body.has_mod("abstract") && !body.has_mod("native") && !body.body?
               raise WeedingStageError.new("method #{decl.name}.#{body.name} is not abstract but does not have a body")
             end
+
+            # Restrict use of the native modifier to only methods
+            # without a body and are static. Otherwise, if we encounter
+            # native the function signature is invalid.
+            if body.has_mod("native") && body.has_mod("static") && !body.body?
+              # Allow signature.
+            elsif body.has_mod("native")
+              raise WeedingStageError.new("method #{decl.name}.#{body.name} is not allowed to be native if does not conform to the signature\n <Visibility> static native <Name>(...);")
+            end
+          elsif body.is_a?(AST::FieldDecl)
+            # Do not allow fields to be final.
+            if body.has_mod("final")
+              raise WeedingStageError.new("field #{decl.name}.#{body.decl.name} is final, but final is not allowed")
+            end
           end
-        end
+        end # @rools.decls
 
         if !decl.has_mod("abstract") && !found_constructor
           raise WeedingStageError.new("class #{decl.name} has no constructors")

@@ -569,10 +569,7 @@ class Simplification
 
       typ = simplify(tree.tokens.get_tree!("Type")).as(AST::Typ)
 
-      decl = nil
-      if (decl_tree = tree.tokens.get_tree("VariableDeclarator")); !decl_tree.nil?
-        decl = simplify(decl_tree).as(AST::VariableDecl)
-      end
+      decl = simplify(tree.tokens.get_tree!("VariableDeclarator")).as(AST::VariableDecl)
 
       return AST::FieldDecl.new(modifiers, typ, decl)
     when "ClassDeclaration"

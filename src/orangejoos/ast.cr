@@ -1,6 +1,10 @@
 # The AST is a simple and easy to manipulate representation of the
 # source code.
 
+# TODO(joey): It would be great to have a simple reference to see all of
+# the AST nodes and their fields. Maybe we can document this and use a
+# tool to pull out the documentation for a concise reference?
+
 INDENT = ->(depth : Int32) { "  " * depth }
 
 module AST
@@ -241,13 +245,18 @@ module AST
   # declarations.
   abstract class MemberDecl < Node
     getter modifiers : Array(Modifier) = [] of Modifier
+
+    def has_mod(modifier : String)
+      # FIXME(joey): This is terrible and we can use a set instead.
+      modifiers.select {|m| m.name == modifier}.size > 0
+    end
   end
 
   class FieldDecl < MemberDecl
     property typ : Typ
-    property! decl : VariableDecl
+    property decl : VariableDecl
 
-    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl | Nil)
+    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl)
     end
 
     def pprint(depth : Int32)
@@ -475,11 +484,6 @@ module AST
     property! body : Array(Stmt) | Nil
 
     def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
-    end
-
-    def has_mod(modifier : String)
-      # FIXME(joey): This is terrible and we can use a set instead.
-      modifiers.select {|m| m.name == modifier}.size > 0
     end
 
     def pprint(depth : Int32)
