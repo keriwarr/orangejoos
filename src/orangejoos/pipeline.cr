@@ -82,7 +82,7 @@ Stages:
 
   def do_simplify!(file : SourceFile)
     begin
-     ast = Simplification.new(file.parse_tree).simplify.as(AST::File)
+     ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     rescue ex : SimplifyStageError
       STDERR.puts "Failed to simplify with exception: #{ex}"
       exit 42

@@ -3,6 +3,11 @@ require "./parse_tree.cr"
 require "./ast.cr"
 require "./lexeme.cr"
 
+# UnexpectedNodeException helps us identify when a parse tree is
+# rejected because it is not implemented yet.
+class UnexpectedNodeException < Exception
+end
+
 # I am sorry for this mess :(
 # In short, the simplify functions take parse rules and flattent them.
 # Along the way, they generate AST nodes.
@@ -49,17 +54,17 @@ end
 # It transforms the parse tree into a proper AST that for use in later
 # compiler stages.
 class Simplification
-  def initialize(@root : ParseTree)
+  def initialize
   end
 
-  def simplify
+  def simplify(root : ParseTree)
     # We can safely assume the structure of the parse tree is correct
     # otherwise it would fail during the parse stage. During
     # simplification the only conditional are for optional tokens and
     # productions with multiple rules.
 
     # Call `simplify()` on the CompilationUnit tree.
-    ret = simplify(@root)
+    ret = simplify(root)
     if ret.nil?
       raise Exception.new("expected non-nil simplified value")
     end
@@ -207,7 +212,7 @@ class Simplification
       end
       return blocks
     else
-      raise Exception.new("unexepected tree name=#{tree.name}")
+      raise UnexpectedNodeException.new("unexepected tree name=#{tree.name}")
     end
   end
 
@@ -637,7 +642,7 @@ class Simplification
       iface_decl = AST::InterfaceDecl.new(name.val, modifiers, extensions, member_decls)
       return iface_decl
     else
-      raise Exception.new("unexepected node name=#{tree.name}")
+      raise UnexpectedNodeException.new("unexepected node name=#{tree.name}")
     end
   end
 end
