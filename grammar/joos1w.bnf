@@ -175,7 +175,7 @@ Modifier:
   native
 
 ClassDeclaration:
-  Modifiers? class Identifier Super? Interfaces? ClassBody
+  Modifiers class Identifier Super? Interfaces? ClassBody
 
 Super:
   extends ClassType
@@ -204,7 +204,7 @@ ClassMemberDeclaration:
   MethodDeclaration
 
 FieldDeclaration:
-  Modifiers? Type VariableDeclarators ;
+  Modifiers Type VariableDeclarators ;
 
 VariableDeclarators:
   VariableDeclarator
@@ -228,8 +228,8 @@ MethodDeclaration:
   MethodHeader MethodBody
 
 MethodHeader:
-  Modifiers? Type MethodDeclarator
-  Modifiers? void MethodDeclarator
+  Modifiers Type MethodDeclarator
+  Modifiers void MethodDeclarator
 
 MethodDeclarator:
   Identifier ( FormalParameterList? )
@@ -257,7 +257,7 @@ StaticInitializer:
   static Block
 
 ConstructorDeclaration:
-  Modifiers? ConstructorDeclarator ConstructorBody
+  Modifiers ConstructorDeclarator ConstructorBody
 
 ConstructorDeclarator:
   SimpleName ( FormalParameterList? )
@@ -266,7 +266,7 @@ ConstructorBody:
   { BlockStatements? }
 
 InterfaceDeclaration:
-  Modifiers? interface Identifier ExtendsInterfaces? InterfaceBody
+  Modifiers interface Identifier ExtendsInterfaces? InterfaceBody
 
 ExtendsInterfaces:
   extends InterfaceType
