@@ -1,6 +1,7 @@
 require "./compiler_errors.cr"
 require "./parse_tree.cr"
 require "./ast.cr"
+require "./lexeme.cr"
 
 # I am sorry for this mess :(
 # In short, the simplify functions take parse rules and flattent them.
@@ -166,6 +167,18 @@ class Simplification
         params.push(param.as(AST::Param))
       end
       return params
+    when "ArgumentList"
+      exprs_t = tree.tokens.get_tree("ArgumentList")
+      exprs = [] of AST::Expr
+      if !exprs_t.nil?
+        exprs = simplify_tree(exprs_t).as(Array(AST::Expr))
+      end
+
+      expr = simplify(tree.tokens.get_tree!("Expression"))
+      if !expr.nil?
+        exprs.push(expr.as(AST::Expr))
+      end
+      return exprs
     when "BlockStatements"
       blocks = [] of AST::Stmt
       if (block_tree = tree.tokens.get_tree("BlockStatements")); !blocks.nil?
@@ -175,15 +188,15 @@ class Simplification
         blocks.push(block.as(AST::Stmt))
       end
       return blocks
-    when "MethodBody"
-      blocks = [] of AST::Stmt
-      if (block_tree = tree.tokens.get_tree("Block")); !block_tree.nil?
-        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
-      end
-      return blocks
     when "Block"
       blocks = [] of AST::Stmt
       if (block_tree = tree.tokens.get_tree("BlockStatements")); !block_tree.nil?
+        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
+      end
+      return blocks
+    when "MethodBody"
+      blocks = [] of AST::Stmt
+      if (block_tree = tree.tokens.get_tree("Block")); !block_tree.nil?
         blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
       end
       return blocks
@@ -328,6 +341,140 @@ class Simplification
     when "TypeImportOnDemandDeclaration"
       name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Name)
       return AST::ImportDecl.new(name, true)
+
+    # ==== Statements ====
+    when "Statement"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "StatementWithoutTrailingSubstatement"
+      if tree.tokens.first.as(ParseTree).name == "Block"
+        stmts = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Stmt))
+        return AST::Block.new(stmts)
+      end
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "StatementNoShortIf"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "ReturnStatement"
+      # TODO(joey)
+    when "IfThenStatement"
+      # TODO(joey)
+    when "IfThenElseStatement", "IfThenElseStatementNoShortif"
+      # TODO(joey)
+    when "WhileStatement", "WhileStatementNoShortif"
+      # TODO(joey)
+    when "ForStatement", "ForStatementNoShortif"
+      # TODO(joey)
+    when "ExpressionStatement"
+      # TODO(joey)
+
+    # ==== Expressions ====
+    when "Expression"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "AssignmentExpression"
+      return simplify(tree.tokens.first.as(ParseTree))
+    # The following cases are similar parse tree structures, where the
+    # middle token is the operator string we use anyways.
+    when "ConditionalOrExpression",
+         "ConditionalAndExpression",
+         "InclusiveOrExpression",
+         "AndExpression",
+         "EqualityExpression",
+         "RelationalExpression",
+         "AdditiveExpression",
+         "MultiplicativeExpression"
+      if tree.tokens.size == 1
+        return simplify(tree.tokens.first.as(ParseTree))
+      end
+      lhs_a = simplify(tree.tokens.first.as(ParseTree))
+      lhs = lhs_a.as(AST::Expr)
+      rhs = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+      op = tree.tokens.to_a[1].as(Lexeme).sem
+      return AST::ExprOp.new(op, lhs, rhs)
+    when "Assignment"
+      if tree.tokens.size == 1
+        return simplify(tree.tokens.first.as(ParseTree))
+      end
+      lhs_a = simplify(tree.tokens.first.as(ParseTree))
+      lhs = lhs_a.as(AST::Expr)
+      rhs = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+      # Only different here from the above case is the operator is
+      # wrapped inside another parse node.
+      op = tree.tokens.to_a[1].as(ParseTree).tokens.first.as(Lexeme).sem
+      return AST::ExprOp.new(op, lhs, rhs)
+    when "UnaryExpression", "UnaryExpressionNotPlusMinus"
+      if tree.tokens.size == 1
+        return simplify(tree.tokens.first.as(ParseTree))
+      end
+      op = tree.tokens.to_a[0].as(Lexeme).sem
+      lhs = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)
+      return AST::ExprOp.new(op, lhs)
+    when "PostfixExpression"
+      result = simplify(tree.tokens.first.as(ParseTree))
+      if result.is_a?(AST::Name)
+        # TODO(joey): we may want to refactor this to not be a thing.
+        # This is done to ocnvert Name types to an Expr.
+        return AST::ExprRef.new(result)
+      end
+      return result
+    when "Primary"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "PrimaryNoNewArray"
+      if tree.tokens.size == 3
+        return simplify(tree.tokens.to_a[1].as(ParseTree))
+      end
+      if tree.tokens.first.is_a?(Lexeme)
+        # FIXME(joey): Seems weird to special case this.
+        # We also may not need to support this and can remove it in the
+        # grammar.
+        return AST::ExprThis.new
+      end
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "ClassInstanceCreationExpression"
+      class_name = simplify(tree.tokens.get_tree!("ClassType")).as(AST::Name)
+
+      args = [] of AST::Expr
+      if (t = tree.tokens.get_tree("ArgumentList")); !t.nil?
+        args = simplify_tree(t).as(Array(AST::Expr))
+      end
+      return AST::ExprClassInit.new(class_name, args)
+    when "FieldAccess"
+      # TODO(Joey)
+      return AST::ExprThis.new
+    when "MethodInvocation"
+      # TODO(Joey)
+      return AST::ExprThis.new
+    when "ArrayAccess"
+      # TODO(Joey)
+      return AST::ExprThis.new
+    when "CastExpression"
+      # TODO(Joey)
+      return AST::ExprThis.new
+    when "ArrayCreationExpression"
+      # TODO(Joey)
+      return AST::ExprThis.new
+    when "LeftHandSide"
+      # FIXME(joey): Properly return an LValue type (name, field access, or array access).
+      # result = simplify(tree.tokens.first.as(ParseTree)).as(AST::Name)
+      # return AST::LValue.new()
+      return AST::ExprThis.new
+
+    # === LITERALS ===
+    when "Literal"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "IntegerLiteral"
+      val = tree.tokens.first.as(Lexeme).sem
+      return AST::ConstInteger.new(val)
+    when "BooleanLiteral"
+      val = tree.tokens.first.as(Lexeme).sem
+      return AST::ConstBool.new(val)
+    when "CharacterLiteral"
+      val = tree.tokens.first.as(Lexeme).sem
+      return AST::ConstChar.new(val)
+    when "StringLiteral"
+      val = tree.tokens.first.as(Lexeme).sem
+      return AST::ConstString.new(val)
+    when "NullLiteral"
+      return AST::ConstNull.new
+    # === OTHER (/not categorized) ===
     when "Super"
       return simplify(tree.tokens.to_a[1].as(ParseTree))
     when "ClassType"
@@ -352,9 +499,8 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
     when "LocalVariableDeclaration"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
-      return AST::DeclStmt.new(typ)
-    when "Statement"
-      # TODO(joey)
+      var_decl = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::VariableDecl)
+      return AST::DeclStmt.new(typ, var_decl)
     when "FormalParameter"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
       var = simplify(tree.tokens.to_a[1].as(ParseTree)).as(TMPVarName)
@@ -423,9 +569,14 @@ class Simplification
       name = var_name.name
       array_cardinality = var_name.cardinality
 
-      # TODO(joey): Get the iniializer code.
-      init = AST::VarInit.new
+      init = nil
+      if (t = tree.tokens.get_tree("VariableInitializer")); !t.nil?
+        init = simplify(t).as(AST::Expr)
+      end
+
       return AST::VariableDecl.new(name, array_cardinality, init)
+    when "VariableInitializer"
+      return simplify(tree.tokens.first.as(ParseTree))
     when "FieldDeclaration"
       modifiers = [] of AST::Modifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers")); !modifiers_tree.nil?

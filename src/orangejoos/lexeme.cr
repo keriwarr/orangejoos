@@ -112,6 +112,8 @@ KEYWORDS = Set{
 
   # Other keywords that are not used in Joos1W but are forbidden
   "goto",
+  "synchronized",
+  "volatile"
 }
 
 # A ParseNode is an abstract type for nodes that are operated on during
