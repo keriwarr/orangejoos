@@ -4,11 +4,20 @@ require "./ast.cr"
 # Weeding is a step that does specific program validations after
 # parsing. It operates on the AST.
 class Weeding
-  def initialize(@root : AST::File)
+  def initialize(@root : AST::File, @public_class_name : String)
   end
 
   def weed
+    public_classes = [] of String
+
     @root.decls.each do |decl|
+      # If the interface or class is public, add record it. We later
+      # check to make sure that there is only one public type and that
+      # the name matches the file name.
+      if decl.has_mod("public")
+        public_classes.push(decl.name)
+      end
+
       # A class annot be final and abstract.
       # TODO(joey): add reference to specific JLS section for rule.
       if decl.is_a?(AST::ClassDecl) && decl.has_mod("final") && decl.has_mod("abstract")
@@ -92,6 +101,13 @@ class Weeding
           end
         end
       end
+    end
+
+    # Ensure there is only one public type, and that it matches the file name.
+    if public_classes.size > 1
+      raise WeedingStageError.new("more than one class/interface is public, got: #{public_classes}")
+    elsif public_classes.size == 1 && public_classes.first != @public_class_name
+      raise WeedingStageError.new("class declared was \"#{public_classes.first}\" but to match the file name it must be \"#{@public_class_name}\"")
     end
   end
 end
