@@ -25,17 +25,6 @@ end
 
 # Intermediate ASTs. These do not appear in the final result but are
 # used to pass values up while doing simplificaiton.
-class TMPVarName < AST::Node
-  property name : String
-  property cardinality : Int32
-
-  def initialize(@name : String, @cardinality : Int32)
-  end
-
-  def pprint(depth : Int32)
-    raise Exception.new("unexpected call")
-  end
-end
 
 # Intermediate AST.
 class TMPMethodDecl < AST::Node
@@ -509,8 +498,8 @@ class Simplification
       return AST::DeclStmt.new(typ, var_decl)
     when "FormalParameter"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
-      var = simplify(tree.tokens.to_a[1].as(ParseTree)).as(TMPVarName)
-      return AST::Param.new(var.name, typ, var.cardinality)
+      var_name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Literal).val
+      return AST::Param.new(var_name, typ)
     when "MethodDeclaration"
       decl = simplify(tree.tokens.first.as(ParseTree)).as(AST::MethodDecl)
       body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt) | Nil)
@@ -560,27 +549,16 @@ class Simplification
 
       return AST::MethodDecl.new(decl.name, typ, mods, decl.params, [] of AST::Stmt)
     when "VariableDeclaratorId"
-      case tree.tokens.size
-      when 1
-          ident = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal)
-          return TMPVarName.new(ident.val, 0)
-      when 3
-          var_name = simplify(tree.tokens.first.as(ParseTree)).as(TMPVarName)
-          return TMPVarName.new(var_name.name, var_name.cardinality + 1)
-      else
-        raise Exception.new("unexpected token count: #{tree.tokens.size}")
-      end
+      return simplify(tree.tokens.first.as(ParseTree))
     when "VariableDeclarator"
-      var_name = simplify(tree.tokens.first.as(ParseTree)).as(TMPVarName)
-      name = var_name.name
-      array_cardinality = var_name.cardinality
+      var_name = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal).val
 
       init = nil
       if (t = tree.tokens.get_tree("VariableInitializer")); !t.nil?
         init = simplify(t).as(AST::Expr)
       end
 
-      return AST::VariableDecl.new(name, array_cardinality, init)
+      return AST::VariableDecl.new(var_name, init)
     when "VariableInitializer"
       return simplify(tree.tokens.first.as(ParseTree))
     when "FieldDeclaration"

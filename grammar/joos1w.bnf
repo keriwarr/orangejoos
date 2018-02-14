@@ -213,7 +213,9 @@ VariableDeclarator:
 
 VariableDeclaratorId:
   Identifier
-  VariableDeclaratorId [ ]
+  # Joos1W does not support the array declaration on the identifier.
+  # Array declarations must be on the type.
+  # VariableDeclaratorId [ ]
 
 VariableInitializer:
   Expression

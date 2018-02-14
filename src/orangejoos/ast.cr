@@ -284,9 +284,8 @@ module AST
   class Param < Node
     property name : String
     property typ : Typ
-    property cardinality : Int32 = 0
 
-    def initialize(@name : String, @typ : Typ, @cardinality : Int32)
+    def initialize(@name : String, @typ : Typ)
     end
 
     def pprint(depth : Int32)
@@ -435,16 +434,15 @@ module AST
   # optional initialization.
   class VariableDecl < Node
     property name : String
-    property cardinality : Int32 = 0
     property! init : Expr
 
-    def initialize(@name : String, @cardinality : Int32, @init : Expr | Nil)
+    def initialize(@name : String,@init : Expr | Nil)
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       init_str = init? ? init.pprint(0) : "<no init>"
-      return "#{indent}VarDecl: #{name} card=#{cardinality} init={#{init_str}}"
+      return "#{indent}VarDecl: #{name} init={#{init_str}}"
     end
   end
 
