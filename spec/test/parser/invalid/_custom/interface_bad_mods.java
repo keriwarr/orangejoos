@@ -1,3 +1,3 @@
-public interface InterfaceBadMods {
+protected interface InterfaceBadMods {
     public native void m();
 }

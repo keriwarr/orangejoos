@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public A() {}
   public A(Object x, Object y) {}
   public A(Object x, A y) {}

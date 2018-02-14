@@ -1,2 +1,2 @@
-  public interface A {}
+  public interface Public_Interfaces {}
 

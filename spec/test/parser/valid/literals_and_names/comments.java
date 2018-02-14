@@ -1,7 +1,7 @@
 /* This is a comment. */
 // This is another comment.
 
-public class A {
+protected class A {
     public A() {}
 }
 

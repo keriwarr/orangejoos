@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public int m1(Object x, Object y) {
     return 42;
   }

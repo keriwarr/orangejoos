@@ -1,9 +1,14 @@
 # The AST is a simple and easy to manipulate representation of the
 # source code.
 
+# TODO(joey): It would be great to have a simple reference to see all of
+# the AST nodes and their fields. Maybe we can document this and use a
+# tool to pull out the documentation for a concise reference?
+
 INDENT = ->(depth : Int32) { "  " * depth }
 
 module AST
+
   # Node is the root type of all AST elements.
   abstract class Node
 
@@ -240,13 +245,18 @@ module AST
   # declarations.
   abstract class MemberDecl < Node
     getter modifiers : Array(Modifier) = [] of Modifier
+
+    def has_mod(modifier : String)
+      # FIXME(joey): This is terrible and we can use a set instead.
+      modifiers.select {|m| m.name == modifier}.size > 0
+    end
   end
 
   class FieldDecl < MemberDecl
     property typ : Typ
-    property! decl : VariableDecl
+    property decl : VariableDecl
 
-    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl | Nil)
+    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl)
     end
 
     def pprint(depth : Int32)
@@ -280,39 +290,11 @@ module AST
     end
   end
 
-  # Represents an expressio nwhich is a variable declaration.
-  # TOOD(joey): Maybe this just needs to be an expr?
-  class VarInit < Node
-    def initialize
-    end
-
-    def pprint(depth : Int32)
-      return "VarInit: TODO"
-    end
-  end
-
-  # Represents a variable declaration: a name, a cardinality and an
-  # optional initialization.
-  class VariableDecl < Node
-    property name : String
-    property cardinality : Int32 = 0
-    property init : VarInit
-
-    def initialize(@name : String, @cardinality : Int32, @init : VarInit)
-    end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}VarDecl: #{name} card=#{cardinality} init={#{init.pprint(0)}}"
-    end
-  end
-
   class Param < Node
     property name : String
     property typ : Typ
-    property cardinality : Int32 = 0
 
-    def initialize(@name : String, @typ : Typ, @cardinality : Int32)
+    def initialize(@name : String, @typ : Typ)
     end
 
     def pprint(depth : Int32)
@@ -323,17 +305,174 @@ module AST
 
   # Generic statement type action.
   abstract class Stmt < Node
+
+    abstract def children : Array(Stmt)
+
+    def traverse(map : Stmt -> Tuple(Object, Boolean), reduce : Array(Object) -> Object)
+      results = [] of Object
+
+      result, cont = map(self)
+      if !cont
+        return result
+      end
+
+      results.push(result)
+
+      self.children.each do |c|
+        result, cont = c.traverse(map, reduce)
+        if !cont
+          return {result, cont}
+        end
+        results.push(result)
+      end
+
+      return {reduce(results.compact), false}
+    end
+  end
+
+  class Block < Stmt
+    property stmts : Array(Stmt) = [] of Stmt
+
+    def initialize(@stmts : Array(Stmt))
+    end
+
+    def pprint(depth : Int32)
+      return "Block : TODO"
+    end
+
+    def children
+      stmts
+    end
+  end
+
+  # Represents an expression.
+  abstract class Expr < Stmt
+    def initialize
+    end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO"
+    end
+
+    def children
+      # TODO(joey)
+      [] of Expr
+    end
+  end
+
+  class ExprOp < Expr
+    property op : String
+    property operands : Array(Expr) = [] of Expr
+
+    def initialize(@op : String, *ops)
+      ops.each do |operand|
+        if operand.is_a?(Expr)
+          @operands.push(operand)
+        else
+          raise Exception.new("unexpected type, got operand: #{operand.inspect}")
+        end
+      end
+    end
+
+    def children
+      return operands
+    end
+  end
+
+  class ExprClassInit < Expr
+    property name : Name
+    property args : Array(Expr) = [] of Expr
+
+    def initialize(@name : Name, @args : Array(Expr))
+    end
+
+    def children
+      return args
+    end
+  end
+
+  class ExprThis < Expr
+    def initialize
+    end
+  end
+
+  class ExprRef < Expr
+    property name : Name
+
+    def initialize(@name : Name)
+    end
+  end
+
+  abstract class Const < Expr
+  end
+
+  class ConstInteger < Const
+    # FIXME(joey): Make this a proper int val.
+    property val : String
+    def initialize(@val : String)
+    end
+  end
+
+  class ConstBool < Const
+    # FIXME(joey): Make this a proper bool val.
+    property val : String
+    def initialize(@val : String)
+    end
+  end
+
+  class ConstChar < Const
+    # FIXME(joey): Make this a proper char val.
+    property val : String
+    def initialize(@val : String)
+    end
+  end
+
+  class ConstString < Const
+    property val : String
+    def initialize(@val : String)
+    end
+  end
+
+  class ConstNull < Const
+    def initialize
+    end
+  end
+
+
+  # Represents a variable declaration: a name, a cardinality and an
+  # optional initialization.
+  class VariableDecl < Node
+    property name : String
+    property! init : Expr
+
+    def initialize(@name : String,@init : Expr | Nil)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      init_str = init? ? init.pprint(0) : "<no init>"
+      return "#{indent}VarDecl: #{name} init={#{init_str}}"
+    end
   end
 
   # A declaration statement.
   class DeclStmt < Stmt
     property typ : AST::Typ
+    property var : AST::VariableDecl
 
-    def initialize(@typ : AST::Typ)
+    def initialize(@typ : AST::Typ, @var : AST::VariableDecl)
     end
 
     def pprint(depth : Int32)
       return "DeclStmt: TODO"
+    end
+
+    def children
+      if var.init.nil?
+        return [] of Stmt
+      else
+        return [var.init]
+      end
     end
   end
 
@@ -342,21 +481,21 @@ module AST
     property typ : Typ
     property modifiers : Array(Modifier) = [] of Modifier
     property params : Array(Param) = [] of Param
-    property body : Array(Stmt) = [] of Stmt
+    property! body : Array(Stmt) | Nil
 
     def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
-    end
-
-    def has_mod(modifier : String)
-      # FIXME(joey): This is terrible and we can use a set instead.
-      modifiers.select {|m| m.name == modifier}.size > 0
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
-      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p}"
+      if body?
+        body_str = body.each {|b| b.pprint(0)}.to_s
+      else
+        body_str = "<no body>"
+      end
+      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p} #{body_str}"
     end
   end
 

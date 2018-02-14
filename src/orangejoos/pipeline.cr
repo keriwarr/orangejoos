@@ -19,6 +19,48 @@ class SourceFile
     @contents = File.read(path)
     return contents
   end
+
+  # The type name that this file is allowed to export.
+  # - If the file has a hyphen or any special characters, they become
+  #   underscores.
+  # - If the filename is a keyword, append an underscore. (May not be
+  #   relevant, only for packages).
+  # - If the filename starts with a digit add an underscore prefix.
+  def class_name
+    if /\.jav$/ =~ path
+      filename = File.basename(path, ".jav")
+    else
+      filename = File.basename(path, ".java")
+    end
+
+    # If the name starts with a number, prefix it with an underscore.
+    if filename[0].ascii_number?
+      filename = "_" + filename
+    end
+
+    # Replace all invalid name characters with underscores. Only ascii
+    # letters, numbers, '$', and '_' are considered valid.
+    cleaned_filename = ""
+    # new_word = true
+    filename.chars.each do |c|
+      if c.ascii_letter?
+        # if new_word
+        #   new_word = false
+        #   cleaned_filename += c.upcase
+        # else
+          cleaned_filename += c
+        # end
+      elsif c.ascii_number? || c == '$' || c == '_'
+        # new_word = true
+        cleaned_filename += c
+      else
+        # new_word = true
+        cleaned_filename += "_"
+      end
+    end
+
+    return cleaned_filename
+  end
 end
 
 # The Pipeline executes the compiler pipeline.
@@ -82,7 +124,7 @@ Stages:
 
   def do_simplify!(file : SourceFile)
     begin
-     ast = Simplification.new(file.parse_tree).simplify.as(AST::File)
+     ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     rescue ex : SimplifyStageError
       STDERR.puts "Failed to simplify with exception: #{ex}"
       exit 42
@@ -93,7 +135,7 @@ Stages:
 
   def do_weed!(file : SourceFile)
     begin
-     Weeding.new(file.ast).weed
+     Weeding.new(file.ast, file.class_name).weed
     rescue ex : WeedingStageError
       STDERR.puts "Found weeding error: #{ex}"
       exit 42
@@ -130,8 +172,10 @@ Stages:
     # Check that all of the paths exist.
     @paths.each do |path|
       if File.exists?(path)
-        if !(/\.java$/ =~ path)
-          STDERR.puts "ERROR: path is not a .java file"
+        if !(/\.java?$/ =~ path)
+          # JLS 2, sec 7.6 (page 155) says java files may also be
+          # ".jav". I bet this is a secret test ;O.
+          STDERR.puts "ERROR: path is not a .java or .jav file"
           exit 42
         end
         source_files.push(SourceFile.new(path))

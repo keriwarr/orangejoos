@@ -213,7 +213,9 @@ VariableDeclarator:
 
 VariableDeclaratorId:
   Identifier
-  VariableDeclaratorId [ ]
+  # Joos1W does not support the array declaration on the identifier.
+  # Array declarations must be on the type.
+  # VariableDeclaratorId [ ]
 
 VariableInitializer:
   Expression
@@ -422,12 +424,14 @@ Dims:
 
 FieldAccess:
   Primary . Identifier
-  super . Identifier
+  # In Joos1W super field access is not allowed.
+  # super . Identifier
 
 MethodInvocation:
   Name ( ArgumentList? )
   Primary . Identifier ( ArgumentList? )
-  super . Identifier ( ArgumentList? )
+  # In Joos1W super method invocation is not allowed.
+  # super . Identifier ( ArgumentList? )
 
 ArrayAccess:
   Name [ Expression ]

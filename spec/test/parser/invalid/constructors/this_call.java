@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public A(String x) {}
   public A(int x) {
     this("foo");

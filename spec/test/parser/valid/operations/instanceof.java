@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public A() {}
   public boolean m(Object x) {
     return x instanceof A;

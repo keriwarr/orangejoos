@@ -1,5 +1,7 @@
 #!/bin/bash
 
+make
+
 FAIL_FILES=$(find test/parser/bad -type f)
 PASS_FILES=$(find test/parser/valid -type f)
 

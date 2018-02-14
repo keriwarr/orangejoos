@@ -1,6 +1,6 @@
 // This test checks to see if the class matches the file name.
 
-public class A {
+protected class A {
   public A() {}
 }
 

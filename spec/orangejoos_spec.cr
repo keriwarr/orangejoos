@@ -1,9 +1,9 @@
 require "./spec_helper"
 
-describe Orangejoos do
-  # TODO: Write tests
+# describe Orangejoos do
+#   # TODO: Write tests
 
-  it "works" do
-    false.should eq(true)
-  end
-end
+#   it "works" do
+#     false.should eq(true)
+#   end
+# end

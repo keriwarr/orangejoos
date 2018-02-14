@@ -1,6 +1,6 @@
 package dovs.joos.features;
 
-public class A {
+protected class A {
   public A() {}
   protected int x;
 }

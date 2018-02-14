@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public A() {}
   public int m(int x) {
     while (x>0) x=x-1;

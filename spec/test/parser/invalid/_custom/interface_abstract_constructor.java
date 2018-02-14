@@ -1,3 +1,3 @@
-public interface InterfaceAbstractConstructor {
+protected interface InterfaceAbstractConstructor {
     public abstract InterfaceAbstractConstructor() {}
 }
