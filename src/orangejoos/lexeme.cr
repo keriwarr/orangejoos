@@ -112,6 +112,9 @@ KEYWORDS = Set{
 
   # Other keywords that are not used in Joos1W but are forbidden
   "goto",
+  "transient",
+  "strictfp",
+  "volatile",
   "synchronized",
   "volatile",
   "float",
