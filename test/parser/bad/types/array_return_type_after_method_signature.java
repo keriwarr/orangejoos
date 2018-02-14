@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public A() {}
   public int foo()[] { return null; }
 }

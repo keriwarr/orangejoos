@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public void m(int x) {
     x+=42;
     x-=42;

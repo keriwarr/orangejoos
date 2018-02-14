@@ -1,3 +1,3 @@
-public interface InterfaceMethodBody {
+protected interface InterfaceMethodBody {
     public void m() {}
 }

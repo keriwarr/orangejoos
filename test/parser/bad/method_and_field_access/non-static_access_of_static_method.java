@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public static int m1() {
     return 42;
   }

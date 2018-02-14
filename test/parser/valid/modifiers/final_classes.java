@@ -1,4 +1,3 @@
-  public final class A {
+protected final class A {
     public A() {}
-  }
-
+}

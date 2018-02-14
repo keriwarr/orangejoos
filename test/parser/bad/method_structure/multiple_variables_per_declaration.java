@@ -1,3 +1,3 @@
-public class A {
+protected class A {
   public int x,y,z;
 }

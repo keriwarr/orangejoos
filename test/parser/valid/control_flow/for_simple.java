@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public A() {}
   public int m(int x) {
     int y = 0;

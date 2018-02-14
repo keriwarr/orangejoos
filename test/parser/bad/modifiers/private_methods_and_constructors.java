@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   private int m() {
     return 42;
   }

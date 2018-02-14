@@ -1,5 +1,5 @@
-public class A implements java.io.Serializable {
-  public A() {}
+public class Implements implements java.io.Serializable {
+  public Implements() {}
   protected int x;
 }
 

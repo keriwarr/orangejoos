@@ -1,6 +1,6 @@
 import java.util.Vector;
 
-public class A {
+protected class A {
   public A() {}
   protected Vector c;
 }

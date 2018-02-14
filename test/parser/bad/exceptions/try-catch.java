@@ -1,4 +1,4 @@
-public class A {
+protected class A {
   public int m(java.io.FileInputStream x) {
     int y;
     try {

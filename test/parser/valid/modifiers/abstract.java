@@ -1,4 +1,4 @@
-public abstract class A {
+protected abstract class A {
   public abstract int m();
 }
 
