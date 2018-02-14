@@ -118,11 +118,30 @@ class Simplification
         members_decls.push(decl.as(AST::MemberDecl))
       end
       return members_decls
+    when "ClassBodyDeclarations"
+      members = tree.tokens.get_tree("ClassBodyDeclarations")
+      members_decls = [] of AST::MemberDecl
+      if !members.nil?
+        members_decls = simplify_tree(members).as(Array(AST::MemberDecl))
+      end
+
+      decl = simplify(tree.tokens.get_tree!("ClassBodyDeclaration"))
+      if !decl.nil?
+        members_decls.push(decl.as(AST::MemberDecl))
+      end
+      return members_decls
     when "Interfaces"
       type_list = tree.tokens.get_tree!("InterfaceTypeList")
       return simplify_tree(type_list)
     when "InterfaceBody"
       members = tree.tokens.get_tree("InterfaceMemberDeclarations")
+      members_decls = [] of AST::MemberDecl
+      if !members.nil?
+        members_decls = simplify_tree(members).as(Array(AST::MemberDecl))
+      end
+      return members_decls
+    when "ClassBody"
+      members = tree.tokens.get_tree("ClassBodyDeclarations")
       members_decls = [] of AST::MemberDecl
       if !members.nil?
         members_decls = simplify_tree(members).as(Array(AST::MemberDecl))
@@ -213,13 +232,36 @@ class Simplification
       end
       return AST::Keyword.new(tree.tokens.first.as(Lexeme).sem)
     when "Type"
-      # FIXME(joey): Handle ReferenceType.
       return simplify(tree.tokens.first.as(ParseTree))
+    when "ReferenceType"
+      class_tree = tree.tokens.get_tree("ClassOrInterfaceType")
+      if !class_tree.nil?
+        class_name = simplify(class_tree).as(AST::Name)
+        return AST::ReferenceTyp.new(class_name)
+      else
+        # ArrayType or array reference type.
+        return simplify(tree.tokens.first)
+      end
+    when "ArrayType"
+      t = tree.tokens.first.as(ParseTree)
+      case t.name
+      when "Name"
+        name = simplify(t).as(AST::Name)
+        return AST::ReferenceTyp.new(name, 1)
+      when "ArrayType", "PrimitiveType"
+        typ = simplify(t).as(AST::Typ)
+        typ.cardinality = typ.cardinality + 1
+        return typ
+      else
+        raise Exception.new("unexpected case")
+      end
     when "PrimitiveType"
-      if (t = tree.tokens.first); t.is_a?(ParseTree)
+       t = tree.tokens.first
+      if t.is_a?(ParseTree)
+        puts "#{tree.tokens.first.inspect}"
         return simplify(t.as(ParseTree))
       elsif tree.tokens.first.is_a?(Lexeme)
-        return AST::Typ.new("boolean")
+        return AST::PrimativeTyp.new("boolean")
       else
         raise Exception.new("unexpected case")
       end
@@ -228,7 +270,7 @@ class Simplification
     when "IntegralType"
       l = tree.tokens.first
       if l.is_a?(Lexeme)
-        return AST::Typ.new(l.sem)
+        return AST::PrimativeTyp.new(l.sem)
       else
         raise Exception.new("unexpected case")
       end
@@ -267,6 +309,22 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
     when "AbstractMethodDeclaration"
       return simplify(tree.tokens.first.as(ParseTree))
+    when "ClassBodyDeclaration"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "ClassMemberDeclaration"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "StaticInitializer"
+      # TODO(joey)
+    when "ConstructorDeclaration"
+      # TODO(joey)
+    when "MethodDeclaration"
+      decl = simplify(tree.tokens.first.as(ParseTree)).as(AST::MethodDecl)
+
+      # body = ...
+      body = AST::Block.new
+
+      decl.body = body
+      return decl
     when "MethodDeclarator"
       decl = tree.tokens.get_tree("MethodDeclarator")
       if !decl.nil?
@@ -286,7 +344,7 @@ class Simplification
 
       typ_tree = tree.tokens.get_tree("Type")
       if typ_tree.nil?
-        typ = AST::Typ.new("void")
+        typ = AST::PrimativeTyp.new("void")
       else
         typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
       end
@@ -295,7 +353,7 @@ class Simplification
       # TODO(joey): MethodDeclarator has an array suffix. I do not know
       # what it is for.
 
-      return AST::MethodDecl.new(decl.name, typ, mods, decl.params)
+      return AST::MethodDecl.new(decl.name, typ, mods, decl.params, nil)
     when "VariableDeclaratorId"
       case tree.tokens.size
       when 1
@@ -348,10 +406,13 @@ class Simplification
         interfaces = simplify_tree(interfaces_tree).as(Array(AST::Name))
       end
 
-      # TODO(joey): ClassBody
+      member_decls = [] of AST::MemberDecl
+      if (body_tree = tree.tokens.get_tree("ClassBody")); !body_tree.nil?
+        member_decls = simplify_tree(body_tree).as(Array(AST::MemberDecl))
+      end
 
-      class_descl = AST::ClassDecl.new(name.val, modifiers, super_class, interfaces)
-      return class_descl.as(AST::ClassDecl)
+      class_decl = AST::ClassDecl.new(name.val, modifiers, super_class, interfaces)
+      return class_decl
     when "InterfaceDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
 
@@ -370,10 +431,10 @@ class Simplification
         member_decls = simplify_tree(body_tree).as(Array(AST::MemberDecl))
       end
 
-      iface_descl = AST::InterfaceDecl.new(name.val, modifiers, extensions, member_decls)
-      return iface_descl.as(AST::InterfaceDecl)
+      iface_decl = AST::InterfaceDecl.new(name.val, modifiers, extensions, member_decls)
+      return iface_decl
     else
-      raise Exception.new("unexepected tree name=#{tree.name}")
+      raise Exception.new("unexepected node name=#{tree.name}")
     end
   end
 end

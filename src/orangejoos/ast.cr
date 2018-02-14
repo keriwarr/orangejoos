@@ -14,16 +14,47 @@ module AST
     abstract def pprint(depth : Int32) : String
   end
 
-  class Typ < Node
-    def initialize(@val : String)
+  abstract class Typ < Node
+    property cardinality : Int32 = 0
+
+    abstract def name : String
+  end
+
+  class PrimativeTyp < Typ
+    @name : String
+
+    def initialize(@name : String)
+      @cardinality = 0
+    end
+    def initialize(@name : String, @cardinality : Int32)
     end
 
     def name
-      @val
+      arr_str = "[]" * cardinality
+      return "#{@name}#{arr_str}"
     end
 
     def pprint(depth : Int32)
-      return @val
+      return name
+    end
+  end
+
+  class ReferenceTyp < Typ
+    @name : Name
+
+    def initialize(@name : Name)
+      @cardinality = 0
+    end
+    def initialize(@name : Name, @cardinality : Int32)
+    end
+
+    def name
+      arr_str = "[]" * cardinality
+      return "#{@name.name}#{arr_str}"
+    end
+
+    def pprint(depth : Int32)
+      return name
     end
   end
 
@@ -285,13 +316,23 @@ module AST
     end
   end
 
+  class Block < Node
+    def initialize
+    end
+
+    def pprint(depth : Int32)
+      return "Block: TODO"
+    end
+  end
+
   class MethodDecl < MemberDecl
     property name : String
     property typ : Typ
     property modifiers : Array(Modifier) = [] of Modifier
     property params : Array(Param) = [] of Param
+    property! body : Block
 
-    def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param))
+    def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Block | Nil)
     end
 
     def has_mod(modifier : String)
