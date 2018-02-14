@@ -130,8 +130,10 @@ Stages:
     # Check that all of the paths exist.
     @paths.each do |path|
       if File.exists?(path)
-        if !(/\.java$/ =~ path)
-          STDERR.puts "ERROR: path is not a .java file"
+        if !(/\.java?$/ =~ path)
+          # JLS 2, sec 7.6 (page 155) says java files may also be
+          # ".jav". I bet this is a secret test ;O.
+          STDERR.puts "ERROR: path is not a .java or .jav file"
           exit 42
         end
         source_files.push(SourceFile.new(path))
