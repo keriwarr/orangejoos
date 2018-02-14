@@ -94,18 +94,6 @@ class Simplification
         modifiers_decls.push(mod.as(AST::Modifier))
       end
       return modifiers_decls
-    when "VariableDeclarators"
-      vars = tree.tokens.get_tree("VariableDeclarators")
-      vars_decls = [] of AST::VariableDecl
-      if !vars.nil?
-        vars_decls = simplify_tree(vars).as(Array(AST::VariableDecl))
-      end
-
-      decl = simplify(tree.tokens.get_tree!("VariableDeclarator"))
-      if !decl.nil?
-        vars_decls.push(decl.as(AST::VariableDecl))
-      end
-      return vars_decls
     when "InterfaceMemberDeclarations"
       members = tree.tokens.get_tree("InterfaceMemberDeclarations")
       members_decls = [] of AST::MemberDecl
@@ -376,8 +364,6 @@ class Simplification
       init = AST::VarInit.new
       return AST::VariableDecl.new(name, array_cardinality, init)
     when "FieldDeclaration"
-      # FIXME(joey): This represents multiple fields. It should be
-      # changed into an array, represented at the top-level.
       modifiers = [] of AST::Modifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers")); !modifiers_tree.nil?
         modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
@@ -385,12 +371,12 @@ class Simplification
 
       typ = simplify(tree.tokens.get_tree!("Type")).as(AST::Typ)
 
-      decls = [] of AST::VariableDecl
-      if (decls_tree = tree.tokens.get_tree("VariableDeclarators")); !decls_tree.nil?
-        decls = simplify_tree(decls_tree).as(Array(AST::VariableDecl))
+      decl = nil
+      if (decl_tree = tree.tokens.get_tree("VariableDeclarator")); !decl_tree.nil?
+        decl = simplify(decl_tree).as(AST::VariableDecl)
       end
 
-      return AST::FieldDecl.new(modifiers, typ, decls)
+      return AST::FieldDecl.new(modifiers, typ, decl)
     when "ClassDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
 

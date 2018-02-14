@@ -204,11 +204,7 @@ ClassMemberDeclaration:
   MethodDeclaration
 
 FieldDeclaration:
-  Modifiers Type VariableDeclarators ;
-
-VariableDeclarators:
-  VariableDeclarator
-  VariableDeclarators , VariableDeclarator
+  Modifiers Type VariableDeclarator ;
 
 VariableDeclarator:
   VariableDeclaratorId
@@ -313,9 +309,9 @@ LocalVariableDeclarationStatement:
   LocalVariableDeclaration ;
 
 LocalVariableDeclaration:
-  # FIXME(joey): We need to ensure these VariableDeclarator has an
-  # assignment during weeding.
-  Type VariableDeclarators
+  # FIXME(joey): We need to ensure the VariableDeclarator has no
+  # assignment.
+  Type VariableDeclarator
 
 Statement:
   StatementWithoutTrailingSubstatement

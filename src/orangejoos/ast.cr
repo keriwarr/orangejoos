@@ -241,16 +241,15 @@ module AST
 
   class FieldDecl < MemberDecl
     property typ : Typ
-    property decls : Array(VariableDecl) = [] of VariableDecl
+    property! decl : VariableDecl
 
-    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decls : Array(VariableDecl))
+    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl | Nil)
     end
 
     def pprint(depth : Int32)
       mods = modifiers.map {|i| i.name }.join(",")
       indent = INDENT.call(depth)
-      declarations = decls.map {|d| d.pprint(0) }.join(",")
-      return "#{indent} fields=[#{declarations}] type=#{typ.name} mods=#{mods}"
+      return "#{indent} field=#{decl.pprint(0)} type=#{typ.name} mods=#{mods}"
     end
   end
 
