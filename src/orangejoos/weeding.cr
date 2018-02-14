@@ -38,6 +38,11 @@ class Weeding
             if body.has_mod("abstract") && body.body?
               raise WeedingStageError.new("method #{decl.name}.#{body.name} is abstract but has a body")
             end
+
+            # An non-abstract method requires a body.
+            if !body.has_mod("abstract") && !body.body?
+              raise WeedingStageError.new("method #{decl.name}.#{body.name} is not abstract but does not have a body")
+            end
           end
         end
 
