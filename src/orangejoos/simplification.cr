@@ -2,6 +2,7 @@ require "./compiler_errors.cr"
 require "./parse_tree.cr"
 require "./ast.cr"
 
+# I am sorry for this mess of hecticness :(
 # TODO(joey): some notes on clean up to be done here:
 # - Replace tokens.to_a[i] access for children.
 # - Clean up casting. This is done to consoldiate rules within a few
@@ -16,6 +17,19 @@ class TMPVarName < AST::Node
   property cardinality : Int32
 
   def initialize(@name : String, @cardinality : Int32)
+  end
+
+  def pprint(depth : Int32)
+    raise Exception.new("unexpected call")
+  end
+end
+
+# Intermediate AST.
+class TMPMethodDecl < AST::Node
+  property name : String
+  property params : Array(AST::Param) = [] of AST::Param
+
+  def initialize(@name : String, @params : Array(AST::Param))
   end
 
   def pprint(depth : Int32)
@@ -94,14 +108,14 @@ class Simplification
       return vars_decls
     when "InterfaceMemberDeclarations"
       members = tree.tokens.get_tree("InterfaceMemberDeclarations")
-      members_decls = [] of AST::MemberDeclaration
+      members_decls = [] of AST::MemberDecl
       if !members.nil?
-        members_decls = simplify_tree(members).as(Array(AST::MemberDeclaration))
+        members_decls = simplify_tree(members).as(Array(AST::MemberDecl))
       end
 
       decl = simplify(tree.tokens.get_tree!("InterfaceMemberDeclaration"))
       if !decl.nil?
-        members_decls.push(decl.as(AST::MemberDeclaration))
+        members_decls.push(decl.as(AST::MemberDecl))
       end
       return members_decls
     when "Interfaces"
@@ -109,9 +123,9 @@ class Simplification
       return simplify_tree(type_list)
     when "InterfaceBody"
       members = tree.tokens.get_tree("InterfaceMemberDeclarations")
-      members_decls = [] of AST::MemberDeclaration
+      members_decls = [] of AST::MemberDecl
       if !members.nil?
-        members_decls = simplify_tree(members).as(Array(AST::MemberDeclaration))
+        members_decls = simplify_tree(members).as(Array(AST::MemberDecl))
       end
       return members_decls
     when "InterfaceTypeList"
@@ -253,6 +267,35 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
     when "AbstractMethodDeclaration"
       return simplify(tree.tokens.first.as(ParseTree))
+    when "MethodDeclarator"
+      decl = tree.tokens.get_tree("MethodDeclarator")
+      if !decl.nil?
+        # TODO(joey): There is an array suffix but I do not know what it
+        # is for.
+        return simplify(decl.as(ParseTree))
+      end
+
+      ident = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal)
+
+      params = [] of AST::Param
+      # TODO(joey): Parse parameters from FormalParameterList.
+
+      return TMPMethodDecl.new(ident.val, params)
+    when "MethodHeader"
+      mods = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Modifier))
+
+      typ_tree = tree.tokens.get_tree("Type")
+      if typ_tree.nil?
+        typ = AST::Typ.new("void")
+      else
+        typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
+      end
+
+      decl = simplify(tree.tokens.to_a[2].as(ParseTree)).as(TMPMethodDecl)
+      # TODO(joey): MethodDeclarator has an array suffix. I do not know
+      # what it is for.
+
+      return AST::MethodDecl.new(decl.name, typ, mods, decl.params)
     when "VariableDeclaratorId"
       case tree.tokens.size
       when 1
@@ -322,9 +365,9 @@ class Simplification
         extensions = simplify_tree(extensions_tree).as(Array(AST::Name))
       end
 
-      member_decls = [] of AST::MemberDeclaration
+      member_decls = [] of AST::MemberDecl
       if (body_tree = tree.tokens.get_tree("InterfaceBody")); !body_tree.nil?
-        member_decls = simplify_tree(body_tree).as(Array(AST::MemberDeclaration))
+        member_decls = simplify_tree(body_tree).as(Array(AST::MemberDecl))
       end
 
       iface_descl = AST::InterfaceDecl.new(name.val, modifiers, extensions, member_decls)

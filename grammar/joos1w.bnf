@@ -275,11 +275,13 @@ InterfaceMemberDeclarations:
   InterfaceMemberDeclarations InterfaceMemberDeclaration
 
 InterfaceMemberDeclaration:
-  ConstantDeclaration
+  # This is not supported in Joos1W.
+  # ConstantDeclaration
   AbstractMethodDeclaration
 
-ConstantDeclaration:
-  FieldDeclaration
+# Unused rule, due to the above omission.
+# ConstantDeclaration:
+# FieldDeclaration
 
 AbstractMethodDeclaration:
   MethodHeader ;

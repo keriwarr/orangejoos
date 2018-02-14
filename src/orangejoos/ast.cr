@@ -110,6 +110,8 @@ module AST
     property! name : String
     getter modifiers : Array(Modifier) = [] of Modifier
 
+    # FIXME(joey): This could easily be a mixin for types that have
+    # modifiers.
     def has_mod(modifier : String)
       # FIXME(joey): This is terrible and we can use a set instead.
       modifiers.select {|m| m.name == modifier}.size > 0
@@ -145,9 +147,9 @@ module AST
   # A top-level interface declaration.
   class InterfaceDecl < TypeDecl
     getter extensions : Array(Name) = [] of Name
-    getter body : Array(MemberDeclaration) = [] of MemberDeclaration
+    getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, @modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDeclaration))
+    def initialize(@name : String, @modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
     end
 
     def pprint(depth : Int32)
@@ -157,7 +159,7 @@ module AST
         extensions_str = extensions.map {|i| i.name }.join(", ")
       end
       mods = modifiers.map {|i| i.name }
-      decls = body.map {|b| b.pprint(depth+1)}.join("\n")
+      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
       return "#{indent}Interface #{name}:
 #{indent}  Modifiers: #{mods}
 #{indent}  Extensions: #{extensions_str}
@@ -202,11 +204,11 @@ module AST
 
   # Represents member declarations. This includes method and constant
   # declarations.
-  abstract class MemberDeclaration < Node
+  abstract class MemberDecl < Node
     getter modifiers : Array(Modifier) = [] of Modifier
   end
 
-  class FieldDecl < MemberDeclaration
+  class FieldDecl < MemberDecl
     property typ : Typ
     property decls : Array(VariableDecl) = [] of VariableDecl
 
@@ -268,6 +270,39 @@ module AST
 
     def pprint(depth : Int32)
       return "VarDecl: #{name} card=#{cardinality} init={#{init.pprint(0)}}"
+    end
+  end
+
+  class Param < Node
+    property name : String
+    property typ : Typ
+
+    def initialize(@name : String, @typ : Typ)
+    end
+
+    def pprint(depth : Int32)
+      return "Param: TODO"
+    end
+  end
+
+  class MethodDecl < MemberDecl
+    property name : String
+    property typ : Typ
+    property modifiers : Array(Modifier) = [] of Modifier
+    property params : Array(Param) = [] of Param
+
+    def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param))
+    end
+
+    def has_mod(modifier : String)
+      # FIXME(joey): This is terrible and we can use a set instead.
+      modifiers.select {|m| m.name == modifier}.size > 0
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      mods = modifiers.map {|i| i.name }
+      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{params}"
     end
   end
 end

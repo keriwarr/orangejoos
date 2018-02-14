@@ -66,13 +66,14 @@ From the assignment page:
 - [ ] An abstract method cannot be static or final.
 - [ ] A static method cannot be final.
 - [ ] A native method must be static.
-- [ ] The type void may only be used as the return type of a method.
+- [x] The type void may only be used as the return type of a method. _(Done in the grammar, for free.)_
 - [ ] A formal parameter of a method must not have an initializer.
 - [x] File must be a `.java` file.
 - [ ] A class/interface must be declared in a file with the same base
   name as the class/interface.
-- [ ] An interface cannot contain fields or constructors.
-- [ ] An interface method cannot be static, final, or native.
+- [x] An interface cannot contain fields
+- [ ] An interface cannot contain constructors.
+- [x] An interface method cannot be static, final, or native.
 - [ ] An interface method cannot have a body.
 - [ ] Every class must contain at least one explicit constructor.
 - [ ] No field can be final.
