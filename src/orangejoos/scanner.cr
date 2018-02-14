@@ -253,7 +253,7 @@ class Scanner
           # It is a compile error if a character escaped is
           # not a valid one.
           if ch.nil?
-            return Lexeme.new(Type::Bad, str.size + escaped_chars + 2, str)
+            raise ScanningStageError.new("invalid escape character, got: #{escaped_ch}", @lexemes)
           end
         end
 
