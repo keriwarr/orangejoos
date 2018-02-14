@@ -154,8 +154,19 @@ class Simplification
         interfaces_decls.push(interface.as(AST::Name))
       end
       return interfaces_decls
-    when "BlockStatements"
+    when "FormalParameterList"
+      params_t = tree.tokens.get_tree("FormalParameterList")
+      params = [] of AST::Param
+      if !params_t.nil?
+        params = simplify_tree(params_t).as(Array(AST::Param))
+      end
 
+      param = simplify(tree.tokens.get_tree!("FormalParameter"))
+      if !param.nil?
+        params.push(param.as(AST::Param))
+      end
+      return params
+    when "BlockStatements"
       blocks = [] of AST::Stmt
       if (block_tree = tree.tokens.get_tree("BlockStatements")); !blocks.nil?
         blocks_decls = simplify_tree(block_tree).as(Array(AST::Stmt))
@@ -171,6 +182,12 @@ class Simplification
       end
       return blocks
     when "Block"
+      blocks = [] of AST::Stmt
+      if (block_tree = tree.tokens.get_tree("BlockStatements")); !block_tree.nil?
+        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
+      end
+      return blocks
+    when "ConstructorBody"
       blocks = [] of AST::Stmt
       if (block_tree = tree.tokens.get_tree("BlockStatements")); !block_tree.nil?
         blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
@@ -329,10 +346,6 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
     when "ClassMemberDeclaration"
       return simplify(tree.tokens.first.as(ParseTree))
-    when "StaticInitializer"
-      # TODO(joey)
-    when "ConstructorDeclaration"
-      # TODO(joey)
     when "BlockStatement"
       return simplify(tree.tokens.first.as(ParseTree))
     when "LocalVariableDeclarationStatement"
@@ -342,21 +355,39 @@ class Simplification
       return AST::DeclStmt.new(typ)
     when "Statement"
       # TODO(joey)
+    when "FormalParameter"
+      typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
+      var = simplify(tree.tokens.to_a[1].as(ParseTree)).as(TMPVarName)
+      return AST::Param.new(var.name, typ, var.cardinality)
     when "MethodDeclaration"
       decl = simplify(tree.tokens.first.as(ParseTree)).as(AST::MethodDecl)
       body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt))
       decl.body = body
       return decl
+    when "ConstructorDeclaration"
+      mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Modifier))
+
+      name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
+
+      params = [] of AST::Param
+      if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormatParameterList")); !params_t.nil?
+        params = simplify_tree(params_t).as(Array(AST::Param))
+      end
+
+      body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
+
+      return AST::ConstructorDecl.new(name, mods, params, body)
     when "MethodDeclarator"
-      decl = tree.tokens.get_tree("MethodDeclarator")
-      if !decl.nil?
+      if (decl = tree.tokens.get_tree("MethodDeclarator")); !decl.nil?
         return simplify(decl.as(ParseTree))
       end
 
       ident = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal)
 
       params = [] of AST::Param
-      # TODO(joey): Parse parameters from FormalParameterList.
+      if (t = tree.tokens.get_tree("FormalParameterList")); !t.nil?
+        params = simplify_tree(t.as(ParseTree)).as(Array(AST::Param))
+      end
 
       return TMPMethodDecl.new(ident.val, params)
     when "MethodHeader"
@@ -432,7 +463,7 @@ class Simplification
         member_decls = simplify_tree(body_tree).as(Array(AST::MemberDecl))
       end
 
-      class_decl = AST::ClassDecl.new(name.val, modifiers, super_class, interfaces)
+      class_decl = AST::ClassDecl.new(name.val, modifiers, super_class, interfaces, member_decls)
       return class_decl
     when "InterfaceDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)

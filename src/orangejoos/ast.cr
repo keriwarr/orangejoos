@@ -153,8 +153,9 @@ module AST
   class ClassDecl < TypeDecl
     property! super_class : Name
     getter interfaces : Array(Name) = [] of Name
+    getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, @modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name))
+    def initialize(@name : String, @modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name), @body : Array(MemberDecl))
     end
 
     def pprint(depth : Int32)
@@ -168,10 +169,12 @@ module AST
         interface_names = interfaces.map {|i| i.name }.join(", ")
       end
       mods = modifiers.map {|i| i.name }.join(", ")
+      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
       return "#{indent}Class #{name}:
 #{indent}  Modifiers: #{mods}
 #{indent}  Super: #{super_str}
-#{indent}  Interfaces: #{interface_names}"
+#{indent}  Interfaces: #{interface_names}
+#{indent}  Decls:\n#{decls}"
     end
   end
 
@@ -249,7 +252,7 @@ module AST
     def pprint(depth : Int32)
       mods = modifiers.map {|i| i.name }.join(",")
       indent = INDENT.call(depth)
-      return "#{indent} field=#{decl.pprint(0)} type=#{typ.name} mods=#{mods}"
+      return "#{indent}field #{decl.pprint(0)} type=#{typ.name} mods=#{mods}"
     end
   end
 
@@ -299,19 +302,22 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "VarDecl: #{name} card=#{cardinality} init={#{init.pprint(0)}}"
+      indent = INDENT.call(depth)
+      return "#{indent}VarDecl: #{name} card=#{cardinality} init={#{init.pprint(0)}}"
     end
   end
 
   class Param < Node
     property name : String
     property typ : Typ
+    property cardinality : Int32 = 0
 
-    def initialize(@name : String, @typ : Typ)
+    def initialize(@name : String, @typ : Typ, @cardinality : Int32)
     end
 
     def pprint(depth : Int32)
-      return "Param: TODO"
+      indent = INDENT.call(depth)
+      return "#{indent}<Param #{name} #{typ.pprint(0)}>"
     end
   end
 
@@ -349,7 +355,30 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       mods = modifiers.map {|i| i.name }
-      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{params}"
+      p = params.map {|i| i.pprint(0)}
+      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p}"
+    end
+  end
+
+  class ConstructorDecl < MemberDecl
+    property name : SimpleName
+    property modifiers : Array(Modifier) = [] of Modifier
+    property params : Array(Param) = [] of Param
+    property body : Array(Stmt) = [] of Stmt
+
+    def initialize(@name : SimpleName, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    end
+
+    def has_mod(modifier : SimpleName)
+      # FIXME(joey): This is terrible and we can use a set instead.
+      modifiers.select {|m| m.name == modifier}.size > 0
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      mods = modifiers.map {|i| i.name }
+      p = params.map {|i| i.pprint(0)}
+      return "#{indent}constructor #{name.pprint(0)} #{mods} #{p}"
     end
   end
 end
