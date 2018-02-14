@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta id="repository-name" content="github.com/slnt/orangejoos">
+  <link href="../css/style.css" rel="stylesheet" type="text/css" />
+  <script type="text/javascript" src="../js/doc.js"></script>
+  <title>AST::ConstBool - github.com/slnt/orangejoos</title>
+</head>
+<body>
+
+<div id="types-list">
+  <div id="search-box">
+    <input type="search" id="search-input" placeholder="Search...">
+  </div>
+
+  <ul>
+    <li><a href="../index.html">README</a></li>
+  </ul>
+
+  <ul>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Action" data-name="action">
+      <a href="../Action.html">Action</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/ActionType" data-name="actiontype">
+      <a href="../ActionType.html">ActionType</a>
+      
+    </li>
+  
+  <li class="parent open current" data-id="github.com/slnt/orangejoos/AST" data-name="ast">
+      <a href="../AST.html">AST</a>
+      
+        <ul>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Block" data-name="ast::block">
+      <a href="../AST/Block.html">Block</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ClassDecl" data-name="ast::classdecl">
+      <a href="../AST/ClassDecl.html">ClassDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Const" data-name="ast::const">
+      <a href="../AST/Const.html">Const</a>
+      
+    </li>
+  
+  <li class=" current" data-id="github.com/slnt/orangejoos/AST/ConstBool" data-name="ast::constbool">
+      <a href="../AST/ConstBool.html">ConstBool</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ConstChar" data-name="ast::constchar">
+      <a href="../AST/ConstChar.html">ConstChar</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ConstInteger" data-name="ast::constinteger">
+      <a href="../AST/ConstInteger.html">ConstInteger</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ConstNull" data-name="ast::constnull">
+      <a href="../AST/ConstNull.html">ConstNull</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ConstructorDecl" data-name="ast::constructordecl">
+      <a href="../AST/ConstructorDecl.html">ConstructorDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ConstString" data-name="ast::conststring">
+      <a href="../AST/ConstString.html">ConstString</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/DeclStmt" data-name="ast::declstmt">
+      <a href="../AST/DeclStmt.html">DeclStmt</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Expr" data-name="ast::expr">
+      <a href="../AST/Expr.html">Expr</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ExprClassInit" data-name="ast::exprclassinit">
+      <a href="../AST/ExprClassInit.html">ExprClassInit</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ExprOp" data-name="ast::exprop">
+      <a href="../AST/ExprOp.html">ExprOp</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ExprRef" data-name="ast::exprref">
+      <a href="../AST/ExprRef.html">ExprRef</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ExprThis" data-name="ast::exprthis">
+      <a href="../AST/ExprThis.html">ExprThis</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/FieldDecl" data-name="ast::fielddecl">
+      <a href="../AST/FieldDecl.html">FieldDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/File" data-name="ast::file">
+      <a href="../AST/File.html">File</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ImportDecl" data-name="ast::importdecl">
+      <a href="../AST/ImportDecl.html">ImportDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/InterfaceDecl" data-name="ast::interfacedecl">
+      <a href="../AST/InterfaceDecl.html">InterfaceDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Keyword" data-name="ast::keyword">
+      <a href="../AST/Keyword.html">Keyword</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Literal" data-name="ast::literal">
+      <a href="../AST/Literal.html">Literal</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/MemberDecl" data-name="ast::memberdecl">
+      <a href="../AST/MemberDecl.html">MemberDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/MethodDecl" data-name="ast::methoddecl">
+      <a href="../AST/MethodDecl.html">MethodDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Modifier" data-name="ast::modifier">
+      <a href="../AST/Modifier.html">Modifier</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Name" data-name="ast::name">
+      <a href="../AST/Name.html">Name</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Node" data-name="ast::node">
+      <a href="../AST/Node.html">Node</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/PackageDecl" data-name="ast::packagedecl">
+      <a href="../AST/PackageDecl.html">PackageDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Param" data-name="ast::param">
+      <a href="../AST/Param.html">Param</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/PrimativeTyp" data-name="ast::primativetyp">
+      <a href="../AST/PrimativeTyp.html">PrimativeTyp</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/QualifiedName" data-name="ast::qualifiedname">
+      <a href="../AST/QualifiedName.html">QualifiedName</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/ReferenceTyp" data-name="ast::referencetyp">
+      <a href="../AST/ReferenceTyp.html">ReferenceTyp</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/SimpleName" data-name="ast::simplename">
+      <a href="../AST/SimpleName.html">SimpleName</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Stmt" data-name="ast::stmt">
+      <a href="../AST/Stmt.html">Stmt</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/Typ" data-name="ast::typ">
+      <a href="../AST/Typ.html">Typ</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/TypeDecl" data-name="ast::typedecl">
+      <a href="../AST/TypeDecl.html">TypeDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/VariableDecl" data-name="ast::variabledecl">
+      <a href="../AST/VariableDecl.html">VariableDecl</a>
+      
+    </li>
+  
+</ul>
+
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/LALR1Table" data-name="lalr1table">
+      <a href="../LALR1Table.html">LALR1Table</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Lexeme" data-name="lexeme">
+      <a href="../Lexeme.html">Lexeme</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Operator" data-name="operator">
+      <a href="../Operator.html">Operator</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/ParseNode" data-name="parsenode">
+      <a href="../ParseNode.html">ParseNode</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/ParseNodes" data-name="parsenodes">
+      <a href="../ParseNodes.html">ParseNodes</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Parser" data-name="parser">
+      <a href="../Parser.html">Parser</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/ParseStageError" data-name="parsestageerror">
+      <a href="../ParseStageError.html">ParseStageError</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/ParseTree" data-name="parsetree">
+      <a href="../ParseTree.html">ParseTree</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Pipeline" data-name="pipeline">
+      <a href="../Pipeline.html">Pipeline</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Rule" data-name="rule">
+      <a href="../Rule.html">Rule</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Scanner" data-name="scanner">
+      <a href="../Scanner.html">Scanner</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/ScanningStageError" data-name="scanningstageerror">
+      <a href="../ScanningStageError.html">ScanningStageError</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Separator" data-name="separator">
+      <a href="../Separator.html">Separator</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Simplification" data-name="simplification">
+      <a href="../Simplification.html">Simplification</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/SimplifyStageError" data-name="simplifystageerror">
+      <a href="../SimplifyStageError.html">SimplifyStageError</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/SourceFile" data-name="sourcefile">
+      <a href="../SourceFile.html">SourceFile</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/TMPMethodDecl" data-name="tmpmethoddecl">
+      <a href="../TMPMethodDecl.html">TMPMethodDecl</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Type" data-name="type">
+      <a href="../Type.html">Type</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/UnexpectedNodeException" data-name="unexpectednodeexception">
+      <a href="../UnexpectedNodeException.html">UnexpectedNodeException</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/Weeding" data-name="weeding">
+      <a href="../Weeding.html">Weeding</a>
+      
+    </li>
+  
+  <li class=" " data-id="github.com/slnt/orangejoos/WeedingStageError" data-name="weedingstageerror">
+      <a href="../WeedingStageError.html">WeedingStageError</a>
+      
+    </li>
+  
+</ul>
+
+</div>
+
+<div id="main-content">
+<h1 class="type-name">
+
+  <span class="kind">class</span> AST::ConstBool
+
+</h1>
+
+
+  <ul class="superclass-hierarchy"><li class="superclass"><a href="../AST/ConstBool.html">AST::ConstBool</a></li><li class="superclass"><a href="../AST/Const.html">AST::Const</a></li><li class="superclass"><a href="../AST/Expr.html">AST::Expr</a></li><li class="superclass"><a href="../AST/Stmt.html">AST::Stmt</a></li><li class="superclass"><a href="../AST/Node.html">AST::Node</a></li><li class="superclass">Reference</li><li class="superclass">Object</li></ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2>Defined in:</h2>
+  
+    
+      <a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L419" target="_blank">orangejoos/ast.cr</a>
+    
+    <br/>
+  
+
+
+
+
+
+  <h2>Constructors</h2>
+  <ul class="list-summary">
+    
+      <li class="entry-summary">
+        <a href="#new%28val%3AString%29-class-method" class="signature"><strong>.new</strong>(val : String)</a>
+        
+      </li>
+    
+  </ul>
+
+
+
+
+
+  <h2>Instance Method Summary</h2>
+  <ul class="list-summary">
+    
+      <li class="entry-summary">
+        <a href="#val%3AString-instance-method" class="signature"><strong>#val</strong> : String</a>
+        
+          <div class="summary"><p><span class="flag yellow">FIXME</span> (joey): Make this a proper bool val.</p></div>
+        
+      </li>
+    
+      <li class="entry-summary">
+        <a href="#val%3D%28val%3AString%29-instance-method" class="signature"><strong>#val=</strong>(val : String)</a>
+        
+          <div class="summary"><p><span class="flag yellow">FIXME</span> (joey): Make this a proper bool val.</p></div>
+        
+      </li>
+    
+  </ul>
+
+
+
+
+
+<div class="methods-inherited">
+  
+    
+
+
+    
+
+
+    
+
+
+  
+    
+
+  <h3>Instance methods inherited from class <code><a href="../AST/Expr.html">AST::Expr</a></code></h3>
+  
+  
+    <a href="../AST/Expr.html#children-instance-method" class="tooltip">
+      <span>children</span>
+    children</a>, 
+    
+  
+    <a href="../AST/Expr.html#pprint%28depth%3AInt32%29-instance-method" class="tooltip">
+      <span>pprint(depth : Int32)</span>
+    pprint</a>
+    
+  
+
+
+    
+
+  <h3>Constructor methods inherited from class <code><a href="../AST/Expr.html">AST::Expr</a></code></h3>
+  
+  
+    <a href="../AST/Expr.html#new-class-method" class="tooltip">
+      <span>new</span>
+    new</a>
+    
+  
+
+
+    
+
+
+  
+    
+
+  <h3>Instance methods inherited from class <code><a href="../AST/Stmt.html">AST::Stmt</a></code></h3>
+  
+  
+    <a href="../AST/Stmt.html#children%3AArray%28Stmt%29-instance-method" class="tooltip">
+      <span>children : Array(Stmt)</span>
+    children</a>, 
+    
+  
+    <a href="../AST/Stmt.html#traverse%28map%3AStmt-%3ETuple%28Object%2CBoolean%29%2Creduce%3AArray%28Object%29-%3EObject%29-instance-method" class="tooltip">
+      <span>traverse(map : Stmt -> Tuple(Object, Boolean), reduce : Array(Object) -> Object)</span>
+    traverse</a>
+    
+  
+
+
+    
+
+
+    
+
+
+  
+    
+
+  <h3>Instance methods inherited from class <code><a href="../AST/Node.html">AST::Node</a></code></h3>
+  
+  
+    <a href="../AST/Node.html#pprint%28depth%3AInt32%29%3AString-instance-method" class="tooltip">
+      <span>pprint(depth : Int32) : String<br/>pprint : String</span>
+    pprint</a>
+    
+  
+
+
+    
+
+
+    
+
+
+  
+    
+
+
+    
+
+
+    
+
+
+  
+    
+
+
+    
+
+
+    
+
+
+  
+</div>
+
+
+  <h2>Constructor Detail</h2>
+  
+    <div class="entry-detail" id="new(val:String)-class-method">
+      <div class="signature">
+        
+        def self.<strong>new</strong>(val : String)
+
+        <a class="method-permalink" href="#new%28val%3AString%29-class-method">#</a>
+      </div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L422" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+
+
+
+
+
+  <h2>Instance Method Detail</h2>
+  
+    <div class="entry-detail" id="val:String-instance-method">
+      <div class="signature">
+        
+        def <strong>val</strong> : String
+
+        <a class="method-permalink" href="#val%3AString-instance-method">#</a>
+      </div>
+      
+        <div class="doc"><p><span class="flag yellow">FIXME</span> (joey): Make this a proper bool val.</p></div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L421" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+    <div class="entry-detail" id="val=(val:String)-instance-method">
+      <div class="signature">
+        
+        def <strong>val=</strong>(val : String)
+
+        <a class="method-permalink" href="#val%3D%28val%3AString%29-instance-method">#</a>
+      </div>
+      
+        <div class="doc"><p><span class="flag yellow">FIXME</span> (joey): Make this a proper bool val.</p></div>
+      
+      <br/>
+      <div>
+        
+          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L421" target="_blank">View source</a>]
+        
+      </div>
+    </div>
+  
+
+
+
+
+</div>
+
+</body>
+</html>
