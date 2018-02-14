@@ -196,7 +196,8 @@ ClassBodyDeclarations:
 
 ClassBodyDeclaration:
   ClassMemberDeclaration
-  StaticInitializer
+  # Not supported in Joos1W
+  # StaticInitializer
   ConstructorDeclaration
 
 ClassMemberDeclaration:
@@ -249,8 +250,9 @@ MethodBody:
   Block
   ;
 
-StaticInitializer:
-  static Block
+# Not supported by Joos1W
+# StaticInitializer:
+#   static Block
 
 ConstructorDeclaration:
   Modifiers ConstructorDeclarator ConstructorBody
