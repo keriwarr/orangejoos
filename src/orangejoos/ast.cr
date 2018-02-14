@@ -474,7 +474,7 @@ module AST
     property typ : Typ
     property modifiers : Array(Modifier) = [] of Modifier
     property params : Array(Param) = [] of Param
-    property body : Array(Stmt) = [] of Stmt
+    property! body : Array(Stmt) | Nil
 
     def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
     end
@@ -488,7 +488,12 @@ module AST
       indent = INDENT.call(depth)
       mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
-      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p}"
+      if body?
+        body_str = body.each {|b| b.pprint(0)}.to_s
+      else
+        body_str = "<no body>"
+      end
+      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p} #{body_str}"
     end
   end
 

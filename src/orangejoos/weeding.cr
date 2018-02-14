@@ -27,6 +27,18 @@ class Weeding
               raise WeedingStageError.new("class #{decl.name} has a constructor named #{body.name.name}")
             end
           end
+
+          if body.is_a?(AST::MethodDecl)
+            # An abstract method cannot be static or final.
+            if body.has_mod("abstract") && (body.has_mod("static") || body.has_mod("final"))
+              raise WeedingStageError.new("method #{decl.name}.#{body.name} cannot be both abstract and static/final")
+            end
+
+            # An abstract method cannot have a body.
+            if body.has_mod("abstract") && body.body?
+              raise WeedingStageError.new("method #{decl.name}.#{body.name} is abstract but has a body")
+            end
+          end
         end
 
         if !decl.has_mod("abstract") && !found_constructor
@@ -44,7 +56,7 @@ class Weeding
           end
 
           if body.is_a?(AST::MethodDecl)
-            # An interface cannot be static, final, or native.
+            # An interface method cannot be static, final, or native.
             if body.has_mod("static") || body.has_mod("final") || body.has_mod("native")
               raise WeedingStageError.new("interfaces cannot have final, static, or native functions: function #{body.name} was bad")
             end

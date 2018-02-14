@@ -200,11 +200,12 @@ class Simplification
       end
       return blocks
     when "MethodBody"
-      blocks = [] of AST::Stmt
       if (block_tree = tree.tokens.get_tree("Block")); !block_tree.nil?
-        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
+        return simplify_tree(block_tree).as(Array(AST::Stmt))
       end
-      return blocks
+      # If there is no body, we return nil to denote no block for
+      # abstract/not implemented methods
+      return nil
     when "ConstructorBody"
       blocks = [] of AST::Stmt
       if (block_tree = tree.tokens.get_tree("BlockStatements")); !block_tree.nil?
@@ -512,7 +513,7 @@ class Simplification
       return AST::Param.new(var.name, typ, var.cardinality)
     when "MethodDeclaration"
       decl = simplify(tree.tokens.first.as(ParseTree)).as(AST::MethodDecl)
-      body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt))
+      body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt) | Nil)
       decl.body = body
       return decl
     when "ConstructorDeclaration"
