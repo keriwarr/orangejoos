@@ -279,7 +279,11 @@ class Scanner
               raise ScanningStageError.new("escaped octal out of bounds, got: #{num_str}", @lexemes)
             end
             # Parse the octal number.
-            num = num_str.to_u8(8)
+            begin
+              num = num_str.to_u8(8)
+            rescue
+              raise ScanningStageError.new("invalid escape character, expected octal got: #{num_str}", @lexemes)
+            end
             escaped_chars += num_str.size
             i += num_str.size
             ch = num.unsafe_chr
