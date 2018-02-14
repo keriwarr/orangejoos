@@ -165,10 +165,10 @@ Modifiers:
   Modifiers Modifier
 
 Modifier:
-  # TODO(joey) Evaluate if this is correct.
   public
   protected
-  private
+  # Not supported by Joos1W.
+  # private
   static
   abstract
   final
