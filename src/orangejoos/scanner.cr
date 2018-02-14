@@ -224,6 +224,14 @@ class Scanner
         i += 1
       end
       if num_str.size > 0
+
+        # Check if the literal is an octal, and raise an error if it is.
+        # Octal literals are denoted with a prefix of 0.
+        if num_str.size > 1 && num_str[0] == '0'
+          raise ScanningStageError.new("found octal literal, which is unsupported: #{num_str}", @lexemes)
+        end
+
+
         # FIXME(joey): Catch an error if the number is invalid or
         # causes overflow/underflow.
         # TODO(joey): We can throw an error if the number is out of
