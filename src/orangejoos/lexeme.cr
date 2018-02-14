@@ -117,6 +117,8 @@ KEYWORDS = Set{
   "float",
   "double",
   "long",
+  "super",
+  "this",
 }
 
 # A ParseNode is an abstract type for nodes that are operated on during
