@@ -315,12 +315,19 @@ module AST
     end
   end
 
-  class Block < Node
-    def initialize
+  # Generic statement type action.
+  abstract class Stmt < Node
+  end
+
+  # A declaration statement.
+  class DeclStmt < Stmt
+    property typ : AST::Typ
+
+    def initialize(@typ : AST::Typ)
     end
 
     def pprint(depth : Int32)
-      return "Block: TODO"
+      return "DeclStmt: TODO"
     end
   end
 
@@ -329,9 +336,9 @@ module AST
     property typ : Typ
     property modifiers : Array(Modifier) = [] of Modifier
     property params : Array(Param) = [] of Param
-    property! body : Block
+    property body : Array(Stmt) = [] of Stmt
 
-    def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Block | Nil)
+    def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
     end
 
     def has_mod(modifier : String)

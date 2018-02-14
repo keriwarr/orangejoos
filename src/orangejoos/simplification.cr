@@ -154,6 +154,28 @@ class Simplification
         interfaces_decls.push(interface.as(AST::Name))
       end
       return interfaces_decls
+    when "BlockStatements"
+
+      blocks = [] of AST::Stmt
+      if (block_tree = tree.tokens.get_tree("BlockStatements")); !blocks.nil?
+        blocks_decls = simplify_tree(block_tree).as(Array(AST::Stmt))
+      end
+      if (block = simplify(tree.tokens.get_tree!("BlockStatement"))); !block.nil?
+        blocks.push(block.as(AST::Stmt))
+      end
+      return blocks
+    when "MethodBody"
+      blocks = [] of AST::Stmt
+      if (block_tree = tree.tokens.get_tree("Block")); !block_tree.nil?
+        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
+      end
+      return blocks
+    when "Block"
+      blocks = [] of AST::Stmt
+      if (block_tree = tree.tokens.get_tree("BlockStatements")); !block_tree.nil?
+        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
+      end
+      return blocks
     else
       raise Exception.new("unexepected tree name=#{tree.name}")
     end
@@ -311,19 +333,23 @@ class Simplification
       # TODO(joey)
     when "ConstructorDeclaration"
       # TODO(joey)
+    when "BlockStatement"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "LocalVariableDeclarationStatement"
+      return simplify(tree.tokens.first.as(ParseTree))
+    when "LocalVariableDeclaration"
+      typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
+      return AST::DeclStmt.new(typ)
+    when "Statement"
+      # TODO(joey)
     when "MethodDeclaration"
       decl = simplify(tree.tokens.first.as(ParseTree)).as(AST::MethodDecl)
-
-      # body = ...
-      body = AST::Block.new
-
+      body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt))
       decl.body = body
       return decl
     when "MethodDeclarator"
       decl = tree.tokens.get_tree("MethodDeclarator")
       if !decl.nil?
-        # TODO(joey): There is an array suffix but I do not know what it
-        # is for.
         return simplify(decl.as(ParseTree))
       end
 
@@ -348,10 +374,8 @@ class Simplification
       end
 
       decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(TMPMethodDecl)
-      # TODO(joey): MethodDeclarator has an array suffix. I do not know
-      # what it is for.
 
-      return AST::MethodDecl.new(decl.name, typ, mods, decl.params, nil)
+      return AST::MethodDecl.new(decl.name, typ, mods, decl.params, [] of AST::Stmt)
     when "VariableDeclaratorId"
       case tree.tokens.size
       when 1
@@ -367,6 +391,7 @@ class Simplification
       var_name = simplify(tree.tokens.first.as(ParseTree)).as(TMPVarName)
       name = var_name.name
       array_cardinality = var_name.cardinality
+
       # TODO(joey): Get the iniializer code.
       init = AST::VarInit.new
       return AST::VariableDecl.new(name, array_cardinality, init)
