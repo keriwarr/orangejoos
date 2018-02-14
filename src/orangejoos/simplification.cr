@@ -258,7 +258,6 @@ class Simplification
     when "PrimitiveType"
        t = tree.tokens.first
       if t.is_a?(ParseTree)
-        puts "#{tree.tokens.first.inspect}"
         return simplify(t.as(ParseTree))
       elsif tree.tokens.first.is_a?(Lexeme)
         return AST::PrimativeTyp.new("boolean")
@@ -340,7 +339,11 @@ class Simplification
 
       return TMPMethodDecl.new(ident.val, params)
     when "MethodHeader"
-      mods = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Modifier))
+      t = tree.tokens.get_tree("Modifiers")
+      mods = [] of AST::Modifier
+      if !t.nil?
+        mods = simplify_tree(t).as(Array(AST::Modifier))
+      end
 
       typ_tree = tree.tokens.get_tree("Type")
       if typ_tree.nil?
@@ -349,7 +352,7 @@ class Simplification
         typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
       end
 
-      decl = simplify(tree.tokens.to_a[2].as(ParseTree)).as(TMPMethodDecl)
+      decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(TMPMethodDecl)
       # TODO(joey): MethodDeclarator has an array suffix. I do not know
       # what it is for.
 
