@@ -175,8 +175,8 @@
       
     </li>
   
-  <li class=" " data-id="github.com/slnt/orangejoos/AST/PrimativeTyp" data-name="ast::primativetyp">
-      <a href="../AST/PrimativeTyp.html">PrimativeTyp</a>
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/PrimitiveTyp" data-name="ast::primitivetyp">
+      <a href="../AST/PrimitiveTyp.html">PrimitiveTyp</a>
       
     </li>
   
@@ -344,7 +344,7 @@
 
   <h2>Overview</h2>
 
-  <p>Typ is a something.</p>
+  <p>Typ represents all types.</p>
 
 
 
@@ -357,7 +357,7 @@
   <h2>Direct Known Subclasses</h2>
   <ul class="other-types-list">
   
-    <li class="other-type"><a href="../AST/PrimativeTyp.html">AST::PrimativeTyp</a></li>
+    <li class="other-type"><a href="../AST/PrimitiveTyp.html">AST::PrimitiveTyp</a></li>
   
     <li class="other-type"><a href="../AST/ReferenceTyp.html">AST::ReferenceTyp</a></li>
   
@@ -371,7 +371,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L22" target="_blank">orangejoos/ast.cr</a>
+      <a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L36" target="_blank">orangejoos/ast.cr</a>
     
     <br/>
   
@@ -390,15 +390,21 @@
       <li class="entry-summary">
         <a href="#cardinality%3AInt32-instance-method" class="signature"><strong>#cardinality</strong> : Int32</a>
         
+          <div class="summary"><p>The <em>cardinality</em> array of the type.</p></div>
+        
       </li>
     
       <li class="entry-summary">
         <a href="#cardinality%3D%28cardinality%3AInt32%29-instance-method" class="signature"><strong>#cardinality=</strong>(cardinality : Int32)</a>
         
+          <div class="summary"><p>The <em>cardinality</em> array of the type.</p></div>
+        
       </li>
     
       <li class="entry-summary">
         <a href="#name%3AString-instance-method" class="signature"><strong>#name</strong> : String</a>
+        
+          <div class="summary"><p>The <em>name</em> of the type being represented by the AST node.</p></div>
         
       </li>
     
@@ -466,10 +472,16 @@
         <a class="method-permalink" href="#cardinality%3AInt32-instance-method">#</a>
       </div>
       
+        <div class="doc"><p>The <em>cardinality</em> array of the type. If the <em>cardinality</em> is <code>0</code>, the
+type is not an array. For example, the following type has a
+cardinality of 2:</p>
+
+<pre><code class='language-java'>int[][]</code></pre></div>
+      
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L23" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L43" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -482,10 +494,16 @@
         <a class="method-permalink" href="#cardinality%3D%28cardinality%3AInt32%29-instance-method">#</a>
       </div>
       
+        <div class="doc"><p>The <em>cardinality</em> array of the type. If the <em>cardinality</em> is <code>0</code>, the
+type is not an array. For example, the following type has a
+cardinality of 2:</p>
+
+<pre><code class='language-java'>int[][]</code></pre></div>
+      
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L23" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L43" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -498,10 +516,12 @@
         <a class="method-permalink" href="#name%3AString-instance-method">#</a>
       </div>
       
+        <div class="doc"><p>The <em>name</em> of the type being represented by the AST node.</p></div>
+      
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L25" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L46" target="_blank">View source</a>]
         
       </div>
     </div>

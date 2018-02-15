@@ -7,33 +7,66 @@
 
 INDENT = ->(depth : Int32) { "  " * depth }
 
+# `AST` is the abstract syntax tree for Joos1W. There are 3 primary
+# categories of nodes:
+# - _Statements_, which are all decendants of `Stmt`
+# - _Expressions_, decendants of `Expr`.
+# - _Declarations_. This includes top-level declarations `ClassDecl` and
+#   `InterfaceDecl`.
+#
+# There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
+# `Const`.
 module AST
 
-  # Node is the root type of all AST elements.
+  # `Node` is the root type of all `AST` elements.
   abstract class Node
 
+    # `pprint` returns a pretty string representation of the node, for
+    # debug purposes.
     def pprint() : String
       pprint(0)
     end
 
+    # Internal function: `pprint` with a depth, which represents the
+    # indentation level of depth the node belongs in.
     abstract def pprint(depth : Int32) : String
   end
 
+  # Typ represents all types.
   abstract class Typ < Node
+    # The _cardinality_ array of the type. If the _cardinality_ is `0`, the
+    # type is not an array. For example, the following type has a
+    # cardinality of 2:
+    # ```java
+    # int[][]
+    # ```
     property cardinality : Int32 = 0
 
+    # The _name_ of the type being represented by the AST node.
     abstract def name : String
   end
 
-  class PrimativeTyp < Typ
+  # `PrimitiveTyp` represents built-in types. This includes the types:
+  #
+  # - _boolean_
+  # - _byte_
+  # - _short_
+  # - _int_
+  # - _char_
+  #
+  # `PrimitiveTyp` also contains the _cardinality_ of the represented
+  # type.
+  class PrimitiveTyp < Typ
     @name : String
 
     def initialize(@name : String)
       @cardinality = 0
     end
+
     def initialize(@name : String, @cardinality : Int32)
     end
 
+    # The _name_ of the type represented by the AST node.
     def name
       arr_str = "[]" * cardinality
       return "#{@name}#{arr_str}"
@@ -44,6 +77,8 @@ module AST
     end
   end
 
+  # `ReferenceType` represents user-defined Class and Interface types,
+  # including the cardinality.
   class ReferenceTyp < Typ
     @name : Name
 
@@ -63,6 +98,8 @@ module AST
     end
   end
 
+  # FIXME(joey): The literal is instead used for identifiers, such as class
+  # names, method names, and argument names. This should be refactored.
   class Literal < Node
     getter val : String
 
@@ -74,6 +111,10 @@ module AST
     end
   end
 
+  # FIXME(joey): Not quite sure where keywords appear in the parse tree,
+  # or if it even matters. These will appear in the parse tree in place
+  # of words such as "if", "else", etc. but should not be used in the
+  # AST.
   class Keyword < Node
     getter val : String
 
@@ -85,6 +126,15 @@ module AST
     end
   end
 
+  # `PackageDecl` represents the package declaration at the top of the
+  # file. For example:
+  #
+  # ```java
+  # package com.java.util;
+  # ```
+  #
+  # TODO(joey): This could probably be squashed into the File node due
+  # to this only containing a Name.
   class PackageDecl < Node
     property! path : Name
 
@@ -97,14 +147,28 @@ module AST
     end
   end
 
+  # _ImportDecl_ represents an import declaration at the top of the
+  # file. For example:
+  #
+  # ```java
+  # import com.java.util.Vector;
+  # ```
+  #
+  # or, for importing all of the contents of a package:
+  #
+  # ```java
+  # import com.java.util.*;
+  # ```
   class ImportDecl < Node
+    # The _path_ the import declaration is importing.
     property! path : Name
-    # *on_demand* is whether the import is a wildcard import. An example
+
+    # _on_demand_ is whether the import is a wildcard import. An example
     # of that is:
     #
-    #```java
-    #   import java.util.*;
-    #```
+    # ```java
+    # import java.util.*;
+    # ```
     #
     # This imports all the items within java.util on demand, as used.
     property on_demand : Bool = false
@@ -125,7 +189,13 @@ module AST
     end
   end
 
-  # A modifier. Bascially, just an identifier/string/keyword.
+  # `Modifier` represents modifier keywords. This includes:
+  # - public
+  # - protected
+  # - static
+  # - abstract
+  # - final
+  # - native
   class Modifier < Node
     property name : String
 
@@ -138,8 +208,8 @@ module AST
   end
 
 
-  # TypeDecl is type declaration, either an InterfaceDecl or a
-  # ClassDecl.
+  # `TypeDecl` is type declaration, either a `InterfaceDecl` or a
+  # `ClassDecl`.
   # FIXME(joey): Interface and Class could maybe be squashed into one
   # node.
   abstract class TypeDecl < Node
@@ -154,7 +224,9 @@ module AST
     end
   end
 
-  # A top-level class declaration.
+  # `ClassDecl` is a top-level declaration for classes. Classes contain
+  # a name, a super class, implemented interfaces, and a list of field
+  # and method declarations.
   class ClassDecl < TypeDecl
     property! super_class : Name
     getter interfaces : Array(Name) = [] of Name
@@ -183,7 +255,8 @@ module AST
     end
   end
 
-  # A top-level interface declaration.
+  # `InterfaceDecl` is a top-level declaration for interfaces.
+  # Interfaces contain a name, extended interfaces, method declarations.
   class InterfaceDecl < TypeDecl
     getter extensions : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
@@ -206,14 +279,23 @@ module AST
     end
   end
 
-  # Name represents a resolvable entity.
+  # `Name` represents a resolvable entity. This includes package names,
+  # which are `QualifiedName`, such as:
+  # ```java
+  # com.java.util.Vector
+  # ```
+  #
+  # as well as type names, which are `SimpleName`:
+  # ```java
+  # Vector
+  # ```
   abstract class Name < Node
 
     abstract def name : String
   end
 
-  # A SimpleName refers to an entity within a context-sentivie
-  # namespace.
+  # `SimpleName` refers to a resolvable entity, such as local
+  # declarations.
   class SimpleName < Name
     getter name : String
 
@@ -225,7 +307,8 @@ module AST
     end
   end
 
-  # A QualifiedName is a name which has a qualified namespace.
+  # `QualifiedName` is a name which has a qualified namespace, such as a
+  # package name or an item in another scope.
   class QualifiedName < Name
     getter parts : Array(String)
 
@@ -241,8 +324,8 @@ module AST
     end
   end
 
-  # Represents member declarations. This includes method and constant
-  # declarations.
+  # `MemberDecl` represents declarations which are members of an object
+  # (either `InterfaceDecl` or `ClassDecl`).
   abstract class MemberDecl < Node
     getter modifiers : Array(Modifier) = [] of Modifier
 
@@ -252,6 +335,12 @@ module AST
     end
   end
 
+  # `FieldDecl` represents a field declaration in a class. For example:
+  # ```java
+  # public class A {
+  #   private int b;
+  # }
+  # ```
   class FieldDecl < MemberDecl
     property typ : Typ
     property decl : VariableDecl
@@ -266,8 +355,9 @@ module AST
     end
   end
 
-  # File is the top-level AST node, holding the top-level declarations
-  # such as package, imports, and classes/interfaces.
+  # `File` is the root AST node. It holds all of the files top-level
+  # declarations such the package (`PackageDecl`), imports
+  # (`ImportDecl`) and classes/interfaces (`MemberDecl`).
   class File < Node
     property! package : PackageDecl
     property imports : Array(ImportDecl) = [] of ImportDecl
@@ -290,6 +380,8 @@ module AST
     end
   end
 
+  # `Param` represents a parameter definition in a method signature. It
+  # includes the _name_ and _typ_ of the paramter.
   class Param < Node
     property name : String
     property typ : Typ
@@ -303,11 +395,14 @@ module AST
     end
   end
 
-  # Generic statement type action.
+  # `Stmt` are AST nodes which appear in the body of methods and can be
+  # executed. Not all `Stmt` return values.
   abstract class Stmt < Node
 
     abstract def children : Array(Stmt)
 
+    # TODO(joey): This was an attempt to make a traversal function for
+    # `Stmt` trees in a rather general manner. It is not actually used.
     def traverse(map : Stmt -> Tuple(Object, Boolean), reduce : Array(Object) -> Object)
       results = [] of Object
 
@@ -330,6 +425,14 @@ module AST
     end
   end
 
+  # `Block` is a group of `Stmt`. It is used to isolate the scope of the
+  # contained `Stmt`. A block is created by the following code:
+  # ```java
+  # int x;
+  # { // Beginning of the block.
+  #   int y;
+  # }
+  # ```
   class Block < Stmt
     property stmts : Array(Stmt) = [] of Stmt
 
@@ -345,7 +448,9 @@ module AST
     end
   end
 
-  # Represents an expression.
+  # `Expr` are parts of the code which return a value. They are a subset
+  # of `Stmt`, meaning they are also traversable and are only
+  # distinguished by the property of returning values.
   abstract class Expr < Stmt
     def initialize
     end
@@ -360,6 +465,9 @@ module AST
     end
   end
 
+  # `ExprOp` is an operator expression. Each expression has an operator
+  # (`op`) and any number of `operands`. They generically any type of
+  # operator, including unary and binary.
   class ExprOp < Expr
     property op : String
     property operands : Array(Expr) = [] of Expr
@@ -379,6 +487,12 @@ module AST
     end
   end
 
+  # `ExprClassInit` is an expression that is initializing a new class.
+  # It has a `name` of the class being initialized and the `args` for
+  # the constructor. For example:
+  # ```java
+  # new A()
+  # ```
   class ExprClassInit < Expr
     property name : Name
     property args : Array(Expr) = [] of Expr
@@ -391,11 +505,20 @@ module AST
     end
   end
 
+  # `ExprThis` represents the `this` expression, which will return the
+  # currently scoped `this` instance.
   class ExprThis < Expr
     def initialize
     end
   end
 
+  # `ExprRef` represents referenced values, such as fields or classes.
+  # For example, the `x` in `1 + x` is an ExprRef:
+  # ```java
+  # int x;
+  # 1 + x;
+  # ```
+  #
   class ExprRef < Expr
     property name : Name
 
@@ -403,6 +526,7 @@ module AST
     end
   end
 
+  # `Const` are expressions with a constant value.
   abstract class Const < Expr
   end
 
@@ -439,8 +563,9 @@ module AST
   end
 
 
-  # Represents a variable declaration: a name, a cardinality and an
-  # optional initialization.
+  # `VariableDecl` represents variable declarations, including `name`,
+  # `cardinality` and the expression to initialize the value of the
+  # variable to (`init`).
   class VariableDecl < Node
     property name : String
     property! init : Expr
@@ -455,7 +580,13 @@ module AST
     end
   end
 
-  # A declaration statement.
+  # `DeclStmt` is a variable declaration statement. It wraps
+  # `VariableDecl` to also include information about the `Typ` of the
+  # `VariableDecl`.
+  #
+  # TODO(joey): Squash `VariableDecl` into this node. This will need to
+  # be squashed into both the `FieldDecl` and `DeclStmt`. The only
+  # difference is `FieldDecl` includes modifiers.
   class DeclStmt < Stmt
     property typ : AST::Typ
     property var : AST::VariableDecl
@@ -476,6 +607,8 @@ module AST
     end
   end
 
+  # `MethodDecl` is a method declaration. It includes `name`, `typ,`
+  # `modifiers`, `params` for the method signature, and the `body`.
   class MethodDecl < MemberDecl
     property name : String
     property typ : Typ
@@ -499,6 +632,11 @@ module AST
     end
   end
 
+
+  # `ConstructorDecl` is a specia lmethod declaration. It includes
+  # `name`, `modifiers`, `params` for the method signature, and the
+  # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
+  # with a flag denoting it's a constructor with no type.
   class ConstructorDecl < MemberDecl
     property name : SimpleName
     property modifiers : Array(Modifier) = [] of Modifier

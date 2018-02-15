@@ -302,7 +302,7 @@ class Simplification
       if t.is_a?(ParseTree)
         return simplify(t.as(ParseTree))
       elsif tree.tokens.first.is_a?(Lexeme)
-        return AST::PrimativeTyp.new("boolean")
+        return AST::PrimitiveTyp.new("boolean")
       else
         raise Exception.new("unexpected case")
       end
@@ -311,7 +311,7 @@ class Simplification
     when "IntegralType"
       l = tree.tokens.first
       if l.is_a?(Lexeme)
-        return AST::PrimativeTyp.new(l.sem)
+        return AST::PrimitiveTyp.new(l.sem)
       else
         raise Exception.new("unexpected case")
       end
@@ -406,7 +406,7 @@ class Simplification
       result = simplify(tree.tokens.first.as(ParseTree))
       if result.is_a?(AST::Name)
         # TODO(joey): we may want to refactor this to not be a thing.
-        # This is done to ocnvert Name types to an Expr.
+        # This is done to convert Name types to an Expr.
         return AST::ExprRef.new(result)
       end
       return result
@@ -540,7 +540,7 @@ class Simplification
 
       typ_tree = tree.tokens.get_tree("Type")
       if typ_tree.nil?
-        typ = AST::PrimativeTyp.new("void")
+        typ = AST::PrimitiveTyp.new("void")
       else
         typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
       end

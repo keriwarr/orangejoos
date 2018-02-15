@@ -175,8 +175,8 @@
       
     </li>
   
-  <li class=" " data-id="github.com/slnt/orangejoos/AST/PrimativeTyp" data-name="ast::primativetyp">
-      <a href="../AST/PrimativeTyp.html">PrimativeTyp</a>
+  <li class=" " data-id="github.com/slnt/orangejoos/AST/PrimitiveTyp" data-name="ast::primitivetyp">
+      <a href="../AST/PrimitiveTyp.html">PrimitiveTyp</a>
       
     </li>
   
@@ -344,7 +344,13 @@
 
   <h2>Overview</h2>
 
-  <p>A declaration statement.</p>
+  <p><code><a href="../AST/DeclStmt.html">DeclStmt</a></code> is a variable declaration statement. It wraps
+<code><a href="../AST/VariableDecl.html">VariableDecl</a></code> to also include information about the <code><a href="../AST/Typ.html">Typ</a></code> of the
+<code><a href="../AST/VariableDecl.html">VariableDecl</a></code>.</p>
+
+<p><span class="flag orange">TODO</span> (joey): Squash <code><a href="../AST/VariableDecl.html">VariableDecl</a></code> into this node. This will need to
+be squashed into both the <code><a href="../AST/FieldDecl.html">FieldDecl</a></code> and <code><a href="../AST/DeclStmt.html">DeclStmt</a></code>. The only
+difference is <code><a href="../AST/FieldDecl.html">FieldDecl</a></code> includes modifiers.</p>
 
 
 
@@ -362,7 +368,7 @@
   <h2>Defined in:</h2>
   
     
-      <a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L462" target="_blank">orangejoos/ast.cr</a>
+      <a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L590" target="_blank">orangejoos/ast.cr</a>
     
     <br/>
   
@@ -505,7 +511,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L466" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L594" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -528,7 +534,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L473" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L601" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -544,7 +550,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L469" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L597" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -560,7 +566,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L463" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L591" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -576,7 +582,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L463" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L591" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -592,7 +598,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L464" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L592" target="_blank">View source</a>]
         
       </div>
     </div>
@@ -608,7 +614,7 @@
       <br/>
       <div>
         
-          [<a href="https://github.com/slnt/orangejoos/blob/e1cfbdb2b3237713d1a9916a1bdb76d1e56916a6/src/orangejoos/ast.cr#L464" target="_blank">View source</a>]
+          [<a href="https://github.com/slnt/orangejoos/blob/d2425783e361688ccc33ebfe1770974aa30d9220/src/orangejoos/ast.cr#L592" target="_blank">View source</a>]
         
       </div>
     </div>
