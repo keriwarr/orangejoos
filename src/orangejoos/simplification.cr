@@ -225,10 +225,6 @@ class Simplification
   end
 
 
-  def simplify(tree : Lexeme)
-    return nil
-  end
-
   def simplify(tree : ParseTree)
     case tree.name
     when "Goal"
@@ -309,7 +305,7 @@ class Simplification
         return AST::ReferenceTyp.new(class_name)
       else
         # ArrayType or array reference type.
-        return simplify(tree.tokens.first)
+        return simplify(tree.tokens.first.as(ParseTree))
       end
 
     when "ArrayType"
@@ -363,7 +359,7 @@ class Simplification
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
       end
-      return simplify(tree.tokens.first)
+      return simplify(tree.tokens.first.as(ParseTree))
 
     when "SingleTypeImportDeclaration"
       name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Name)
