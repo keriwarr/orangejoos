@@ -48,7 +48,7 @@ module AST
     property cardinality : Int32 = 0
 
     # The _name_ of the type being represented by the AST node.
-    abstract def name : String
+    abstract def name_str : String
   end
 
   # `PrimitiveTyp` represents built-in types. This includes the types:
@@ -72,20 +72,20 @@ module AST
     end
 
     # The _name_ of the type represented by the AST node.
-    def name
+    def name_str
       arr_str = "[]" * cardinality
       return "#{@name}#{arr_str}"
     end
 
     def pprint(depth : Int32)
-      return name
+      return name_str
     end
   end
 
   # `ReferenceType` represents user-defined Class and Interface types,
   # including the cardinality.
   class ReferenceTyp < Typ
-    @name : Name
+    getter name : Name
 
     def initialize(@name : Name)
       @cardinality = 0
@@ -93,13 +93,13 @@ module AST
     def initialize(@name : Name, @cardinality : Int32)
     end
 
-    def name
+    def name_str
       arr_str = "[]" * cardinality
       return "#{@name.name}#{arr_str}"
     end
 
     def pprint(depth : Int32)
-      return name
+      return name_str
     end
   end
 
@@ -356,7 +356,7 @@ module AST
     def pprint(depth : Int32)
       mods = modifiers.map {|i| i.name }.join(",")
       indent = INDENT.call(depth)
-      return "#{indent}field #{decl.pprint(0)} type=#{typ.name} mods=#{mods}"
+      return "#{indent}field #{decl.pprint(0)} type=#{typ.name_str} mods=#{mods}"
     end
   end
 

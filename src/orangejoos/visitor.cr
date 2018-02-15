@@ -39,8 +39,7 @@ module Visitor
     end
 
     def visit(node : AST::ReferenceTyp) : AST::Node
-      # TODO(keri): why doesn't this work??
-      # referenceTypNode.name = Node.name.accept(self)
+      node.name.accept(self)
       return node
     end
 
