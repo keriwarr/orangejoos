@@ -4,7 +4,7 @@ require "./ast.cr"
 module Visitor
 
   abstract class Visitor
-    abstract def visit(primativeTypNode : AST::PrimativeTyp) : Nil
+    abstract def visit(primitiveTypNode : AST::PrimitiveTyp) : Nil
     abstract def visit(referenceTypNode : AST::ReferenceTyp) : Nil
     abstract def visit(literalNode : AST::Literal) : Nil
     abstract def visit(keywordNode : AST::Keyword) : Nil
@@ -35,7 +35,7 @@ module Visitor
   end
 
   class GenericVisitor < Visitor
-    def visit(primativeTypNode : AST::PrimativeTyp) : Nil
+    def visit(primitiveTypNode : AST::PrimitiveTyp) : Nil
     end
 
     def visit(referenceTypNode : AST::ReferenceTyp) : Nil
