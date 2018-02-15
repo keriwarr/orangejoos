@@ -2,169 +2,169 @@
 require "./ast.cr"
 
 module Visitor
-
   abstract class Visitor
-    abstract def visit(primativeTypNode : AST::PrimativeTyp) : Nil
-    abstract def visit(referenceTypNode : AST::ReferenceTyp) : Nil
-    abstract def visit(literalNode : AST::Literal) : Nil
-    abstract def visit(keywordNode : AST::Keyword) : Nil
-    abstract def visit(packageDeclNode : AST::PackageDecl) : Nil
-    abstract def visit(importDeclNode : AST::ImportDecl) : Nil
-    abstract def visit(modifierNode : AST::Modifier) : Nil
-    abstract def visit(classDeclNode : AST::ClassDecl) : Nil
-    abstract def visit(interfaceDeclNode : AST::InterfaceDecl) : Nil
-    abstract def visit(simpleNameNode : AST::SimpleName) : Nil
-    abstract def visit(qualifiedNameNode : AST::QualifiedName) : Nil
-    abstract def visit(fieldDeclNode : AST::FieldDecl) : Nil
-    abstract def visit(fileNode : AST::File) : Nil
-    abstract def visit(paramNode : AST::Param) : Nil
-    abstract def visit(blockNode : AST::Block) : Nil
-    abstract def visit(exprOpNode : AST::ExprOp) : Nil
-    abstract def visit(exprClassInitNode : AST::ExprClassInit) : Nil
-    abstract def visit(exprThisNode : AST::ExprThis) : Nil
-    abstract def visit(exprRefNode : AST::ExprRef) : Nil
-    abstract def visit(constIntegerNode : AST::ConstInteger) : Nil
-    abstract def visit(constBoolNode : AST::ConstBool) : Nil
-    abstract def visit(constCharNode : AST::ConstChar) : Nil
-    abstract def visit(constStringNode : AST::ConstString) : Nil
-    abstract def visit(constNullNode : AST::ConstNull) : Nil
-    abstract def visit(variableDeclNode : AST::VariableDecl) : Nil
-    abstract def visit(declStmtNode : AST::DeclStmt) : Nil
-    abstract def visit(methodDeclNode : AST::MethodDecl) : Nil
-    abstract def visit(constructorDeclNode : AST::ConstructorDecl) : Nil
+    abstract def visit(node : AST::PrimativeTyp) : Nil
+    abstract def visit(node : AST::ReferenceTyp) : Nil
+    abstract def visit(node : AST::Literal) : Nil
+    abstract def visit(node : AST::Keyword) : Nil
+    abstract def visit(node : AST::PackageDecl) : Nil
+    abstract def visit(node : AST::ImportDecl) : Nil
+    abstract def visit(node : AST::Modifier) : Nil
+    abstract def visit(node : AST::ClassDecl) : Nil
+    abstract def visit(node : AST::InterfaceDecl) : Nil
+    abstract def visit(node : AST::SimpleName) : Nil
+    abstract def visit(node : AST::QualifiedName) : Nil
+    abstract def visit(node : AST::FieldDecl) : Nil
+    abstract def visit(node : AST::File) : Nil
+    abstract def visit(node : AST::Param) : Nil
+    abstract def visit(node : AST::Block) : Nil
+    abstract def visit(node : AST::ExprOp) : Nil
+    abstract def visit(node : AST::ExprClassInit) : Nil
+    abstract def visit(node : AST::ExprThis) : Nil
+    abstract def visit(node : AST::ExprRef) : Nil
+    abstract def visit(node : AST::ConstInteger) : Nil
+    abstract def visit(node : AST::ConstBool) : Nil
+    abstract def visit(node : AST::ConstChar) : Nil
+    abstract def visit(node : AST::ConstString) : Nil
+    abstract def visit(node : AST::ConstNull) : Nil
+    abstract def visit(node : AST::VariableDecl) : Nil
+    abstract def visit(node : AST::DeclStmt) : Nil
+    abstract def visit(node : AST::MethodDecl) : Nil
+    abstract def visit(node : AST::ConstructorDecl) : Nil
   end
 
   class GenericVisitor < Visitor
-    def visit(primativeTypNode : AST::PrimativeTyp) : Nil
+    def visit(node : AST::PrimitiveTyp) : Nil
     end
 
-    def visit(referenceTypNode : AST::ReferenceTyp) : Nil
+    def visit(node : AST::ReferenceTyp) : Nil
       # TODO(keri): why doesn't this work??
       # referenceTypNode.name.accept(self)
     end
 
-    def visit(literalNode : AST::Literal) : Nil
+    def visit(node : AST::Literal) : Nil
     end
 
-    def visit(keywordNode : AST::Keyword) : Nil
+    def visit(node : AST::Keyword) : Nil
     end
 
-    def visit(packageDeclNode : AST::PackageDecl) : Nil
-      packageDeclNode.path.accept(self)
+    def visit(node : AST::PackageDecl) : Nil
+      node.path.accept(self)
     end
 
-    def visit(importDeclNode : AST::ImportDecl) : Nil
-      importDeclNode.path.accept(self)
+    def visit(node : AST::ImportDecl) : Nil
+      node.path.accept(self)
     end
 
-    def visit(modifierNode : AST::Modifier) : Nil
+    def visit(node : AST::Modifier) : Nil
     end
 
-    def visit(classDeclNode : AST::ClassDecl) : Nil
-      classDeclNode.modifiers.each { |m| m.accept(self) }
-      if classDeclNode.super_class?
-        classDeclNode.super_class.accept(self)
+    def visit(node : AST::ClassDecl) : Nil
+      node.modifiers.each { |m| m.accept(self) }
+      if node.super_class?
+        node.super_class.accept(self)
       end
-      classDeclNode.interfaces.each { |i| i.accept(self) }
-      classDeclNode.body.each { |b| b.accept(self) }
+      node.interfaces.each { |i| i.accept(self) }
+      node.body.each       { |b| b.accept(self) }
     end
 
-    def visit(interfaceDeclNode : AST::InterfaceDecl) : Nil
-      interfaceDeclNode.modifiers.each { |m| m.accept(self) }
-      interfaceDeclNode.extensions.each { |i| i.accept(self) }
-      interfaceDeclNode.body.each { |b| b.accept(self) }
+    def visit(node : AST::InterfaceDecl) : Nil
+      node.modifiers.each  { |m| m.accept(self) }
+      node.extensions.each { |i| i.accept(self) }
+      node.body.each       { |b| b.accept(self) }
     end
 
-    def visit(simpleNameNode : AST::SimpleName) : Nil
+    def visit(node : AST::SimpleName) : Nil
     end
 
-    def visit(qualifiedNameNode : AST::QualifiedName) : Nil
+    def visit(node : AST::QualifiedName) : Nil
     end
 
-    def visit(fieldDeclNode : AST::FieldDecl) : Nil
-      fieldDeclNode.modifiers.each { |m| m.accept(self) }
-      fieldDeclNode.typ.accept(self)
-      fieldDeclNode.decl.accept(self)
+    def visit(node : AST::FieldDecl) : Nil
+      node.modifiers.each { |m| m.accept(self) }
+      node.typ.accept(self)
+      node.decl.accept(self)
     end
 
-    def visit(fileNode : AST::File) : Nil
-      if fileNode.package?
-        fileNode.package.accept(self)
+    def visit(node : AST::File) : Nil
+      if node.package?
+        node.package.accept(self)
       end
-      fileNode.imports.each { |i| i.accept(self) }
-      fileNode.decls.each { |d| d.accept(self) }
+      node.imports.each { |i| i.accept(self) }
+      node.decls.each   { |d| d.accept(self) }
     end
 
-    def visit(paramNode : AST::Param) : Nil
-      paramNode.typ.accept(self)
+    def visit(node : AST::Param) : Nil
+      node.typ.accept(self)
     end
 
-    def visit(blockNode : AST::Block) : Nil
-      blockNode.stmts.each { |s| s.accept(self) }
+    def visit(node : AST::Block) : Nil
+      node.stmts.each { |s| s.accept(self) }
     end
 
-    def visit(exprOpNode : AST::ExprOp) : Nil
-      exprOpNode.operands.each { |o| o.accept(self) }
+    def visit(node : AST::ExprOp) : Nil
+      node.operands.each { |o| o.accept(self) }
     end
 
-    def visit(exprClassInitNode : AST::ExprClassInit) : Nil
-      exprClassInitNode.name.accept(self)
-      exprClassInitNode.args.each { |a| a.accept(self) }
+    def visit(node : AST::ExprClassInit) : Nil
+      node.name.accept(self)
+      node.args.each { |a| a.accept(self) }
     end
 
-    def visit(exprThisNode : AST::ExprThis) : Nil
+    def visit(node : AST::ExprThis) : Nil
     end
 
-    def visit(exprRefNode : AST::ExprRef) : Nil
-      exprRefNode.name.accept(self)
+    def visit(node : AST::ExprRef) : Nil
+      node.name.accept(self)
     end
 
-    def visit(constIntegerNode : AST::ConstInteger) : Nil
+    def visit(node : AST::ConstInteger) : Nil
     end
 
-    def visit(constBoolNode : AST::ConstBool) : Nil
+    def visit(node : AST::ConstBool) : Nil
     end
 
-    def visit(constCharNode : AST::ConstChar) : Nil
+    def visit(node : AST::ConstChar) : Nil
     end
 
-    def visit(constStringNode : AST::ConstString) : Nil
+    def visit(node : AST::ConstString) : Nil
     end
 
-    def visit(constNullNode : AST::ConstNull) : Nil
+    def visit(node : AST::ConstNull) : Nil
     end
 
-    def visit(variableDeclNode : AST::VariableDecl) : Nil
-      if variableDeclNode.init?
-        variableDeclNode.init.accept(self)
-      end
-    end
-
-    def visit(declStmtNode : AST::DeclStmt) : Nil
-      declStmtNode.typ.accept(self)
-      declStmtNode.var.accept(self)
-    end
-
-    def visit(methodDeclNode : AST::MethodDecl) : Nil
-      methodDeclNode.typ.accept(self)
-      methodDeclNode.modifiers.each { |m| m.accept(self) }
-      methodDeclNode.params.each { |p| p.accept(self) }
-      if methodDeclNode.body?
-        methodDeclNode.body.each { |b| b.accept(self) }
+    def visit(node : AST::VariableDecl) : Nil
+      if node.init?
+        node.init.accept(self)
       end
     end
 
-    def visit(constructorDeclNode : AST::ConstructorDecl) : Nil
-      constructorDeclNode.name.accept(self)
-      constructorDeclNode.modifiers.each { |m| m.accept(self) }
-      constructorDeclNode.params.each { |p| p.accept(self) }
-      constructorDeclNode.body.each { |b| b.accept(self) }
+    def visit(node : AST::DeclStmt) : Nil
+      node.typ.accept(self)
+      node.var.accept(self)
+    end
+
+    def visit(node : AST::MethodDecl) : Nil
+      node.typ.accept(self)
+      node.modifiers.each { |m| m.accept(self) }
+      node.params.each    { |p| p.accept(self) }
+      node.body.each      { |b| b.accept(self) } if node.body?
+      # if node.body?
+      #   node.body.each { |b| b.accept(self) }
+      # end
+    end
+
+    def visit(node : AST::ConstructorDecl) : Nil
+      node.name.accept(self)
+      node.modifiers.each { |m| m.accept(self) }
+      node.params.each    { |p| p.accept(self) }
+      node.body.each      { |b| b.accept(self) }
     end
   end
 
   class ValueRangeVisitor < GenericVisitor
-    def visit(constIntegerNode : AST::ConstInteger) : Nil
-      puts "I found an integer! #{constIntegerNode.val}"
+    def visit(node : AST::ConstInteger) : Nil
+      puts "I found an integer! #{node.val}"
       super
     end
   end
