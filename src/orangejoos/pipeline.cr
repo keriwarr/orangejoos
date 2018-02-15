@@ -41,20 +41,20 @@ class SourceFile
     # Replace all invalid name characters with underscores. Only ascii
     # letters, numbers, '$', and '_' are considered valid.
     cleaned_filename = ""
-    # new_word = true
+    new_word = true
     filename.chars.each do |c|
       if c.ascii_letter?
-        # if new_word
-        #   new_word = false
-        #   cleaned_filename += c.upcase
-        # else
+        if new_word
+          new_word = false
+          cleaned_filename += c.upcase
+        else
           cleaned_filename += c
-        # end
+        end
       elsif c.ascii_number? || c == '$' || c == '_'
-        # new_word = true
+        new_word = true
         cleaned_filename += c
       else
-        # new_word = true
+        new_word = true
         cleaned_filename += "_"
       end
     end
