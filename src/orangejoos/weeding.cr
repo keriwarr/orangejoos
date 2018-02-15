@@ -1,5 +1,6 @@
 require "./compiler_errors.cr"
 require "./ast.cr"
+require "./visitor.cr"
 
 # Weeding is a step that does specific program validations after
 # parsing. It operates on the AST.
@@ -109,5 +110,7 @@ class Weeding
     elsif public_classes.size == 1 && public_classes.first != @public_class_name
       raise WeedingStageError.new("class declared was \"#{public_classes.first}\" but to match the file name it must be \"#{@public_class_name}\"")
     end
+
+    @root.accept(Visitor::ValueRangeVisitor.new)
   end
 end

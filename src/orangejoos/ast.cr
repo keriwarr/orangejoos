@@ -5,6 +5,8 @@
 # the AST nodes and their fields. Maybe we can document this and use a
 # tool to pull out the documentation for a concise reference?
 
+require "./visitor.cr"
+
 INDENT = ->(depth : Int32) { "  " * depth }
 
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
@@ -30,6 +32,7 @@ module AST
     # Internal function: `pprint` with a depth, which represents the
     # indentation level of depth the node belongs in.
     abstract def pprint(depth : Int32) : String
+    abstract def accept(v : Visitor::Visitor) : Nil
   end
 
   # Typ represents all types.
@@ -75,6 +78,10 @@ module AST
     def pprint(depth : Int32)
       return name
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `ReferenceType` represents user-defined Class and Interface types,
@@ -96,6 +103,10 @@ module AST
     def pprint(depth : Int32)
       return name
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # FIXME(joey): The literal is instead used for identifiers, such as class
@@ -108,6 +119,10 @@ module AST
 
     def pprint(depth : Int32)
       return val
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -123,6 +138,10 @@ module AST
 
     def pprint(depth : Int32)
       return val
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -144,6 +163,10 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       return "#{indent}Package #{path.name}"
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -187,6 +210,10 @@ module AST
       indent = INDENT.call(depth)
       return "#{indent}Import #{path.name}#{on_demand_str}"
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `Modifier` represents modifier keywords. This includes:
@@ -204,6 +231,10 @@ module AST
 
     def pprint(depth : Int32)
       return name
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -253,6 +284,10 @@ module AST
 #{indent}  Interfaces: #{interface_names}
 #{indent}  Decls:\n#{decls}"
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `InterfaceDecl` is a top-level declaration for interfaces.
@@ -276,6 +311,10 @@ module AST
 #{indent}  Modifiers: #{mods}
 #{indent}  Extensions: #{extensions_str}
 #{indent}  Decls:\n#{decls}"
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -305,6 +344,10 @@ module AST
     def pprint(depth : Int32)
       return name
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `QualifiedName` is a name which has a qualified namespace, such as a
@@ -321,6 +364,10 @@ module AST
 
     def pprint(depth : Int32)
       return name
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -353,6 +400,10 @@ module AST
       indent = INDENT.call(depth)
       return "#{indent}field #{decl.pprint(0)} type=#{typ.name} mods=#{mods}"
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `File` is the root AST node. It holds all of the files top-level
@@ -378,6 +429,10 @@ module AST
       decs = decls.map {|i| i.pprint(depth+1) }.join("\n")
       return "File:\n#{pkg}#{imps}#{decs}"
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `Param` represents a parameter definition in a method signature. It
@@ -392,6 +447,10 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       return "#{indent}<Param #{name} #{typ.pprint(0)}>"
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -446,6 +505,10 @@ module AST
     def children
       stmts
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `Expr` are parts of the code which return a value. They are a subset
@@ -485,6 +548,10 @@ module AST
     def children
       return operands
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `ExprClassInit` is an expression that is initializing a new class.
@@ -503,12 +570,20 @@ module AST
     def children
       return args
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `ExprThis` represents the `this` expression, which will return the
   # currently scoped `this` instance.
   class ExprThis < Expr
     def initialize
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -524,6 +599,10 @@ module AST
 
     def initialize(@name : Name)
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `Const` are expressions with a constant value.
@@ -535,12 +614,20 @@ module AST
     property val : String
     def initialize(@val : String)
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   class ConstBool < Const
     # FIXME(joey): Make this a proper bool val.
     property val : String
     def initialize(@val : String)
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -549,16 +636,28 @@ module AST
     property val : String
     def initialize(@val : String)
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   class ConstString < Const
     property val : String
     def initialize(@val : String)
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   class ConstNull < Const
     def initialize
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -577,6 +676,10 @@ module AST
       indent = INDENT.call(depth)
       init_str = init? ? init.pprint(0) : "<no init>"
       return "#{indent}VarDecl: #{name} init={#{init_str}}"
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -605,6 +708,10 @@ module AST
         return [var.init]
       end
     end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
+    end
   end
 
   # `MethodDecl` is a method declaration. It includes `name`, `typ,`
@@ -629,6 +736,10 @@ module AST
         body_str = "<no body>"
       end
       return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p} #{body_str}"
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 
@@ -656,6 +767,10 @@ module AST
       mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
       return "#{indent}constructor #{name.pprint(0)} #{mods} #{p}"
+    end
+
+    def accept(v : Visitor::Visitor) : Nil
+      v.visit(self)
     end
   end
 end

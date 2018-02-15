@@ -37,6 +37,10 @@ class TMPMethodDecl < AST::Node
   def pprint(depth : Int32)
     raise Exception.new("unexpected call")
   end
+
+  def accept(v : Visitor::Visitor) : Nil
+    v.visit(self)
+  end
 end
 
 # Simplification is a stage that simplifies the initial parse tree.
