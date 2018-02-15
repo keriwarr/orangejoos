@@ -60,12 +60,10 @@ module Visitor
     end
 
     def visit(node : AST::ClassDecl) : Nil
-      node.modifiers.each { |m| m.accept(self) }
-      if node.super_class?
-        node.super_class.accept(self)
-      end
+      node.modifiers.each  { |m| m.accept(self) }
       node.interfaces.each { |i| i.accept(self) }
       node.body.each       { |b| b.accept(self) }
+      node.super_class.accept(self) if node.super_class?
     end
 
     def visit(node : AST::InterfaceDecl) : Nil
@@ -87,9 +85,7 @@ module Visitor
     end
 
     def visit(node : AST::File) : Nil
-      if node.package?
-        node.package.accept(self)
-      end
+      node.package.accept(self) if node.package?
       node.imports.each { |i| i.accept(self) }
       node.decls.each   { |d| d.accept(self) }
     end
@@ -134,9 +130,7 @@ module Visitor
     end
 
     def visit(node : AST::VariableDecl) : Nil
-      if node.init?
-        node.init.accept(self)
-      end
+      node.init.accept(self) if node.init?
     end
 
     def visit(node : AST::DeclStmt) : Nil
@@ -149,9 +143,6 @@ module Visitor
       node.modifiers.each { |m| m.accept(self) }
       node.params.each    { |p| p.accept(self) }
       node.body.each      { |b| b.accept(self) } if node.body?
-      # if node.body?
-      #   node.body.each { |b| b.accept(self) }
-      # end
     end
 
     def visit(node : AST::ConstructorDecl) : Nil
