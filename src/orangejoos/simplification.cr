@@ -50,7 +50,7 @@ class Simplification
   def initialize
   end
 
-  def simplify(root : ParseTree)
+  def simplify(root : ParseTree) : AST::Node
     # We can safely assume the structure of the parse tree is correct
     # otherwise it would fail during the parse stage. During
     # simplification the only conditional are for optional tokens and
@@ -64,7 +64,7 @@ class Simplification
     return ret
   end
 
-  def simplify_tree(tree : ParseTree)
+  def simplify_tree(tree : ParseTree) # : Array(AST::Node) | Nil, but you cannot use that typedecl. It is inferred correctly.
     case tree.name
     when "ImportDeclarations"
       imports = tree.tokens.get_tree("ImportDeclarations")
@@ -225,7 +225,7 @@ class Simplification
   end
 
 
-  def simplify(tree : ParseTree)
+  def simplify(tree : ParseTree) : AST::Node | Nil
     case tree.name
     when "Goal"
       return simplify(tree.tokens.first.as(ParseTree))
