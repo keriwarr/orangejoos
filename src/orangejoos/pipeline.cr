@@ -231,5 +231,8 @@ Stages:
       exit 0
     end
 
+    # XXX: debug print modified ast.
+    source_files.each { |file| puts "=== FILE modified abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
+
   end
 end
