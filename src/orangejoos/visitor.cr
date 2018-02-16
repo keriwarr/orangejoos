@@ -32,9 +32,15 @@ module Visitor
     abstract def visit(node : AST::DeclStmt) : AST::Node
     abstract def visit(node : AST::MethodDecl) : AST::Node
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
+
+    abstract def descend()
+    abstract def ascend()
+    abstract def on_completion()
   end
 
   class GenericVisitor < Visitor
+    @depth = 0
+
     def visit(node : AST::PrimitiveTyp) : AST::Node
       return node
     end
@@ -179,27 +185,20 @@ module Visitor
       node.body.map!      { |b| b.accept(self) }
       return node
     end
-  end
 
-  class ValueRangeVisitor < GenericVisitor
-    def visit(node : AST::ExprOp) : AST::Node
-      if node.op == "-" && node.operands.size == 1 && node.operands[0].is_a?(AST::ConstInteger)
-        constInteger = node.operands[0].as(AST::ConstInteger)
-        constInteger.val = "-" + constInteger.val
-        return constInteger
-      end
-      return node
+    def descend
+      @depth += 1
     end
-  end
 
-  class LiteralRangeCheckerVisitor < GenericVisitor
-    def visit(node : AST::ConstInteger) : AST::Node
-      begin
-        node.val.to_i32
-      rescue ArgumentError
-        raise WeedingStageError.new("Integer out of bounds")
+    def ascend
+      @depth -= 1
+
+      if @depth == 0
+        on_completion()
       end
-      return super
+    end
+
+    def on_completion
     end
   end
 end

@@ -33,7 +33,10 @@ module AST
     # indentation level of depth the node belongs in.
     abstract def pprint(depth : Int32) : String
     def accept(v : Visitor::Visitor) : Node
-      return v.visit(self)
+      v.descend
+      result = v.visit(self)
+      v.ascend
+      return result
     end
   end
 
