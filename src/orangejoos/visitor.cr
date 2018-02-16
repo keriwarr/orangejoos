@@ -40,7 +40,7 @@ module Visitor
     end
 
     def visit(node : AST::ReferenceTyp) : AST::Node
-      node.name.accept(self)
+      node.name = node.name.accept(self)
       return node
     end
 
