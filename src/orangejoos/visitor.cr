@@ -1,5 +1,6 @@
 
 require "./ast.cr"
+require "./compiler_errors.cr"
 
 module Visitor
   abstract class Visitor
@@ -188,6 +189,17 @@ module Visitor
         return constInteger
       end
       return node
+    end
+  end
+
+  class LiteralRangeCheckerVisitor < GenericVisitor
+    def visit(node : AST::ConstInteger) : AST::Node
+      begin
+        node.val.to_i32
+      rescue ArgumentError
+        raise WeedingStageError.new("Integer out of bounds")
+      end
+      return super
     end
   end
 end

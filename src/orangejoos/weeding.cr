@@ -112,5 +112,6 @@ class Weeding
     end
 
     @root.accept(Visitor::ValueRangeVisitor.new)
+    @root.accept(Visitor::LiteralRangeCheckerVisitor.new)
   end
 end
