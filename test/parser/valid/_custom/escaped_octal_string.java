@@ -1,5 +1,5 @@
-public class EscapedOctalString {
-    public EscapedOctalString() {}
+public class escaped_octal_string {
+    public escaped_octal_string() {}
 
     public char a() {
         return '\77';

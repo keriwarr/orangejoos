@@ -85,7 +85,7 @@ module AST
   # `ReferenceType` represents user-defined Class and Interface types,
   # including the cardinality.
   class ReferenceTyp < Typ
-    getter name : Name
+    property name : Name
 
     def initialize(@name : Name)
       @cardinality = 0
