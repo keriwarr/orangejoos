@@ -40,8 +40,55 @@ module AST
     end
   end
 
+  # `Stmt` are AST nodes which appear in the body of methods and can be
+  # executed. Not all `Stmt` return values.
+  abstract class Stmt < Node
+
+    abstract def children : Array(Stmt)
+
+    # TODO(joey): This was an attempt to make a traversal function for
+    # `Stmt` trees in a rather general manner. It is not actually used.
+    def traverse(map : Stmt -> Tuple(Object, Boolean), reduce : Array(Object) -> Object)
+      results = [] of Object
+
+      result, cont = map(self)
+      if !cont
+        return result
+      end
+
+      results.push(result)
+
+      self.children.each do |c|
+        result, cont = c.traverse(map, reduce)
+        if !cont
+          return {result, cont}
+        end
+        results.push(result)
+      end
+
+      return {reduce(results.compact), false}
+    end
+  end
+
+  # `Expr` are parts of the code which return a value. They are a subset
+  # of `Stmt`, meaning they are also traversable and are only
+  # distinguished by the property of returning values.
+  abstract class Expr < Stmt
+    def initialize
+    end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO"
+    end
+
+    def children
+      # TODO(joey)
+      [] of Expr
+    end
+  end
+
   # Typ represents all types.
-  abstract class Typ < Node
+  abstract class Typ < Expr
     # The _cardinality_ array of the type. If the _cardinality_ is `0`, the
     # type is not an array. For example, the following type has a
     # cardinality of 2:
@@ -403,36 +450,6 @@ module AST
     end
   end
 
-  # `Stmt` are AST nodes which appear in the body of methods and can be
-  # executed. Not all `Stmt` return values.
-  abstract class Stmt < Node
-
-    abstract def children : Array(Stmt)
-
-    # TODO(joey): This was an attempt to make a traversal function for
-    # `Stmt` trees in a rather general manner. It is not actually used.
-    def traverse(map : Stmt -> Tuple(Object, Boolean), reduce : Array(Object) -> Object)
-      results = [] of Object
-
-      result, cont = map(self)
-      if !cont
-        return result
-      end
-
-      results.push(result)
-
-      self.children.each do |c|
-        result, cont = c.traverse(map, reduce)
-        if !cont
-          return {result, cont}
-        end
-        results.push(result)
-      end
-
-      return {reduce(results.compact), false}
-    end
-  end
-
   # `Block` is a group of `Stmt`. It is used to isolate the scope of the
   # contained `Stmt`. A block is created by the following code:
   # ```java
@@ -453,23 +470,6 @@ module AST
 
     def children
       stmts
-    end
-  end
-
-  # `Expr` are parts of the code which return a value. They are a subset
-  # of `Stmt`, meaning they are also traversable and are only
-  # distinguished by the property of returning values.
-  abstract class Expr < Stmt
-    def initialize
-    end
-
-    def pprint(depth : Int32)
-      return "Expr: TODO"
-    end
-
-    def children
-      # TODO(joey)
-      [] of Expr
     end
   end
 
