@@ -15,7 +15,7 @@ class Weeding
     @root.accept(ClassDeclVisitor.new)
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
-    @root.accept(ValueRangeVisitor.new)
+    @root.accept(NegativeIntegerVisitor.new)
     @root.accept(LiteralRangeCheckerVisitor.new)
   end
 end
@@ -139,7 +139,7 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
   end
 end
 
-class ValueRangeVisitor < Visitor::GenericVisitor
+class NegativeIntegerVisitor < Visitor::GenericVisitor
   def visit(node : AST::ExprOp) : AST::Node
     if node.op == "-" && node.operands.size == 1 && node.operands[0].is_a?(AST::ConstInteger)
       constInteger = node.operands[0].as(AST::ConstInteger)

@@ -102,3 +102,7 @@ From the specification:
 - Java Specifications: Version 1 and Version 2.
 - Modern Compiler Implementation in Java, Appel.
 
+## Improvements
+
+- Replace `has_modifier("<modifier>") with a series of methods of the form `is_<modifier>`
+- Create two separate generic visitors: one for simplification which is mutative and returns nodes, one for weeding which is not and returns Nil
