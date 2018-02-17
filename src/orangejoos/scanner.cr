@@ -100,7 +100,7 @@ class Scanner
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     if self.peek(0) == '/' && self.peek(1) == '*'
       javadoc_comment = false
-      end_of_comment = 2
+      end_of_comment = 1
 
       # If the comment is a Javadoc comment, i.e. it begins with "/**",
       # then we need to track this to determine the different comment
@@ -110,7 +110,7 @@ class Scanner
         # When there is a javadoc "/**", we also shift the possible end
         # of the comment by one. This prevents re-using the second '*'
         # as an end comment.
-        end_of_comment = 3
+        end_of_comment = 2
       end
 
       # FIXME(joey): Handle EOF.
