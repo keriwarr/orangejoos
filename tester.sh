@@ -48,15 +48,18 @@ done
 
 regex="^\/\/ (([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+,)*[A-Z_0-9]+)$"
 
-for filename in pub/assignment_testcases/a1/*.java; do
+for filename in `find pub -name "*.java" -type f`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
   fi
 
+  regex_lines=0
   while IFS='' read -r line || [[ -n "$line" ]]; do
     if [[ $line == \/\/\ * ]]; then
       if [[ $line =~ $regex ]]; then
+        regex_lines=$((regex_lines + 1))
+
         language="${BASH_REMATCH[2]}"
         descriptorlist="${BASH_REMATCH[3]}"
         IFS=', ' read -r -a descriptors <<< "$descriptorlist"
@@ -207,6 +210,34 @@ for filename in pub/assignment_testcases/a1/*.java; do
       break
     fi
   done < $filename
+
+  if [[ $regex_lines == 0 ]]; then
+    RESULT=$(./joosc $filename >/dev/null 2>/dev/null)
+    result=$?
+    if $should_pass; then
+      if [[ $result = 42 ]]; then
+        echo "== ${RED}FAIL${NC}: ${filename}"
+        bad_fail=$((bad_fail + 1))
+      elif [[ $result = 0 ]]; then
+        echo "== ${GREEN}PASS${NC}: ${filename}"
+        correct_pass=$((correct_pass + 1))
+      else
+        echo "== ${RED}ERROR${NC}: ${filename}"
+        errors=$((errors + 1))
+      fi
+    else
+      if [[ $result = 42 ]]; then
+        echo "== ${GREEN}FAIL${NC}: ${filename}"
+        correct_fail=$((correct_fail + 1))
+      elif [[ $result = 0 ]]; then
+        echo "== ${RED}PASS${NC}: ${filename}"
+        bad_pass=$((bad_pass + 1))
+      else
+        echo "== ${RED}ERROR${NC}: ${filename}"
+        errors=$((errors + 1))
+      fi
+    fi
+  fi
 done
 
 
