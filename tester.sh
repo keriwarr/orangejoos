@@ -2,8 +2,8 @@
 
 make
 
-FAIL_FILES=$(find test/parser/bad -type f)
-PASS_FILES=$(find test/parser/valid -type f)
+TEST_FOLDER="test/"
+PUB_FOLDER="pub"
 
 # Terminal colours.
 RED=`tput setaf 1`
@@ -15,97 +15,124 @@ correct_pass=0
 bad_fail=0
 bad_pass=0
 errors=0
+failed_tests=()
 
-for file in $FAIL_FILES; do
-  RESULT=$(./joosc $file >/dev/null 2>/dev/null)
+do_test() {
+  file=$1
+  should_pass=$2
+  args=$3 # to be passed to ./joosc
+  context=$4 # will be printed next to the file name
+
+  RESULT=$(./joosc $file $args >/dev/null 2>/dev/null)
   result=$?
-  if [[ $result = 42 ]]; then
-    echo "== ${GREEN}FAIL${NC}: ${file}"
+  description=""
+
+  if [[ $result = 42 && $should_pass = true ]]; then
+    description="== ${RED}FAIL${NC}: ${file} ${context}"
+    bad_fail=$((bad_fail + 1))
+    failed_tests+=("== ${RED}FAIL${NC}: ./joosc $file $args")
+  elif [[ $result = 0 && $should_pass = true ]]; then
+    description="== ${GREEN}PASS${NC}: ${file} ${context}"
+    correct_pass=$((correct_pass + 1))
+  elif [[ $result = 42 && $should_pass = false ]]; then
+    description="== ${GREEN}FAIL${NC}: ${file} ${context}"
     correct_fail=$((correct_fail + 1))
-  elif [[ $result = 0 ]]; then
-    echo "== ${RED}PASS${NC}: ${file}"
+  elif [[ $result = 0  && $should_pass = false ]]; then
+    description="== ${RED}PASS${NC}: ${file} ${context}"
     bad_pass=$((bad_pass + 1))
+    failed_tests+=("== ${RED}PASS${NC}: ./joosc $file $args")
   else
-    echo "== ${RED}ERROR${NC}: ${file}"
+    description="== ${RED}EROR${NC}: ${file} ${context}"
     errors=$((errors + 1))
+    failed_tests+=("== ${RED}EROR${NC}: ./joosc $file $args")
   fi
-done
+
+  echo $description
+}
+
+# ----------------------------------------------------------------------------
+# Run against test files scraped from
+# https://www.student.cs.uwaterloo.ca/~cs444/joos.html
+# ----------------------------------------------------------------------------
+
+PASS_FILES=$(find ${TEST_FOLDER}parser/valid -type f)
+FAIL_FILES=$(find ${TEST_FOLDER}parser/bad -type f)
 
 for file in $PASS_FILES; do
-  RESULT=$(./joosc $file >/dev/null 2>/dev/null)
-  result=$?
-  if [[ $result = 42 ]]; then
-    echo "== ${RED}FAIL${NC}: ${file}"
-    bad_fail=$((bad_fail + 1))
-  elif [[ $result = 0 ]]; then
-    echo "== ${GREEN}PASS${NC}: ${file}"
-    correct_pass=$((correct_pass + 1))
-  else
-    echo "== ${RED}ERROR${NC}: ${file}"
-    errors=$((errors + 1))
-  fi
+  do_test $file true
 done
+
+for file in $FAIL_FILES; do
+  do_test $file false
+done
+
+# ----------------------------------------------------------------------------
+# Run against assignment test files, and std lib
+# ----------------------------------------------------------------------------
 
 regex="^\/\/ (([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+,)*[A-Z_0-9]+)$"
 
-for filename in `find pub -name "*.java" -type f`; do
+for filename in `find ${PUB_FOLDER} -name "*.java" -type f`; do
   should_pass=true;
+  # I believe "Je" stands for Joos Error
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
   fi
 
+  executed_tagwords=()
+
   regex_lines=0
   while IFS='' read -r line || [[ -n "$line" ]]; do
+    # Some testing files begin with a series of single line comments containing metadata
     if [[ $line == \/\/\ * ]]; then
+      # Each line contains a list of tag-words, optionally prepended by the name of a JOOS dialect
       if [[ $line =~ $regex ]]; then
         regex_lines=$((regex_lines + 1))
 
-        language="${BASH_REMATCH[2]}"
-        descriptorlist="${BASH_REMATCH[3]}"
-        IFS=', ' read -r -a descriptors <<< "$descriptorlist"
+        dialect="${BASH_REMATCH[2]}"
+        tagwordlist="${BASH_REMATCH[3]}"
+        IFS=',' read -r -a tagwords <<< "$tagwordlist"
 
-        if [ -z "$language" ]; then
+        if [ -z "$dialect" ]; then
+          # If there's no dialect specified, assume the tagwords apply
           :
-        elif [[ $language == "JOOS1" ]]; then
+        elif [[ $dialect == "JOOS1" ]]; then
+          # If the dialect is JOOS1, assume it applies
+          # TODO: does this require correction?
           :
-        elif [[ $language == "JOOS2" ]]; then
+        elif [[ $dialect == "JOOS2" ]]; then
+          # If the dialect is JOOS2, assume it applies
+          # TODO: does this require correction?
           :
-        elif [[ $language == "JAVAC" ]]; then
+        elif [[ $dialect == "JAVAC" ]]; then
+          # If the dialect is JAVAC, assume it doesn't apply
           break
         else
-          break
+          echo ""
+          echo "${RED}EROR${NC}: unrecognized dialect: ${dialect}. Please incorporate it into ${0}."
+          echo ""
+          exit 1
         fi
 
-        # echo $filename
-        for index in "${!descriptors[@]}"
-        do
-          case "${descriptors[index]}" in
+        for index in "${!tagwords[@]}"; do
+          # Each tagword can appear multiple times for separate dialects.
+          # Have we already seen this tagword?
+          already_executed=false
+          for tagword_index in "${!executed_tagwords[@]}"; do
+            if [[ "${tagwords[index]}" -eq "${executed_tagwords[tagword_index]}" ]]; then
+              already_executed=true
+            fi
+          done
+          if $already_executed; then
+            continue
+          fi
+
+          executed_tagwords+=("${tagwords[index]}")
+
+          case "${tagwords[index]}" in
             PARSER_WEEDER)
-              RESULT=$(./joosc $filename -s weed >/dev/null 2>/dev/null)
-              result=$?
-              if $should_pass; then
-                if [[ $result = 42 ]]; then
-                  echo "== ${RED}FAIL${NC}: ${filename}"
-                  bad_fail=$((bad_fail + 1))
-                elif [[ $result = 0 ]]; then
-                  echo "== ${GREEN}PASS${NC}: ${filename}"
-                  correct_pass=$((correct_pass + 1))
-                else
-                  echo "== ${RED}ERROR${NC}: ${filename}"
-                  errors=$((errors + 1))
-                fi
-              else
-                if [[ $result = 42 ]]; then
-                  echo "== ${GREEN}FAIL${NC}: ${filename}"
-                  correct_fail=$((correct_fail + 1))
-                elif [[ $result = 0 ]]; then
-                  echo "== ${RED}PASS${NC}: ${filename}"
-                  bad_pass=$((bad_pass + 1))
-                else
-                  echo "== ${RED}ERROR${NC}: ${filename}"
-                  errors=$((errors + 1))
-                fi
-              fi
+              # I am interpreting "PARSER_WEEDER" as: should have either passed or failed by the end of the weeding stage
+              do_test $filename $should_pass "-s weed" "${tagwords[index]}"
               ;;
             CODE_GENERATION)
               ;;
@@ -201,8 +228,21 @@ for filename in `find pub -name "*.java" -type f`; do
               ;;
             VOID_TYPE_VARIABLE)
               ;;
-            *)
+            DEFINITE_ASSIGNMENT)
               ;;
+            JOOS1_OMITTED_LOCAL_INITIALIZER)
+              ;;
+            TYPE_LINKING)
+              ;;
+            NO_MATCHING_METHOD_FOUND)
+              ;;
+            JOOS1_CLOSEST_MATCH_OVERLOADING)
+              ;;
+            *)
+              echo ""
+              echo "${RED}EROR${NC}: unrecognized tagword: ${tagwords[index]} Please incorporate it into ${0}."
+              echo ""
+              exit 1
           esac
         done
       fi
@@ -211,38 +251,29 @@ for filename in `find pub -name "*.java" -type f`; do
     fi
   done < $filename
 
+  # No metadata/tagwords? Test it without any arguments.
   if [[ $regex_lines == 0 ]]; then
-    RESULT=$(./joosc $filename >/dev/null 2>/dev/null)
-    result=$?
-    if $should_pass; then
-      if [[ $result = 42 ]]; then
-        echo "== ${RED}FAIL${NC}: ${filename}"
-        bad_fail=$((bad_fail + 1))
-      elif [[ $result = 0 ]]; then
-        echo "== ${GREEN}PASS${NC}: ${filename}"
-        correct_pass=$((correct_pass + 1))
-      else
-        echo "== ${RED}ERROR${NC}: ${filename}"
-        errors=$((errors + 1))
-      fi
-    else
-      if [[ $result = 42 ]]; then
-        echo "== ${GREEN}FAIL${NC}: ${filename}"
-        correct_fail=$((correct_fail + 1))
-      elif [[ $result = 0 ]]; then
-        echo "== ${RED}PASS${NC}: ${filename}"
-        bad_pass=$((bad_pass + 1))
-      else
-        echo "== ${RED}ERROR${NC}: ${filename}"
-        errors=$((errors + 1))
-      fi
-    fi
+    do_test $filename $should_pass
   fi
 done
 
+# ----------------------------------------------------------------------------
+# Tally the results
+# ----------------------------------------------------------------------------
 
+if [ ${#failed_tests[@]} -ne 0 ]; then
+  echo ""
+  echo "=== FAILING TESTS ==="
+  echo ""
 
+  for index in "${!failed_tests[@]}"; do
+    echo "${failed_tests[index]}"
+  done
+fi
+
+echo ""
 echo "=== RESULTS ==="
-echo "Correct: $((correct_pass + correct_fail))"
-echo "Failed: $((bad_pass + bad_fail))"
-echo "Errors: $((errors))"
+echo ""
+echo "${GREEN}Correct${NC}: $((correct_pass + correct_fail))"
+echo "${RED}Failed${NC}:  $((bad_pass + bad_fail))"
+echo "${RED}Errors${NC}:  $((errors))"
