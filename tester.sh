@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# If any argument is passed, run extra tests
+all_tests=false
+if [[ $# -gt 0 ]]; then
+  all_tests=true
+fi
+
 make
 
 TEST_FOLDER="test/"
@@ -17,6 +23,10 @@ bad_pass=0
 errors=0
 failed_tests=()
 
+failed_test_descr_file="failed_tests.tmp"
+
+rm $failed_test_descr_file
+
 do_test() {
   file=$1
   should_pass=$2
@@ -30,7 +40,7 @@ do_test() {
   if [[ $result = 42 && $should_pass = true ]]; then
     description="== ${RED}FAIL${NC}: ${file} ${context}"
     bad_fail=$((bad_fail + 1))
-    failed_tests+=("== ${RED}FAIL${NC}: ./joosc $file $args")
+    echo "== ${RED}FAIL${NC}: ./joosc $file $args" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
     description="== ${GREEN}PASS${NC}: ${file} ${context}"
     correct_pass=$((correct_pass + 1))
@@ -40,11 +50,11 @@ do_test() {
   elif [[ $result = 0  && $should_pass = false ]]; then
     description="== ${RED}PASS${NC}: ${file} ${context}"
     bad_pass=$((bad_pass + 1))
-    failed_tests+=("== ${RED}PASS${NC}: ./joosc $file $args")
+    echo "== ${RED}PASS${NC}: ./joosc $file $args" >> $failed_test_descr_file
   else
     description="== ${RED}EROR${NC}: ${file} ${context}"
     errors=$((errors + 1))
-    failed_tests+=("== ${RED}EROR${NC}: ./joosc $file $args")
+    echo "== ${RED}EROR${NC}: ./joosc $file $args" >> $failed_test_descr_file
   fi
 
   echo $description
@@ -252,7 +262,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f`; do
   done < $filename
 
   # No metadata/tagwords? Test it without any arguments.
-  if [[ $regex_lines == 0 ]]; then
+  if [[ $all_tests == true && $regex_lines == 0 ]]; then
     do_test $filename $should_pass
   fi
 done
@@ -261,15 +271,12 @@ done
 # Tally the results
 # ----------------------------------------------------------------------------
 
-if [ ${#failed_tests[@]} -ne 0 ]; then
-  echo ""
-  echo "=== FAILING TESTS ==="
-  echo ""
+echo ""
+echo "=== FAILING TESTS ==="
+echo ""
 
-  for index in "${!failed_tests[@]}"; do
-    echo "${failed_tests[index]}"
-  done
-fi
+cat $failed_test_descr_file
+rm $failed_test_descr_file
 
 echo ""
 echo "=== RESULTS ==="
