@@ -34,9 +34,7 @@ class SourceFile
     end
 
     # If the name starts with a number, prefix it with an underscore.
-    if filename[0].ascii_number?
-      filename = "_" + filename
-    end
+    filename = "_" + filename if filename[0].ascii_number?
 
     # Replace all invalid name characters with underscores. Only ascii
     # letters, numbers, '$', and '_' are considered valid.
@@ -150,7 +148,7 @@ Stages:
     end
 
     # Check that the table file exists.
-    if !File.exists?(@table_file)
+    unless File.exists?(@table_file)
       STDERR.puts "ERROR: file #{@table_file} does not exist"
       exit 1
     end
@@ -197,9 +195,7 @@ Stages:
     # XXX: debug print lexemes trees.
     source_files.each { |file| puts "=== FILE lexemes: #{file.path} ===\n#{file.tokens}" }
 
-    if @end_stage == "scan"
-      exit 0
-    end
+    exit 0 if @end_stage == "scan"
 
     # Load the LALR(1) prediction table.
     @table = load_parse_table
@@ -210,16 +206,12 @@ Stages:
     # XXX: debug print parse trees.
     source_files.each { |file| puts "=== FILE parse tree: #{file.path} ===\n#{file.parse_tree.pprint}" }
 
-    if @end_stage == "parse"
-      exit 0
-    end
+    exit 0 if @end_stage == "parse"
 
     # Simplify the parse trees into abstract syntax trees.
     source_files.each { |file| do_simplify!(file) }
 
-    if @end_stage == "simplify"
-      exit 0
-    end
+    exit 0 if @end_stage == "simplify"
 
     # XXX: debug print ast.
     source_files.each { |file| puts "=== FILE abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
@@ -227,12 +219,9 @@ Stages:
     # Weed out any errors from parsing.
     source_files.each { |file| do_weed!(file) }
 
-    if @end_stage == "weed"
-      exit 0
-    end
+    exit 0 if @end_stage == "weed"
 
     # XXX: debug print modified ast.
     source_files.each { |file| puts "=== FILE modified abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
-
   end
 end

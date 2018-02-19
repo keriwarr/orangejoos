@@ -18,7 +18,6 @@ class Scanner
       end
     end
 
-
     # TODO(joey): Might be worth looking into StringScanner for
     # cool-ness (and speed?).
     @lexemes = Array(Lexeme).new
@@ -34,11 +33,9 @@ class Scanner
       begin
         lexeme = self.scan_lexeme
       rescue ex : ScanningStageError
-        # Re-raise any ScanningStageError
-        raise ex
+        raise ex # re-raise any ScanningStageError
       rescue ex : Exception
-        # When other exceptions are encountered, also print out the
-        # lexemes
+        # When other exceptions are encountered, also print out the lexemes
         STDERR.puts "lexemes=#{@lexemes}"
         raise ex
       end
