@@ -82,7 +82,7 @@ done
 
 regex="^\/\/ (([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+,)*[A-Z_0-9]+)$"
 
-for filename in `find ${PUB_FOLDER} -name "*.java" -type f`; do
+for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
   should_pass=true;
   # I believe "Je" stands for Joos Error
   if [[ $(basename $filename) == Je* ]]; then
@@ -276,7 +276,6 @@ echo "=== FAILING TESTS ==="
 echo ""
 
 cat $failed_test_descr_file
-rm $failed_test_descr_file
 
 echo ""
 echo "=== RESULTS ==="
