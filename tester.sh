@@ -8,7 +8,7 @@ fi
 
 make
 
-TEST_FOLDER="test/"
+TEST_FOLDER="test"
 PUB_FOLDER="pub"
 
 # Terminal colours.
@@ -21,7 +21,6 @@ correct_pass=0
 bad_fail=0
 bad_pass=0
 errors=0
-failed_tests=()
 
 failed_test_descr_file="failed_tests.tmp"
 
@@ -65,8 +64,8 @@ do_test() {
 # https://www.student.cs.uwaterloo.ca/~cs444/joos.html
 # ----------------------------------------------------------------------------
 
-PASS_FILES=$(find ${TEST_FOLDER}parser/valid -type f)
-FAIL_FILES=$(find ${TEST_FOLDER}parser/bad -type f)
+PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f)
+FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f)
 
 for file in $PASS_FILES; do
   do_test $file true
@@ -125,11 +124,12 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
         fi
 
         for index in "${!tagwords[@]}"; do
+          tagword="${tagwords[index]}"
           # Each tagword can appear multiple times for separate dialects.
           # Have we already seen this tagword?
           already_executed=false
           for tagword_index in "${!executed_tagwords[@]}"; do
-            if [[ "${tagwords[index]}" -eq "${executed_tagwords[tagword_index]}" ]]; then
+            if [[ $tagword -eq "${executed_tagwords[tagword_index]}" ]]; then
               already_executed=true
             fi
           done
@@ -137,12 +137,12 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
             continue
           fi
 
-          executed_tagwords+=("${tagwords[index]}")
+          executed_tagwords+=($tagword)
 
-          case "${tagwords[index]}" in
+          case $tagword in
             PARSER_WEEDER)
               # I am interpreting "PARSER_WEEDER" as: should have either passed or failed by the end of the weeding stage
-              do_test $filename $should_pass "-s weed" "${tagwords[index]}"
+              do_test $filename $should_pass "-s weed" $tagword
               ;;
             CODE_GENERATION)
               ;;
@@ -250,7 +250,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
               ;;
             *)
               echo ""
-              echo "${RED}EROR${NC}: unrecognized tagword: ${tagwords[index]} Please incorporate it into ${0}."
+              echo "${RED}EROR${NC}: unrecognized tagword: ${tagword}. Please incorporate it into ${0}."
               echo ""
               exit 1
           esac
