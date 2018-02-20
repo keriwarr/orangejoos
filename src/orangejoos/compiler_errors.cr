@@ -1,3 +1,8 @@
+# An ArgumentError is an error that occurs in the pipeline initialization stage,
+# to signify that an argument is invalid
+class ArgumentError < Exception
+end
+
 # A ScanningStageError is an error encountered during the scan stage.
 class ScanningStageError < Exception
   def initialize(exp : String, lexemes : Array(Lexeme))
