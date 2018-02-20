@@ -44,7 +44,8 @@ class Parser
       # Check if the action exists in the lookup table. If it does not,
       # then the program is invalid.
       if !@table.has_action(@state, lookahead.parse_token)
-        raise ParseStageError.new("no next action for state=#{@state} token=#{lookahead.parse_token} parsenode=#{lookahead.inspect}")
+        stack = @stack.map {|s| s.pprint }.join("\n=== STACK ITEM ===\n")
+        raise ParseStageError.new("no next action for state=#{@state} token=#{lookahead.parse_token} parsenode=#{lookahead.inspect}\n=== STACK ===\n=== STACK ITEM ===\n#{stack}")
       end
 
       # Do a lookup in the prediction table with {State, ParseToken}.
