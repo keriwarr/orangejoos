@@ -450,8 +450,11 @@ class Simplification
       return AST::ExprClassInit.new(class_name, args)
 
     when "FieldAccess"
-      # TODO(Joey)
-      return AST::ExprThis.new
+
+      obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
+      field = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+
+      return AST::ExprFieldAccess.new(obj, field)
 
     when "MethodInvocation"
       # TODO(Joey)

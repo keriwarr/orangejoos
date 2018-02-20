@@ -264,7 +264,7 @@ class Scanner
 
             # Escaped octal value with 2 digits.
             escaped_ch = self.peek(i + 2)
-            if escaped_ch.ascii_number?
+            if escaped_ch.ascii_number? && escaped_ch.to_i < 8
               num_str += escaped_ch
 
               if self.eof?(i+3)
@@ -273,7 +273,7 @@ class Scanner
 
               # Escaped octal value with 3 digits.
               escaped_ch = self.peek(i + 3)
-              if escaped_ch.ascii_number?
+              if escaped_ch.ascii_number? && num_str[0].to_i < 4 && escaped_ch.to_i < 8
                 num_str += escaped_ch
               end
             end

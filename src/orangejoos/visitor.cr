@@ -134,6 +134,11 @@ module Visitor
       return node
     end
 
+    def visit(node : AST::ExprFieldAccess) : AST::Node
+      node.obj = node.obj.accept(self)
+      return node
+    end
+
     def visit(node : AST::ExprRef) : AST::Node
       node.name = node.name.accept(self)
       return node

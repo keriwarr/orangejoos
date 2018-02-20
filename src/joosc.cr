@@ -1,3 +1,7 @@
+STDIN.blocking = true
+STDOUT.blocking = true
+STDERR.blocking = true
+
 require "./orangejoos/*"
 require "./argparser"
 

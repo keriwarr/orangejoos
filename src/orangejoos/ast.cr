@@ -513,6 +513,15 @@ module AST
     end
   end
 
+  # `ExprFieldAccess` represents a instance field access.
+  class ExprFieldAccess < Expr
+    property obj : Expr
+    property field : Literal
+
+    def initialize(@obj : Expr, @field : Literal)
+    end
+  end
+
   # `ExprThis` represents the `this` expression, which will return the
   # currently scoped `this` instance.
   class ExprThis < Expr

@@ -2,7 +2,7 @@
 CRYSTAL_SRCS := $(find src -name '*.cr')
 JLALR_SRCS := $(find tools/jlalr -name '*.java')
 
-default: clean joosc
+default: joosc
 
 .PHONY: joosc
 joosc: ## joosc is the general compiler.
@@ -25,6 +25,7 @@ clean:
 	rm -f orangejoos orangejoos.dwarf
 	rm -f orangejoos.zip
 	rm -f joosc joosc.dwarf
+	rm -f failed_tests.tmp
 
 grammar/joos1w.cfg: ## The context-free grammar file.
 grammar/joos1w.cfg: grammar/joos1w.bnf tools/jlalr/bnf_to_cfg.py
