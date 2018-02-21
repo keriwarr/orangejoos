@@ -1,6 +1,4 @@
-STDIN.blocking = true
-STDOUT.blocking = true
-STDERR.blocking = true
+at_exit { Crystal.restore_blocking_state }
 
 require "./orangejoos/*"
 require "option_parser"
