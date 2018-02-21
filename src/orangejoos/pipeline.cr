@@ -66,10 +66,10 @@ class SourceFile
 
   def debug_print(stage : Stage)
     case stage
-    when Stage::SCAN     then data_type = "lexemes";                       data = @tokens
-    when Stage::PARSE    then data_type = "parse tree";                    data = @parse_tree
-    when Stage::SIMPLIFY then data_type = "abstract syntax tree";          data = @ast
-    when Stage::WEED     then data_type = "modified abstract syntax tree"; data = @ast
+    when Stage::SCAN     then data_type = "lexemes";                     data = @tokens
+    when Stage::PARSE    then data_type = "parse tree";                  data = @parse_tree.as?(ParseTree).try &.pprint(0)
+    when Stage::SIMPLIFY then data_type = "abstract syntax tree";        data = @ast.as?(AST::File).try &.pprint(0)
+    when Stage::WEED     then data_type = "weeded abstract syntax tree"; data = @ast.as?(AST::File).try &.pprint(0)
     end
     STDERR.puts "=== FILE #{data_type}: #{@path} ===\n#{data}"
   end
