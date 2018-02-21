@@ -1,9 +1,13 @@
-require "./lexeme.cr"
-require "./ast.cr"
-require "./lalr1_table.cr"
-require "./parse_tree.cr"
-require "./weeding.cr"
+require "./lexeme"
+require "./ast"
+require "./lalr1_table"
+require "./parse_tree"
+require "./weeding"
+require "./compiler_errors"
+require "./stage"
 
+# A SourceFile represents a file containing source code to be compiled and eventually linked. As the
+# pipeline runs the data is modified to
 class SourceFile
   property! tokens : Array(Lexeme)
   property! parse_tree : ParseTree
@@ -34,9 +38,7 @@ class SourceFile
     end
 
     # If the name starts with a number, prefix it with an underscore.
-    if filename[0].ascii_number?
-      filename = "_" + filename
-    end
+    filename = "_" + filename if filename[0].ascii_number?
 
     # Replace all invalid name characters with underscores. Only ascii
     # letters, numbers, '$', and '_' are considered valid.
@@ -61,34 +63,44 @@ class SourceFile
 
     return cleaned_filename
   end
+
+  def debug_print(stage : Stage)
+    case stage
+    when Stage::SCAN     then data_type = "lexemes";                       data = @tokens
+    when Stage::PARSE    then data_type = "parse tree";                    data = @parse_tree
+    when Stage::SIMPLIFY then data_type = "abstract syntax tree";          data = @ast
+    when Stage::WEED     then data_type = "modified abstract syntax tree"; data = @ast
+    end
+    STDERR.puts "=== FILE #{data_type}: #{@path} ===\n#{data}"
+  end
 end
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
-  @end_stage = ""
-  @verbosity = false
-  @table = uninitialized LALR1Table
   @table_file = ""
+  @table = uninitialized LALR1Table
   @paths = [] of String
+  @end_stage = Stage::ALL
+  @verbose = false
 
-  # *args* are the CLI arguments.
-  def initialize(args : Array(String))
-    @parser = OptionParser.parse(args) do |parser|
-      parser.banner = "Usage: orangejoos compile [arguments] [files...]
-Stages:
-  scan -> parse -> simplify -> weed -> ..."
+  def initialize(@table_file : String, @paths : Array(String))
+    validate # make sure args are correct
+  end
 
-      # Pipeline parse.
-      parser.on("-s STAGE", "--stage=STAGE", "Specifies the compiler stage to stop execution at. (Required)") { |stage| @end_stage = stage.downcase }
-      parser.on("-v", "--verbose", "Show verbose logs.") { @verbosity = true }
-      parser.on("-h", "--help", "Show the help prompt.") { puts parser; exit }
-      parser.unknown_args { |args| @paths = args }
+  def initialize(@table_file : String, @paths : Array(String), end_stage : String, @verbose : Bool)
+    @end_stage = Stage.get(end_stage.downcase)
+    validate # make sure args are correct
+  end
 
-      # Parse stage.
-      parser.on("-t TABLE", "--table=TABLE", "Specifies the LALR1 prediction table file. (Required for Parse stage)") { |table| @table_file = table }
+  def validate
+    raise ArgumentError.new("expected a non-zero number of source file paths") if @paths.empty?
+    raise ArgumentError.new("expected non-empty table file") if @table_file.empty?
+    unless File.exists?(@table_file)
+      raise ArgumentError.new("table file #{@table_file} does not exist")
     end
   end
 
+  # do_scan! scans a source file and turns it into tokens, modifying the given source file.
   def do_scan!(file : SourceFile)
     begin
       tokens = Scanner.new(file.contents.to_slice).scan
@@ -111,6 +123,8 @@ Stages:
     return tokens
   end
 
+  #do_parse! takes the tokens from a scanned source file and creates a parse tree from it, modifying
+  # the given source file to include it
   def do_parse!(table : LALR1Table, file : SourceFile)
     begin
       parse_tree = Parser.new(table, file.tokens).parse
@@ -122,6 +136,7 @@ Stages:
     return parse_tree
   end
 
+  # do_simplify! simpifies the parse_tree into an abstract syntax tree
   def do_simplify!(file : SourceFile)
     begin
      ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
@@ -133,6 +148,7 @@ Stages:
     return ast
   end
 
+  # do_weed! weeds the abstract suntax tree of errors
   def do_weed!(file : SourceFile)
     begin
      Weeding.new(file.ast, file.class_name).weed
@@ -142,15 +158,10 @@ Stages:
     end
   end
 
+  # load parse tree loads the parse tree from the file given to the pipeline
   def load_parse_table
-    if @table_file == ""
-      STDERR.puts @parser
-      STDERR.puts "ERROR: no LALR1 table file was not provided"
-      exit 1
-    end
-
     # Check that the table file exists.
-    if !File.exists?(@table_file)
+    unless File.exists?(@table_file)
       STDERR.puts "ERROR: file #{@table_file} does not exist"
       exit 1
     end
@@ -160,21 +171,16 @@ Stages:
     return table
   end
 
+  # exec executes the compiler pipeline up to the specified ending stage.
   def exec
-    if @paths.size == 0
-      STDERR.puts @parser
-      STDERR.puts "ERROR: no paths were provided"
-      exit 1
-    end
-
     source_files = [] of SourceFile
 
     # Check that all of the paths exist.
     @paths.each do |path|
       if File.exists?(path)
+        # JLS 2, sec 7.6 (page 155) says java files may also be
+        # ".jav". I bet this is a secret test ;O.
         if !(/\.java?$/ =~ path)
-          # JLS 2, sec 7.6 (page 155) says java files may also be
-          # ".jav". I bet this is a secret test ;O.
           STDERR.puts "ERROR: path is not a .java or .jav file"
           exit 42
         end
@@ -189,50 +195,43 @@ Stages:
       end
     end
 
-    # Load each source file.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                               SCANNING                                  #
+    #                                                                         #
+    # Load each source file and scan them into tokens.                        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     source_files.each { |file| file.read! }
-    # Scan the tokens of each source file.
     source_files.each { |file| do_scan!(file) }
+    source_files.map &.debug_print(Stage::SCAN) if @verbose
+    exit 0 if @end_stage == Stage::SCAN
 
-    # XXX: debug print lexemes trees.
-    source_files.each { |file| puts "=== FILE lexemes: #{file.path} ===\n#{file.tokens}" }
-
-    if @end_stage == "scan"
-      exit 0
-    end
-
-    # Load the LALR(1) prediction table.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                                PARSING                                  #
+    #                                                                         #
+    # Load LALR(1) prediction table and parse tokens of each source file.     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     @table = load_parse_table
-
-    # Parse the tokens of each source file.
     source_files.each { |file| do_parse!(@table, file) }
+    source_files.map &.debug_print(Stage::PARSE) if @verbose
+    exit 0 if @end_stage == Stage::PARSE
 
-    # XXX: debug print parse trees.
-    source_files.each { |file| puts "=== FILE parse tree: #{file.path} ===\n#{file.parse_tree.pprint}" }
 
-    if @end_stage == "parse"
-      exit 0
-    end
-
-    # Simplify the parse trees into abstract syntax trees.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                             SIMPLIFICATION                              #
+    #                                                                         #
+    # Simplify each parse tree into an abstract syntax tree.                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     source_files.each { |file| do_simplify!(file) }
+    source_files.map &.debug_print(Stage::SIMPLIFY) if @verbose
+    exit 0 if @end_stage == Stage::SIMPLIFY
 
-    if @end_stage == "simplify"
-      exit 0
-    end
-
-    # XXX: debug print ast.
-    source_files.each { |file| puts "=== FILE abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
-
-    # Weed out any errors from parsing.
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                                  WEEDING                                #
+    #                                                                         #
+    # Weed out any errors that could not be detected by parsing.              #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     source_files.each { |file| do_weed!(file) }
-
-    if @end_stage == "weed"
-      exit 0
-    end
-
-    # XXX: debug print modified ast.
-    source_files.each { |file| puts "=== FILE modified abstract syntax tree: #{file.path} ===\n#{file.ast.pprint}" }
-
+    source_files.map &.debug_print(Stage::WEED) if @verbose
+    exit 0 if @end_stage == Stage::WEED
   end
 end

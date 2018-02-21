@@ -1,12 +1,16 @@
 at_exit { Crystal.restore_blocking_state }
 
 require "./orangejoos/*"
-require "option_parser"
+require "./argparser"
 
 case ARGV[0]?
 when "compile"
-  pipeline = Pipeline.new(ARGV[1, ARGV.size])
-  pipeline.exec
+  begin
+    args = ArgParser.new(ARGV)
+    Pipeline.new(args.table_file, args.paths, args.end_stage, args.verbose).exec
+  rescue ex : Exception
+    STDERR.puts "Compiler pipeline failed to complete: #{ex.message}"
+  end
 else
   STDERR.puts "Usage: orangejoos [command]
 

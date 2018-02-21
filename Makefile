@@ -2,7 +2,7 @@
 CRYSTAL_SRCS := $(find src -name '*.cr')
 JLALR_SRCS := $(find tools/jlalr -name '*.java')
 
-default: clean joosc
+default: joosc
 
 .PHONY: joosc
 joosc: ## joosc is the general compiler.

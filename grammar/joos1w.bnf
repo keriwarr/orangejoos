@@ -119,7 +119,8 @@ InterfaceType:
 ArrayType:
   PrimitiveType [ ]
   Name [ ]
-  ArrayType [ ]
+  # Joos1W does not support this feature: multi-arrays
+  # ArrayType [ ]
 
 Name:
   SimpleName
@@ -413,14 +414,16 @@ ArrayCreationExpression:
 
 DimExprs:
   DimExpr
-  DimExprs DimExpr
+  # Joos1W does not support this feature: multi-arrays
+  # DimExprs DimExpr
 
 DimExpr:
   [ Expression ]
 
 Dims:
   [ ]
-  Dims [ ]
+  # Joos1W does not support this feature: multi-arrays.
+  # Dims [ ]
 
 FieldAccess:
   Primary . Identifier
@@ -453,6 +456,9 @@ UnaryExpressionNotPlusMinus:
 
 CastExpression:
   ( PrimitiveType Dims? ) UnaryExpression
+  # Joos1W unsupported feature: expression casts, but we need this
+  # otherwise we get a reduce conflict with Primary when we make it
+  # something else.
   ( Expression ) UnaryExpressionNotPlusMinus
   ( Name Dims ) UnaryExpressionNotPlusMinus
 
