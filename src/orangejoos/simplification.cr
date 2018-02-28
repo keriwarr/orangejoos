@@ -160,7 +160,7 @@ class Simplification
       blocks = [] of AST::Stmt
       # FIXME (Simon) changed block -> block_tree here, which I think is correct.
       if (block_tree = tree.tokens.get_tree("BlockStatements")); !block_tree.nil?
-        blocks_decls = simplify_tree(block_tree).as(Array(AST::Stmt))
+        blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
       end
       if (block = simplify(tree.tokens.get_tree!("BlockStatement"))); !block.nil?
         blocks.push(block.as(AST::Stmt))
