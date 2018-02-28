@@ -77,10 +77,6 @@ module AST
     def initialize
     end
 
-    def pprint(depth : Int32)
-      return "Expr: TODO"
-    end
-
     def children
       # TODO(joey)
       [] of Expr
@@ -490,6 +486,10 @@ module AST
       end
     end
 
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
+    end
+
     def children
       return operands
     end
@@ -508,6 +508,10 @@ module AST
     def initialize(@name : Name, @args : Array(Expr))
     end
 
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
+    end
+
     def children
       return args
     end
@@ -520,12 +524,20 @@ module AST
 
     def initialize(@obj : Expr, @field : Literal)
     end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
+    end
   end
 
   # `ExprThis` represents the `this` expression, which will return the
   # currently scoped `this` instance.
   class ExprThis < Expr
     def initialize
+    end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
     end
   end
 
@@ -541,6 +553,10 @@ module AST
 
     def initialize(@name : Name)
     end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
+    end
   end
 
   # `Const` are expressions with a constant value.
@@ -550,6 +566,7 @@ module AST
   class ConstInteger < Const
     # FIXME(joey): Make this a proper int val.
     property val : String
+
     def initialize(@val : String)
     end
 
@@ -562,25 +579,45 @@ module AST
   class ConstBool < Const
     # FIXME(joey): Make this a proper bool val.
     property val : String
+
     def initialize(@val : String)
+    end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
     end
   end
 
   class ConstChar < Const
     # FIXME(joey): Make this a proper char val.
     property val : String
+
     def initialize(@val : String)
     end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
+    end
+
   end
 
   class ConstString < Const
     property val : String
+
     def initialize(@val : String)
+    end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
     end
   end
 
   class ConstNull < Const
     def initialize
+    end
+
+    def pprint(depth : Int32)
+      return "Expr: TODO(keri)"
     end
   end
 
@@ -646,7 +683,7 @@ module AST
       mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
       if body?
-        body_str = body.each {|b| b.pprint(0)}.to_s
+        body_str = body.map {|b| b.pprint(0)}.to_s
       else
         body_str = "<no body>"
       end
@@ -678,6 +715,30 @@ module AST
       mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
       return "#{indent}constructor #{name.pprint(0)} #{mods} #{p}"
+    end
+  end
+
+  class ReturnStmt < Stmt
+    property! expr : Expr | Nil
+
+    def initialize(@expr : Expr | Nil)
+    end
+
+    def pprint(depth : Int32)
+      if expr?
+        expr_str = " #{expr.pprint(0)}"
+      else
+        expr_str = ""
+      end
+      return "return#{expr_str}"
+    end
+
+    def children
+      if expr.nil?
+        return [] of Expr
+      else
+        return [expr]
+      end
     end
   end
 end

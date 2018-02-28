@@ -32,6 +32,7 @@ module Visitor
     abstract def visit(node : AST::DeclStmt) : AST::Node
     abstract def visit(node : AST::MethodDecl) : AST::Node
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
+    abstract def visit(node : AST::ReturnStmt) : AST::Node
 
     abstract def descend()
     abstract def ascend()
@@ -188,6 +189,11 @@ module Visitor
       node.modifiers.map! { |m| m.accept(self) }
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) }
+      return node
+    end
+
+    def visit(node : AST::ReturnStmt) : AST::Node
+      node.expr = node.expr.accept(self) if node.expr?
       return node
     end
 

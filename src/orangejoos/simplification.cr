@@ -354,7 +354,12 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "ReturnStatement"
-      # TODO(joey)
+      expr = nil
+      if (expression = tree.tokens.get_tree("Expression")); !expression.nil?
+        expr = simplify(expression).as(AST::Expr)
+      end
+
+      return AST::ReturnStmt.new(expr)
 
     when "IfThenStatement"
       # TODO(joey)
