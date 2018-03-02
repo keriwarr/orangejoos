@@ -218,7 +218,7 @@ module AST
   # ```
   class ImportDecl < Node
     # The _path_ the import declaration is importing.
-    property! path : Name
+    property path : Name
 
     # _on_demand_ is whether the import is a wildcard import. An example
     # of that is:

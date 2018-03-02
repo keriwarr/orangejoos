@@ -10,10 +10,10 @@ class NameResolution
   def initialize(@files : Array(SourceFile))
   end
 
-  def generate_exported_items
+  def generate_exported_items(files)
     package_root = PackageNode.new
 
-    @files.each do |file|
+    files.each do |file|
       ast = file.ast
       if ast.package?
         if ast.decl?(file.class_name)
@@ -28,13 +28,55 @@ class NameResolution
     return package_root
   end
 
+  def populate_imports(files, exported_items)
+    # These are populated separately because this defines the name
+    # resolution priority. The order is:
+    # 1) Try enclosed (same-file) class or interface
+    # 2) Try any single-type import (A.B.C.D)
+    # 3) Try same package import.
+    # 4) Try any import-on-demand package (A.B.C.*) including java.lang.*
+
+    single_type_imports = [] of Tuple(String, AST::TypeDecl)
+    same_package_imports = [] of Tuple(String, AST::TypeDecl)
+    on_demand_imports = [] of Tuple(String, AST::TypeDecl)
+
+
+    files.each do |file|
+      ast = file.ast
+      imports = ast.imports.flat_map do |import|
+        import_tree = exported_items.get(import.path.parts)
+        STDERR.puts "import_tree=#{import_tree.inspect}"
+        prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+        prefix += "." if prefix.size > 0
+        if import_tree.is_a?(TypeNode)
+          single_type_imports += import_tree.enumerate(prefix)
+        elsif import_tree.is_a?(PackageNode) && import.on_demand
+          on_demand_imports += import_tree.enumerate(prefix)
+        else
+          raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.pprint}")
+        end
+      end
+
+      # TODO(joey): same package imports, but do not include the class
+      # declared in this file.
+
+      STDERR.puts "=== FILE:#{file.path} SINGLE TYPE IMPORTS ==="
+      STDERR.puts "#{single_type_imports.map(&.first).join("\n")}"
+      STDERR.puts "=== FILE:#{file.path} ON DEMAND IMPORTS ==="
+      STDERR.puts "#{on_demand_imports.map(&.first).join("\n")}"
+
+    end
+  end
+
   def resolve
-    exported_items = generate_exported_items
+    exported_items = generate_exported_items(@files)
 
     # DEBUG INFO
     classes = exported_items.enumerate
     STDERR.puts "==== EXPORTED ITEMS ===="
     STDERR.puts "#{classes.map(&.first).join("\n")}"
+
+    populate_imports(@files, exported_items)
 
     return @files
   end
@@ -46,6 +88,7 @@ end
 abstract class PackageTree
   abstract def name : String
   abstract def enumerate : Array(Tuple(String, AST::TypeDecl))
+  abstract def get(path : Array(String)) : PackageTree
 end
 
 
@@ -56,8 +99,15 @@ class TypeNode < PackageTree
   def initialize(@name : String, @decl : AST::TypeDecl)
   end
 
-  def enumerate : Array(Tuple(String, AST::TypeDecl))
-    return [Tuple.new(name, decl)]
+  def enumerate(prefix : String = ""): Array(Tuple(String, AST::TypeDecl))
+    return [Tuple.new(prefix + name, decl)]
+  end
+
+  def get(path : Array(String))
+    if path.size > 0
+      raise NameResolutionStageError.new("import path not valid")
+    end
+    return self
   end
 end
 
@@ -92,11 +142,21 @@ class PackageNode < PackageTree
     end
   end
 
-  def enumerate : Array(Tuple(String, AST::TypeDecl))
-    return children.values.flat_map(&.enumerate) if @root
+  def enumerate(prefix : String = "") : Array(Tuple(String, AST::TypeDecl))
+    return children.values.flat_map(&.enumerate).map {|k, v| Tuple.new(prefix + k, v)} if @root
 
     return children.values.flat_map do |child|
-      child.enumerate.map {|c_name, tree| Tuple.new(name + "." + c_name, tree)}
+      child.enumerate.map {|c_name, tree| Tuple.new(prefix + name + "." + c_name, tree)}
+    end
+  end
+
+  def get(path : Array(String))
+    if path.size > 0 && children.has_key?(path.first)
+      return children[path.first].get(path[1..path.size])
+    elsif path.size > 0
+      raise NameResolutionStageError.new("path does not exist")
+    else
+      return self
     end
   end
 end
