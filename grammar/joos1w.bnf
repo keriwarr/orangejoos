@@ -245,9 +245,12 @@ FormalParameterList:
 FormalParameter:
   Type VariableDeclaratorId
 
-ClassTypeList:
-  ClassType
-  ClassTypeList , ClassType
+# FIXME(joey): This rule is only used by "throws", e.g.
+# "throws ClassException, ClassTwoException", which is not supported by
+# Joos1W.
+# ClassTypeList:
+#   ClassType
+#   ClassTypeList , ClassType
 
 MethodBody:
   Block
@@ -380,9 +383,11 @@ ForInit:
 ForUpdate:
   StatementExpression
 
-StatementExpressionList:
-  StatementExpression
-  StatementExpressionList , StatementExpression
+# FIXME(joey): This rule is only used for multiple ForInit statements,
+# which is not supported by Joos1W.
+# StatementExpressionList:
+#   StatementExpression
+#   StatementExpressionList , StatementExpression
 
 ReturnStatement:
   return Expression? ;
@@ -409,13 +414,16 @@ ArgumentList:
   ArgumentList , Expression
 
 ArrayCreationExpression:
-  new PrimitiveType DimExprs Dims?
-  new ClassOrInterfaceType DimExprs Dims?
+  # FIXME(joey): Dim? suffix was removed from these two rules as
+  # multiple dimensions are not allowed.
+  new PrimitiveType DimExpr
+  new ClassOrInterfaceType DimExpr
 
-DimExprs:
-  DimExpr
-  # Joos1W does not support this feature: multi-arrays
-  # DimExprs DimExpr
+# Joos1W does not support this feature: multi-arrays. All uses of
+# DimExprs has been replaced with DimExpr.
+# DimExprs:
+#   DimExpr
+#   DimExprs DimExpr
 
 DimExpr:
   [ Expression ]

@@ -481,6 +481,105 @@ module AST
     end
   end
 
+  # `ForStmt` is a for-loop block. It may have an init `Stmt`, a
+  # comparison `Expr`, and a update `Stmt`. It will always have a `Stmt`
+  # block. A for-loop is created by the following code:
+  # ```java
+  # for ( /*init*/ ; /*expr*/; /*update*/) {
+  #   /*stmt*/
+  # }
+  # ```
+  class ForStmt < Stmt
+    property! init : Stmt
+    property! expr : Expr
+    property! update : Stmt
+    property body : Stmt
+
+    def initialize(@init : Stmt | Nil, @expr : Expr | Nil, @update : Stmt | Nil, @body : Stmt)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return (
+        "#{indent}For:\n" \
+        "#{indent}  Init: #{@init.try &.pprint}\n" \
+        "#{indent}  Expr: #{@expr.try &.pprint}\n" \
+        "#{indent}  Update: #{@update.try &.pprint}\n" \
+        "#{indent}  Body:\n#{body.pprint(depth+2)}"
+      )
+    end
+
+    def children
+      [init, expr.as(Stmt), update, body] of Stmt
+    end
+  end
+
+  # `WhileStmt` is a while-loop block. It has a comparison `Expr` and a
+  # `Stmt` block. A while-loop is created by the following code:
+  # ```java
+  # while ( /*expr*/ ) {
+  #   /*stmt*/
+  # }
+  # ```
+  class WhileStmt < Stmt
+    property expr : Expr
+    property body : Stmt
+
+    def initialize(@expr : Expr, @body : Stmt)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return (
+        "#{indent}While:\n" \
+        "#{indent}  Expr: #{expr.pprint}\n" \
+        "#{indent}  Body:\n#{body.pprint(depth+2)}"
+      )
+    end
+
+    def children
+      [init, expr.as(Stmt), update, body] of Stmt
+    end
+  end
+
+  # `IfStmt` is an if-block control flow. It has a comparison `Expr`, a
+  # `Stmt` to execute if the comparison is true, and optionally a `Stmt
+  # to execute if it is false. An if-block is created by the following
+  # code:
+  # ```java
+  # if (/* expr */) {
+  #   /* if_body */
+  # } else {
+  #   /* else_body */
+  # }
+  # ```
+  class IfStmt < Stmt
+    property expr : Expr
+    property if_body : Stmt
+    property! else_body : Stmt
+
+    def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt | Nil)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return (
+        "#{indent} If:\n" \
+        "#{indent}  Expr: #{expr.pprint}\n" \
+        "#{indent}  IfBody:\n#{if_body.pprint(depth+1)}"
+        "#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+2)}"
+      )
+    end
+
+    def children
+      if else_body?
+        [expr.as(Stmt), if_body, else_body] of Stmt
+      else
+        [expr.as(Stmt), if_body] of Stmt
+      end
+    end
+  end
+
   # `ExprOp` is an operator expression. Each expression has an operator
   # (`op`) and any number of `operands`. They generically any type of
   # operator, including unary and binary.
@@ -557,6 +656,56 @@ module AST
     end
   end
 
+  # `ExprArrayAccess` represents an array access.
+  class ExprArrayAccess < Expr
+    # FIXME(joey): Rather hacky way to support these two ways to write
+    # an array access, an expr that returns an array or by directly
+    # using an identifier name.
+    property! arr_expr : Expr
+    property! arr_name : Name
+    property index : Expr
+
+    def initialize(@arr_expr : Expr, @index : Expr)
+    end
+
+    def initialize(@arr_name : Name, @index : Expr)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "ExprArrayAccess: TODO(keri)"
+    end
+
+    def children
+      if arr_expr?
+        return [arr_expr, index]
+      else
+        return [index]
+      end
+    end
+  end
+
+  # `ExprArrayCreation` represents an array creation.
+  class ExprArrayCreation < Expr
+    # FIXME(joey): Specialize the node type used here. Maybe if we
+    # create a Type interface that multiple AST nodes can implement,
+    # such as Name (or Class/Interface) and PrimativTyp.
+    property arr : Node
+    property dim : Expr
+
+    def initialize(@arr : Node, @dim : Expr)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "ExprArrayCreation: TODO(keri)"
+    end
+
+    def children
+      return [arr, dim]
+    end
+  end
+
   # `ExprThis` represents the `this` expression, which will return the
   # currently scoped `this` instance.
   class ExprThis < Expr
@@ -593,6 +742,35 @@ module AST
 
     def children
       [] of Expr
+    end
+  end
+
+  # `MethodInvoc` represents a method invocation.
+  # For example:
+  # ```java
+  # A(1, 'a')
+  # (new B(1)).meth()
+  # ```
+  #
+  class MethodInvoc < Expr
+    property! expr : Expr
+    property name : Name
+    property args : Array(Expr)
+
+    def initialize(@expr : Expr | Nil, @name : Name, @args : Array(Expr))
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "#{indent}MethodInvoc of #{expr.try &.pprint(0)} name=#{name.pprint(0)} args=#{args.map &.pprint(0)}"
+    end
+
+    def children
+      if expr?
+        [expr] of Expr + args
+      else
+        args
+      end
     end
   end
 

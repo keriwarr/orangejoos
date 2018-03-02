@@ -105,7 +105,7 @@ class Pipeline
     begin
       tokens = Scanner.new(file.contents.to_slice).scan
     rescue ex : ScanningStageError
-      STDERR.puts "Failed to scan with exception: #{ex}"
+      STDERR.puts "Failed #{file.path} to scan with exception: #{ex}"
       exit 42
     end
 
@@ -113,7 +113,7 @@ class Pipeline
     # FIXME(joey): Collect errors.
     tokens.each do |res|
       if res.typ == Type::Bad
-        STDERR.puts "Failed to parse, got tokens: "
+        STDERR.puts "Failed #{file.path} to parse, got tokens: "
         STDERR.puts tokens
         exit 42
       end
@@ -129,7 +129,7 @@ class Pipeline
     begin
       parse_tree = Parser.new(table, file.tokens).parse
     rescue ex : ParseStageError
-      STDERR.puts "Failed to parse with exception: #{ex}"
+      STDERR.puts "Failed #{file.path} to parse with exception: #{ex}"
       exit 42
     end
     file.parse_tree = parse_tree
@@ -141,7 +141,7 @@ class Pipeline
     begin
      ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     rescue ex : SimplifyStageError
-      STDERR.puts "Failed to simplify with exception: #{ex}"
+      STDERR.puts "Failed #{file.path} to simplify with exception: #{ex}"
       exit 42
     end
     file.ast = ast
@@ -153,7 +153,7 @@ class Pipeline
     begin
      Weeding.new(file.ast, file.class_name).weed
     rescue ex : WeedingStageError
-      STDERR.puts "Found weeding error: #{ex}"
+      STDERR.puts "Found #{file.path} weeding error: #{ex}"
       exit 42
     end
   end

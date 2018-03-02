@@ -86,6 +86,15 @@ class Simplification
 
       return type_decls
 
+    when "ExtendsInterfaces"
+      types = tree.tokens.get_tree("ExtendsInterfaces")
+      type_decls = [] of AST::Name
+      type_decls = simplify_tree(types).as(Array(AST::Name)) unless types.nil?
+
+      type_decls.push(simplify(tree.tokens.get_tree!("InterfaceType")).as(AST::Name))
+
+      return type_decls
+
     when "Modifiers"
       modifiers = tree.tokens.get_tree("Modifiers")
       modifiers_decls = [] of AST::Modifier
@@ -155,6 +164,22 @@ class Simplification
       expr = simplify(tree.tokens.get_tree!("Expression"))
       exprs.push(expr.as(AST::Expr)) unless expr.nil?
       return exprs
+
+    when "ArrayInitializer"
+      exprs = [] of AST::Expr
+      if (expr_tree = tree.tokens.get_tree("VariableInitializers")); !expr_tree.nil?
+        exprs = simplify_tree(expr_tree).as(Array(AST::Expr))
+      end
+      return exprs
+
+    when "VariableInitializers"
+      var_inits = [] of AST::Expr
+      var_inits_t = tree.tokens.get_tree("VariableInitializers")
+      var_inits = simplify_tree(var_inits_t).as(Array(AST::Expr)) unless var_inits_t.nil?
+
+      var_init = simplify(tree.tokens.get_tree!("VariableInitializer"))
+      var_inits.push(var_init.as(AST::Expr)) unless var_init.nil?
+      return var_inits
 
     when "BlockStatements"
       blocks = [] of AST::Stmt
@@ -347,8 +372,19 @@ class Simplification
       if tree.tokens.first.as(ParseTree).name == "Block"
         stmts = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Stmt))
         return AST::Block.new(stmts)
+      elsif tree.tokens.first.as(ParseTree).name == "EmptyStatement"
+        # FIXME(joey): I believe this is the easiest or only way to
+        # represent EmptyStatement. Is this easy for the later parts of
+        # the pipeline?
+        return AST::Block.new([] of AST::Stmt)
       end
       return simplify(tree.tokens.first.as(ParseTree))
+
+    when "EmptyStatement"
+      # As the exception says, this node should never be traversed as it
+      # is not peered into in the above case block. If this is
+      # encountered, it is a bug.
+      raise Exception.new("unexpected ParseNode \"EmptyStatement\", it should not be processed")
 
     when "StatementNoShortIf"
       return simplify(tree.tokens.first.as(ParseTree))
@@ -361,25 +397,79 @@ class Simplification
 
       return AST::ReturnStmt.new(expr)
 
-    when "IfThenStatement"
-      # TODO(joey)
+    when "IfThenStatement", "IfThenElseStatement", "IfThenElseStatementNoShortIf"
+      expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
 
-    when "IfThenElseStatement", "IfThenElseStatementNoShortif"
-      # TODO(joey)
+      if_block = simplify(tree.tokens.to_a[4].as(ParseTree)).as(AST::Stmt)
 
-    when "WhileStatement", "WhileStatementNoShortif"
-      # TODO(joey)
+      else_block = nil
+      # IfThenStatement only has 5 parse nodes, while IfThenElse[...]
+      # has 7.
+      if tree.tokens.size > 6
+        else_block = simplify(tree.tokens.to_a[6].as(ParseTree)).as(AST::Stmt)
+      end
 
-    when "ForStatement", "ForStatementNoShortif"
-      # TODO(joey)
+      return AST::IfStmt.new(expr, if_block, else_block)
+    when "WhileStatement", "WhileStatementNoShortIf"
+      expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
+      if (stmt_tree = tree.tokens.get_tree("Statement")); !stmt_tree.nil?
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      else
+        stmt_tree = tree.tokens.get_tree!("StatementNoShortIf")
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      end
+
+      return AST::WhileStmt.new(expr, stmt)
+
+    when "ForStatement", "ForStatementNoShortIf"
+      init = nil
+      if (init_tree = tree.tokens.get_tree("ForInit")); !init_tree.nil?
+        init = simplify(init_tree).as(AST::Stmt)
+      end
+
+      expr = nil
+      if (expr_tree = tree.tokens.get_tree("ForExpr")); !expr_tree.nil?
+        expr = simplify(expr_tree).as(AST::Expr)
+      end
+
+      update = nil
+      if (update_tree = tree.tokens.get_tree("ForUpdate")); !update_tree.nil?
+        update = simplify(update_tree).as(AST::Stmt)
+      end
+
+      if (stmt_tree = tree.tokens.get_tree("Statement")); !stmt_tree.nil?
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      else
+        stmt_tree = tree.tokens.get_tree!("StatementNoShortIf")
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      end
+
+      return AST::ForStmt.new(init, expr, update, stmt)
 
     when "ExpressionStatement"
-      # TODO(joey)
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "StatementExpression"
+      # NOTE: lmao, this rule name is not a typo.
+      return simplify(tree.tokens.first.as(ParseTree))
+
+
+    when "ForInit"
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "ForUpdate"
+      return simplify(tree.tokens.first.as(ParseTree))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                            STATEMENTS                                   #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Expression"
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "DimExpr"
+      return simplify(tree.tokens.to_a[1].as(ParseTree))
+
+    when "ConstantExpression"
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "AssignmentExpression"
@@ -414,6 +504,18 @@ class Simplification
       # wrapped inside another parse node.
       op = tree.tokens.to_a[1].as(ParseTree).tokens.first.as(Lexeme).sem
       return AST::ExprOp.new(op, lhs, rhs)
+
+    when "AssignmentOperator"
+      # As the exception says, this node should never be traversed as it
+      # is not peered into in the above case block. If this is
+      # encountered, it is a bug.
+      raise Exception.new("unexpected ParseNode \"AssignmentOperator\", this node should not be traversed")
+
+    when "Dims"
+      # As the exception says, this node should never be traversed as it
+      # is not peered into in the above case block. If this is
+      # encountered, it is a bug.
+      raise Exception.new("unexpected ParseNode \"Dims\", this node should not be traversed")
 
     when "UnaryExpression", "UnaryExpressionNotPlusMinus"
       if tree.tokens.size == 1
@@ -455,27 +557,62 @@ class Simplification
       return AST::ExprClassInit.new(class_name, args)
 
     when "FieldAccess"
-
       obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
       field = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
 
       return AST::ExprFieldAccess.new(obj, field)
 
     when "MethodInvocation"
-      # TODO(Joey)
-      return AST::ExprThis.new
+      args = [] of AST::Expr
+      if (t = tree.tokens.get_tree("ArgumentList")); !t.nil?
+        args = simplify_tree(t).as(Array(AST::Expr))
+      end
+
+      # Check if the method invocation is either a `Name()` or an
+      # `Primary.SimpleName()`. In the latter, we expect the `Expr` to
+      # return a class or interface type.
+      if !tree.tokens.get_tree("Name").nil?
+        name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
+        return AST::MethodInvoc.new(nil, name, args)
+      else
+        expr = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
+        ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+        name = AST::SimpleName.new(ident.val)
+        return AST::MethodInvoc.new(expr, name, args)
+      end
+      obj = simplify().as(AST::Expr)
 
     when "ArrayAccess"
-      # TODO(Joey)
-      return AST::ExprThis.new
+      arr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr | AST::Name)
+      index_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+      # FIXME(joey): This is done to handle hacky type specificness for
+      # the different ways of accessing an array.
+      if arr.is_a?(AST::Expr)
+        return AST::ExprArrayAccess.new(arr, index_expr)
+      elsif arr.is_a?(AST::Name)
+        return AST::ExprArrayAccess.new(arr, index_expr)
+      else
+        raise Exception.new("unexpected case")
+      end
 
     when "CastExpression"
-      # TODO(Joey)
+      # TODO(Joey): Casting is hard. There are a few tricky problems,
+      # the casting type can be:
+      # - PrimativeTyp, also as an array
+      # - Name (aka ClassOrInterfaceType), also as an array
+      #
+      # Unfortunately, due to grammar problems the Name not as array is
+      # ambigious, and so we need to use Expression, where we only
+      # desire a Name. This is also a problem because normally extra
+      # parenthesis are silently omitted, but for casts there can no be
+      # two layers of parenthesis.
       return AST::ExprThis.new
 
     when "ArrayCreationExpression"
-      # TODO(Joey)
-      return AST::ExprThis.new
+      # FIXME(joey): Specialize the node type used here.
+      typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Node)
+      dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+      return AST::ExprArrayCreation.new(typ, dim_expr)
 
     when "LeftHandSide"
       # FIXME(joey): Properly return an LValue type (name, field access, or array access).
@@ -500,10 +637,20 @@ class Simplification
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Super"                      then return simplify(tree.tokens.to_a[1].as(ParseTree))
 
-    when "ClassType", "InterfaceType", "ClassOrInterfaceType",
-         "InterfaceMemberDeclaration", "ConstantDeclaration",
-         "AbstractMethodDeclaration", "ClassBodyDeclaration",
-         "ClassMemberDeclaration", "BlockStatement"
+    when "ClassType"
+      # FIXME(joey): A marker should be added to the Name node here to
+      # signify that the Name must resolve to a Class type.
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "InterfaceType"
+      # FIXME(joey): A marker should be added to the Name node here to
+      # signify that the Name must resolve to an Interface type.
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "ClassOrInterfaceType", "InterfaceMemberDeclaration",
+         "ConstantDeclaration", "AbstractMethodDeclaration",
+         "ClassBodyDeclaration", "ClassMemberDeclaration",
+         "BlockStatement"
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "LocalVariableDeclarationStatement"
@@ -530,11 +677,24 @@ class Simplification
       name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
       params = [] of AST::Param
 
+      # Note: We peer into the ConstructorDeclarator here, so we should
+      # never call `simplify_tree` on a ConstructorDeclarator parse
+      # node, hence the empty implementation below.
       if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormatParameterList")); !params_t.nil?
         params = simplify_tree(params_t).as(Array(AST::Param))
       end
       body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
       return AST::ConstructorDecl.new(name, mods, params, body)
+
+    when "ConstructorDeclarator"
+      # This `ParseTree` should not be processed, because we never call
+      # `simplify_tree` on it. Instead, the parent `ParseTree` peers
+      # into the contents of this `ParseTree`, which is commented
+      # immediately above.
+      #
+      # This implementation is meant to fulfill the simplification_spec
+      # test, which checks for exhaustive rule implementations.
+      raise Exception.new("unexpected ParseNode \"ConstructorImplementation\". See the comment in the code for why.")
 
     when "MethodDeclarator"
       if (decl = tree.tokens.get_tree("MethodDeclarator")); !decl.nil?
