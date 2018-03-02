@@ -361,12 +361,19 @@ class Simplification
 
       return AST::ReturnStmt.new(expr)
 
-    when "IfThenStatement"
-      # TODO(joey)
+    when "IfThenStatement", "IfThenElseStatement", "IfThenElseStatementNoShortif"
+      expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
 
-    when "IfThenElseStatement", "IfThenElseStatementNoShortif"
-      # TODO(joey)
+      if_block = simplify(tree.tokens.to_a[4].as(ParseTree)).as(AST::Stmt)
 
+      else_block = nil
+      # IfThenStatement only has 5 parse nodes, while IfThenElse[...]
+      # has 7.
+      if tree.tokens.size > 6
+        else_block = simplify(tree.tokens.to_a[6].as(ParseTree)).as(AST::Stmt)
+      end
+
+      return AST::IfStmt.new(expr, if_block, else_block)
     when "WhileStatement", "WhileStatementNoShortif"
       expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
       if (stmt_tree = tree.tokens.get_tree("Statement")); !stmt_tree.nil?

@@ -542,6 +542,44 @@ module AST
     end
   end
 
+  # `IfStmt` is an if-block control flow. It has a comparison `Expr`, a
+  # `Stmt` to execute if the comparison is true, and optionally a `Stmt
+  # to execute if it is false. An if-block is created by the following
+  # code:
+  # ```java
+  # if (/* expr */) {
+  #   /* if_body */
+  # } else {
+  #   /* else_body */
+  # }
+  # ```
+  class IfStmt < Stmt
+    property expr : Expr
+    property if_body : Stmt
+    property! else_body : Stmt
+
+    def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt | Nil)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return (
+        "#{indent} If:\n" \
+        "#{indent}  Expr: #{expr.pprint}\n" \
+        "#{indent}  IfBody:\n#{if_body.pprint(depth+1)}"
+        "#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+1)}"
+      )
+    end
+
+    def children
+      if else_body?
+        [expr.as(Stmt), if_body, else_body] of Stmt
+      else
+        [expr.as(Stmt), if_body] of Stmt
+      end
+    end
+  end
+
   # `ExprOp` is an operator expression. Each expression has an operator
   # (`op`) and any number of `operands`. They generically any type of
   # operator, including unary and binary.
