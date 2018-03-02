@@ -31,13 +31,13 @@ class Pipeline
       if File.exists?(path)
         case path
         when /\.java?$/ then @sources.push(SourceFile.new(path))
-        else raise ArgumentError.new("ERROR: #{path} is not a .java or .jav file")
+        else raise PipelineError.new("ERROR: #{path} is not a .java or .jav file")
         end
       # check if directory that may contain java files
       elsif Dir.exists?(path)
         Dir.glob("**/*.java").each { |file| @sources.push(SourceFile.new(file)) }
       else
-        raise ArgumentError.new("ERROR: #{path} does not exist")
+        raise PipelineError.new("ERROR: #{path} does not exist")
       end
     end
   end
@@ -57,7 +57,7 @@ class Pipeline
     # FIXME(joey): Collect errors.
     tokens.each do |res|
       if res.typ == Type::Bad
-        raise Exception.new("tokens=#{tokens}")
+        raise PipelineError.new("tokens=#{tokens}") # FIXME(slnt) this suk, fix
       end
     end
 
@@ -80,6 +80,8 @@ class Pipeline
     ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     file.ast = ast
     return ast
+  rescue ex : UnexpectedNodeException
+    raise PipelineError.new(ex.message) # FIXME(slnt) this is also silly, fix
   end
 
   # do_weed! weeds the abstract suntax tree of errors.
