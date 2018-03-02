@@ -1,4 +1,4 @@
-class Util
+module Util
   # Gets the escaped character code point represented by a character.
   def self.get_escaped_char(ch : Char)
     case ch
