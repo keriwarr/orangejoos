@@ -134,8 +134,5 @@ class Pipeline
 
     # If Stage::ALL
     return true
-  rescue ex : Exception
-    raise ex
-    return false # TODO(slnt) not sure if necessary, probably not though
   end
 end

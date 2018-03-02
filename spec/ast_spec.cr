@@ -35,7 +35,7 @@ describe "AST creation" do
         it "should successfuly run the entire pipeline, creating a weeded AST" do
           Pipeline.new(TABLE_FILE, [ file ], END_STAGE, false).exec.should be_true
         rescue ex : Exception
-          fail "Expected Pipeline to run successfully, but instead got an exception."
+          fail "Expected Pipeline to run successfully, but instead got an exception.\n#{ex}"
         end
       end
     end
@@ -48,10 +48,11 @@ describe "AST creation" do
           begin
             Pipeline.new(TABLE_FILE, [ file ], END_STAGE, false).exec
           rescue ex : PipelineError
-            # pass
+            continue
           rescue ex : Exception
-            fail "Expected PipelineError to be raised, but got #{typeof(ex)} instead"
+            fail "Expected PipelineError to be raised, but got other exception instead\n#{ex}"
           end
+          fail "Expected PipelineError, but nothing was raised."
         end
       end
     end
