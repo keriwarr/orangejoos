@@ -6,5 +6,19 @@ require "./argparser"
 # This entrypoint is provided just to provide the interface as desired
 # for CS444. That is, only take filenames as input without any further
 # arguments.
-args = ArgParser.new(ARGV)
-Pipeline.new(args.table_file, args.paths, args.end_stage, args.verbose).exec
+begin
+  args = ArgParser.new(ARGV)
+  Pipeline.new(args.table_file, args.paths, args.end_stage, args.verbose).exec
+rescue ex : ArgumentError
+  STDERR.puts ex
+  exit 42
+rescue ex : NameResolutionStageError
+  STDERR.puts "Name resolution error: #{ex}"
+  STDERR.puts "#{ex.inspect_with_backtrace}"
+rescue ex : PipelineError
+  STDERR.puts ex
+  exit 42
+rescue ex : Exception
+  STDERR.puts ex
+  exit 42
+end
