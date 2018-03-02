@@ -64,8 +64,8 @@ do_test() {
 # https://www.student.cs.uwaterloo.ca/~cs444/joos.html
 # ----------------------------------------------------------------------------
 
-PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f)
-FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f)
+PASS_FILES=$(find ${TEST_FOLDER}/programs/valid -type f)
+FAIL_FILES=$(find ${TEST_FOLDER}/programs/invalid -type f)
 
 for file in $PASS_FILES; do
   do_test $file true
