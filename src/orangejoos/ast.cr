@@ -514,6 +514,34 @@ module AST
     end
   end
 
+  # `WhileStmt` is a while-loop block. It has a comparison `Expr` and a
+  # `Stmt` block. A while-loop is created by the following code:
+  # ```java
+  # while ( /*expr*/ ) {
+  #   /*stmt*/
+  # }
+  # ```
+  class WhileStmt < Stmt
+    property expr : Expr
+    property body : Stmt
+
+    def initialize(@expr : Expr, @body : Stmt)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return (
+        "#{indent}While:\n" \
+        "#{indent}  Expr: #{expr.pprint}\n" \
+        "#{indent}  Body:\n#{body.pprint(depth+1)}"
+      )
+    end
+
+    def children
+      [init, expr.as(Stmt), update, body] of Stmt
+    end
+  end
+
   # `ExprOp` is an operator expression. Each expression has an operator
   # (`op`) and any number of `operands`. They generically any type of
   # operator, including unary and binary.

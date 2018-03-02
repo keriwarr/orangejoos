@@ -368,7 +368,15 @@ class Simplification
       # TODO(joey)
 
     when "WhileStatement", "WhileStatementNoShortif"
-      # TODO(joey)
+      expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
+      if (stmt_tree = tree.tokens.get_tree("Statement")); !stmt_tree.nil?
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      else
+        stmt_tree = tree.tokens.get_tree!("StatementNoShortIf")
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      end
+
+      return AST::WhileStmt.new(expr, stmt)
 
     when "ForStatement", "ForStatementNoShortif"
       init = nil
