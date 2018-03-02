@@ -583,16 +583,28 @@ class Simplification
       obj = simplify().as(AST::Expr)
 
     when "ArrayAccess"
-      # TODO(Joey)
-      return AST::ExprThis.new
+      arr_expr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr)
+      index_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+      return AST::ExprArrayAccess.new(arr_expr, index_expr)
 
     when "CastExpression"
-      # TODO(Joey)
+      # TODO(Joey): Casting is hard. There are a few tricky problems,
+      # the casting type can be:
+      # - PrimativeTyp, also as an array
+      # - Name (aka ClassOrInterfaceType), also as an array
+      #
+      # Unfortunately, due to grammar problems the Name not as array is
+      # ambigious, and so we need to use Expression, where we only
+      # desire a Name. This is also a problem because normally extra
+      # parenthesis are silently omitted, but for casts there can no be
+      # two layers of parenthesis.
       return AST::ExprThis.new
 
     when "ArrayCreationExpression"
-      # TODO(Joey)
-      return AST::ExprThis.new
+      # FIXME(joey): Specialize the node type used here.
+      typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Node)
+      dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+      return AST::ExprArrayCreation.new(typ, dim_expr)
 
     when "LeftHandSide"
       # FIXME(joey): Properly return an LValue type (name, field access, or array access).

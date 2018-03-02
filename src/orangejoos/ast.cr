@@ -656,6 +656,45 @@ module AST
     end
   end
 
+  # `ExprArrayAccess` represents an array access.
+  class ExprArrayAccess < Expr
+    property arr : Expr
+    property index : Expr
+
+    def initialize(@arr : Expr, @index : Expr)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "ExprArrayAccess: TODO(keri)"
+    end
+
+    def children
+      return [arr, index]
+    end
+  end
+
+  # `ExprArrayCreation` represents an array creation.
+  class ExprArrayCreation < Expr
+    # FIXME(joey): Specialize the node type used here. Maybe if we
+    # create a Type interface that multiple AST nodes can implement,
+    # such as Name (or Class/Interface) and PrimativTyp.
+    property arr : Node
+    property dim : Expr
+
+    def initialize(@arr : Node, @dim : Expr)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "ExprArrayCreation: TODO(keri)"
+    end
+
+    def children
+      return [arr, dim]
+    end
+  end
+
   # `ExprThis` represents the `this` expression, which will return the
   # currently scoped `this` instance.
   class ExprThis < Expr
