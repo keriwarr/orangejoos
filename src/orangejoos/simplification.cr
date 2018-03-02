@@ -557,15 +557,30 @@ class Simplification
       return AST::ExprClassInit.new(class_name, args)
 
     when "FieldAccess"
-
       obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
       field = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
 
       return AST::ExprFieldAccess.new(obj, field)
 
     when "MethodInvocation"
-      # TODO(Joey)
-      return AST::ExprThis.new
+      args = [] of AST::Expr
+      if (t = tree.tokens.get_tree("ArgumentList")); !t.nil?
+        args = simplify_tree(t).as(Array(AST::Expr))
+      end
+
+      # Check if the method invocation is either a `Name()` or an
+      # `Primary.SimpleName()`. In the latter, we expect the `Expr` to
+      # return a class or interface type.
+      if !tree.tokens.get_tree("Name").nil?
+        name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
+        return AST::MethodInvoc.new(nil, name, args)
+      else
+        expr = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
+        ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+        name = AST::SimpleName.new(ident.val)
+        return AST::MethodInvoc.new(expr, name, args)
+      end
+      obj = simplify().as(AST::Expr)
 
     when "ArrayAccess"
       # TODO(Joey)

@@ -33,6 +33,7 @@ module Visitor
     abstract def visit(node : AST::ForStmt) : AST::Node
     abstract def visit(node : AST::WhileStmt) : AST::Node
     abstract def visit(node : AST::IfStmt) : AST::Node
+    abstract def visit(node : AST::MethodInvoc) : AST::Node
     abstract def visit(node : AST::MethodDecl) : AST::Node
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
     abstract def visit(node : AST::ReturnStmt) : AST::Node
@@ -199,6 +200,14 @@ module Visitor
       if node.else_body?
         node.else_body = node.else_body.accept(self)
       end
+      return node
+    end
+
+    def visit(node : AST::MethodInvoc) : AST::Node
+      if node.expr?
+        node.expr = node.expr.accept(self)
+      end
+      node.args.map!      { |b| b.accept(self) }
       return node
     end
 

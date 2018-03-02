@@ -695,6 +695,35 @@ module AST
     end
   end
 
+  # `MethodInvoc` represents a method invocation.
+  # For example:
+  # ```java
+  # A(1, 'a')
+  # (new B(1)).meth()
+  # ```
+  #
+  class MethodInvoc < Expr
+    property! expr : Expr
+    property name : Name
+    property args : Array(Expr)
+
+    def initialize(@expr : Expr | Nil, @name : Name, @args : Array(Expr))
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "#{indent}MethodInvoc of #{expr.try &.pprint(0)} name=#{name.pprint(0)} args=#{args.map &.pprint(0)}"
+    end
+
+    def children
+      if expr?
+        [expr] of Expr + args
+      else
+        args
+      end
+    end
+  end
+
   # `Const` are expressions with a constant value.
   abstract class Const < Expr
     def children
