@@ -76,11 +76,6 @@ module AST
   abstract class Expr < Stmt
     def initialize
     end
-
-    def children
-      # TODO(joey)
-      [] of Expr
-    end
   end
 
   # Typ represents all types.
@@ -95,6 +90,10 @@ module AST
 
     # The _name_ of the type being represented by the AST node.
     abstract def name_str : String
+
+    def children
+      [] of Expr
+    end
   end
 
   # `PrimitiveTyp` represents built-in types. This includes the types:
@@ -124,7 +123,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name_str
+      indent = INDENT.call(depth)
+      return "#{indent}#{name_str}"
     end
   end
 
@@ -145,7 +145,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name_str
+      indent = INDENT.call(depth)
+      return "#{indent}#{name_str}"
     end
   end
 
@@ -158,7 +159,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return val
+      indent = INDENT.call(depth)
+      return "#{indent}#{val}"
     end
   end
 
@@ -173,7 +175,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return val
+      indent = INDENT.call(depth)
+      return "#{indent}#{val}"
     end
   end
 
@@ -231,11 +234,11 @@ module AST
     end
 
     def pprint(depth : Int32)
+      indent = INDENT.call(depth)
       on_demand_str = ""
       if on_demand
         on_demand_str = ".*"
       end
-      indent = INDENT.call(depth)
       return "#{indent}Import #{path.name}#{on_demand_str}"
     end
   end
@@ -254,7 +257,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name
+      indent = INDENT.call(depth)
+      return "#{indent}#{name}"
     end
   end
 
@@ -298,11 +302,13 @@ module AST
       end
       mods = modifiers.map {|i| i.name }.join(", ")
       decls = body.map {|b| b.pprint(depth+2)}.join("\n")
-      return "#{indent}Class #{name}:
-#{indent}  Modifiers: #{mods}
-#{indent}  Super: #{super_str}
-#{indent}  Interfaces: #{interface_names}
-#{indent}  Decls:\n#{decls}"
+      return (
+        "#{indent}Class #{name}:\n" \
+        "#{indent}  Modifiers: #{mods}\n" \
+        "#{indent}  Super: #{super_str}\n" \
+        "#{indent}  Interfaces: #{interface_names}\n" \
+        "#{indent}  Decls:\n#{decls}"
+      )
     end
   end
 
@@ -323,10 +329,12 @@ module AST
       end
       mods = modifiers.map {|i| i.name }
       decls = body.map {|b| b.pprint(depth+2)}.join("\n")
-      return "#{indent}Interface #{name}:
-#{indent}  Modifiers: #{mods}
-#{indent}  Extensions: #{extensions_str}
-#{indent}  Decls:\n#{decls}"
+      return (
+        "#{indent}Interface #{name}:\n" \
+        "#{indent}  Modifiers: #{mods}\n" \
+        "#{indent}  Extensions: #{extensions_str}\n" \
+        "#{indent}  Decls:\n#{decls}"
+      )
     end
   end
 
@@ -354,7 +362,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name
+      indent = INDENT.call(depth)
+      return "#{indent}#{name}"
     end
   end
 
@@ -371,7 +380,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name
+      indent = INDENT.call(depth)
+      return "#{indent}#{name}"
     end
   end
 
@@ -461,7 +471,9 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Block : TODO"
+      indent = INDENT.call(depth)
+      stmts_str = (stmts.map {|s| s.pprint(depth+1)}).join("\n")
+      return "#{indent}Block:\n#{stmts_str}"
     end
 
     def children
@@ -472,6 +484,7 @@ module AST
   # `ExprOp` is an operator expression. Each expression has an operator
   # (`op`) and any number of `operands`. They generically any type of
   # operator, including unary and binary.
+  # TODO: can we make operands into type `Expr | NamedTuple(lhs: Expr, rhs: Expr)` ?
   class ExprOp < Expr
     property op : String
     property operands : Array(Expr) = [] of Expr
@@ -487,7 +500,15 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      if operands.size == 1
+        first_operand_str = "#{op} #{operands[0].pprint(0)}"
+        rest_operands_str = ""
+      else
+        first_operand_str = "#{operands[0].pprint(0)} #{op} "
+        rest_operands_str = (operands.skip(1).map {|o| o.pprint(0)}).join(" ")
+      end
+      return "#{indent}(#{first_operand_str}#{rest_operands_str})"
     end
 
     def children
@@ -509,7 +530,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "ExprClassInit: TODO(keri)"
     end
 
     def children
@@ -526,7 +548,12 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "ExprFieldAccess: TODO(keri)"
+    end
+
+    def children
+      return [obj]
     end
   end
 
@@ -537,7 +564,12 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "#{indent}this"
+    end
+
+    def children
+      [] of Expr
     end
   end
 
@@ -555,12 +587,20 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "#{indent}#{name.pprint(0)}"
+    end
+
+    def children
+      [] of Expr
     end
   end
 
   # `Const` are expressions with a constant value.
   abstract class Const < Expr
+    def children
+      [] of Expr
+    end
   end
 
   class ConstInteger < Const
@@ -572,7 +612,7 @@ module AST
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      return "#{indent}Literal #{val}"
+      return "#{indent}#{val}"
     end
   end
 
@@ -584,7 +624,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "#{indent}#{val}"
     end
   end
 
@@ -596,7 +637,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "#{indent}'#{val}'"
     end
 
   end
@@ -608,7 +650,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "#{indent}\"#{val}\""
     end
   end
 
@@ -617,7 +660,8 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "Expr: TODO(keri)"
+      indent = INDENT.call(depth)
+      return "#{indent}null"
     end
   end
 
@@ -654,7 +698,9 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return "DeclStmt: TODO"
+      indent = INDENT.call(depth)
+      #TODO(joey): make printing better when you do the above squash
+      return "#{indent}#{typ.pprint(0)} #{var.pprint(0)}"
     end
 
     def children
@@ -683,11 +729,11 @@ module AST
       mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
       if body?
-        body_str = body.map {|b| b.pprint(0)}.to_s
+        body_str = (body.map {|b| b.pprint(depth+1)}).join("\n")
       else
         body_str = "<no body>"
       end
-      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p} #{body_str}"
+      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p}\n#{body_str}"
     end
   end
 
@@ -725,12 +771,12 @@ module AST
     end
 
     def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      expr_str = ""
       if expr?
         expr_str = " #{expr.pprint(0)}"
-      else
-        expr_str = ""
       end
-      return "return#{expr_str}"
+      return "#{indent}return#{expr_str}"
     end
 
     def children
