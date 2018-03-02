@@ -183,9 +183,9 @@ module Visitor
     end
 
     def visit(node : AST::ForStmt) : AST::Node
-      node.init = node.init.accept(self)
-      node.expr = node.expr.accept(self)
-      node.update = node.update.accept(self)
+      node.init = node.init.accept(self) if node.init?
+      node.expr = node.expr.accept(self) if node.expr?
+      node.update = node.update.accept(self) if node.update?
       node.body = node.body.accept(self)
       return node
     end
@@ -199,16 +199,12 @@ module Visitor
     def visit(node : AST::IfStmt) : AST::Node
       node.expr = node.expr.accept(self)
       node.if_body = node.if_body.accept(self)
-      if node.else_body?
-        node.else_body = node.else_body.accept(self)
-      end
+      node.else_body = node.else_body.accept(self) if node.else_body?
       return node
     end
 
     def visit(node : AST::MethodInvoc) : AST::Node
-      if node.expr?
-        node.expr = node.expr.accept(self)
-      end
+      node.expr = node.expr.accept(self) if node.expr?
       node.args.map!      { |b| b.accept(self) }
       return node
     end
