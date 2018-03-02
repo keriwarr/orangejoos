@@ -21,3 +21,8 @@ end
 # A WeedingStageError is an error encountered during the weeding stage.
 class WeedingStageError < Exception
 end
+
+# A NameResolutionStageError is an error encountered during the name
+# resolution stage.
+class NameResolutionStageError < Exception
+end
