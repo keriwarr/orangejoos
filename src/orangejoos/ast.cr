@@ -505,7 +505,7 @@ module AST
         "#{indent}  Init: #{@init.try &.pprint}\n" \
         "#{indent}  Expr: #{@expr.try &.pprint}\n" \
         "#{indent}  Update: #{@update.try &.pprint}\n" \
-        "#{indent}  Body:\n#{body.pprint(depth+1)}"
+        "#{indent}  Body:\n#{body.pprint(depth+2)}"
       )
     end
 
@@ -533,7 +533,7 @@ module AST
       return (
         "#{indent}While:\n" \
         "#{indent}  Expr: #{expr.pprint}\n" \
-        "#{indent}  Body:\n#{body.pprint(depth+1)}"
+        "#{indent}  Body:\n#{body.pprint(depth+2)}"
       )
     end
 
@@ -567,7 +567,7 @@ module AST
         "#{indent} If:\n" \
         "#{indent}  Expr: #{expr.pprint}\n" \
         "#{indent}  IfBody:\n#{if_body.pprint(depth+1)}"
-        "#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+1)}"
+        "#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+2)}"
       )
     end
 
