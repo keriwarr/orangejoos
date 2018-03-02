@@ -361,7 +361,7 @@ class Simplification
 
       return AST::ReturnStmt.new(expr)
 
-    when "IfThenStatement", "IfThenElseStatement", "IfThenElseStatementNoShortif"
+    when "IfThenStatement", "IfThenElseStatement", "IfThenElseStatementNoShortIf"
       expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
 
       if_block = simplify(tree.tokens.to_a[4].as(ParseTree)).as(AST::Stmt)
@@ -374,7 +374,7 @@ class Simplification
       end
 
       return AST::IfStmt.new(expr, if_block, else_block)
-    when "WhileStatement", "WhileStatementNoShortif"
+    when "WhileStatement", "WhileStatementNoShortIf"
       expr = simplify(tree.tokens.get_tree!("Expression")).as(AST::Expr)
       if (stmt_tree = tree.tokens.get_tree("Statement")); !stmt_tree.nil?
         stmt = simplify(stmt_tree).as(AST::Stmt)
@@ -385,7 +385,7 @@ class Simplification
 
       return AST::WhileStmt.new(expr, stmt)
 
-    when "ForStatement", "ForStatementNoShortif"
+    when "ForStatement", "ForStatementNoShortIf"
       init = nil
       if (init_tree = tree.tokens.get_tree("ForInit")); !init_tree.nil?
         init = simplify(init_tree).as(AST::Stmt)
