@@ -39,3 +39,7 @@ grammar/joos1w.lr1: grammar/joos1w.cfg jlalr1
 orangejoos.zip: ## Zip up the compiler for submission on marmoset.
 orangejoos.zip: clean
 	zip -r $@ . -x orangejoos.zip .git/\* .idea/\* docs/\* joosc orangejoos orangejoos.dwarf joosc.dwarf pub/\* test/\*
+
+.PHONY: test
+test:
+	crystal spec
