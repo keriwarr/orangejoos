@@ -214,7 +214,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprArrayAccess) : AST::Node
-      node.arr = node.arr.accept(self)
+      node.arr_expr = node.arr_expr.accept(self) if node.arr_expr?
       node.index = node.index.accept(self)
       return node
     end

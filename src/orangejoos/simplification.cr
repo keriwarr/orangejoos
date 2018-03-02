@@ -583,9 +583,17 @@ class Simplification
       obj = simplify().as(AST::Expr)
 
     when "ArrayAccess"
-      arr_expr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr)
+      arr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr | AST::Name)
       index_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-      return AST::ExprArrayAccess.new(arr_expr, index_expr)
+      # FIXME(joey): This is done to handle hacky type specificness for
+      # the different ways of accessing an array.
+      if arr.is_a?(AST::Expr)
+        return AST::ExprArrayAccess.new(arr, index_expr)
+      elsif arr.is_a?(AST::Name)
+        return AST::ExprArrayAccess.new(arr, index_expr)
+      else
+        raise Exception.new("unexpected case")
+      end
 
     when "CastExpression"
       # TODO(Joey): Casting is hard. There are a few tricky problems,

@@ -658,10 +658,17 @@ module AST
 
   # `ExprArrayAccess` represents an array access.
   class ExprArrayAccess < Expr
-    property arr : Expr
+    # FIXME(joey): Rather hacky way to support these two ways to write
+    # an array access, an expr that returns an array or by directly
+    # using an identifier name.
+    property! arr_expr : Expr
+    property! arr_name : Name
     property index : Expr
 
-    def initialize(@arr : Expr, @index : Expr)
+    def initialize(@arr_expr : Expr, @index : Expr)
+    end
+
+    def initialize(@arr_name : Name, @index : Expr)
     end
 
     def pprint(depth : Int32)
@@ -670,7 +677,11 @@ module AST
     end
 
     def children
-      return [arr, index]
+      if arr_expr?
+        return [arr_expr, index]
+      else
+        return [index]
+      end
     end
   end
 
