@@ -86,6 +86,15 @@ class Simplification
 
       return type_decls
 
+    when "ExtendsInterfaces"
+      types = tree.tokens.get_tree("ExtendsInterfaces")
+      type_decls = [] of AST::Name
+      type_decls = simplify_tree(types).as(Array(AST::Name)) unless types.nil?
+
+      type_decls.push(simplify(tree.tokens.get_tree!("InterfaceType")).as(AST::Name))
+
+      return type_decls
+
     when "Modifiers"
       modifiers = tree.tokens.get_tree("Modifiers")
       modifiers_decls = [] of AST::Modifier
@@ -155,6 +164,22 @@ class Simplification
       expr = simplify(tree.tokens.get_tree!("Expression"))
       exprs.push(expr.as(AST::Expr)) unless expr.nil?
       return exprs
+
+    when "ArrayInitializer"
+      exprs = [] of AST::Expr
+      if (expr_tree = tree.tokens.get_tree("VariableInitializers")); !expr_tree.nil?
+        exprs = simplify_tree(expr_tree).as(Array(AST::Expr))
+      end
+      return exprs
+
+    when "VariableInitializers"
+      var_inits = [] of AST::Expr
+      var_inits_t = tree.tokens.get_tree("VariableInitializers")
+      var_inits = simplify_tree(var_inits_t).as(Array(AST::Expr)) unless var_inits_t.nil?
+
+      var_init = simplify(tree.tokens.get_tree!("VariableInitializer"))
+      var_inits.push(var_init.as(AST::Expr)) unless var_init.nil?
+      return var_inits
 
     when "BlockStatements"
       blocks = [] of AST::Stmt
@@ -347,8 +372,19 @@ class Simplification
       if tree.tokens.first.as(ParseTree).name == "Block"
         stmts = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Stmt))
         return AST::Block.new(stmts)
+      elsif tree.tokens.first.as(ParseTree).name == "EmptyStatement"
+        # FIXME(joey): I believe this is the easiest or only way to
+        # represent EmptyStatement. Is this easy for the later parts of
+        # the pipeline?
+        return AST::Block.new([] of AST::Stmt)
       end
       return simplify(tree.tokens.first.as(ParseTree))
+
+    when "EmptyStatement"
+      # As the exception says, this node should never be traversed as it
+      # is not peered into in the above case block. If this is
+      # encountered, it is a bug.
+      raise Exception.new("unexpected ParseNode \"EmptyStatement\", it should not be processed")
 
     when "StatementNoShortIf"
       return simplify(tree.tokens.first.as(ParseTree))
@@ -413,10 +449,27 @@ class Simplification
     when "ExpressionStatement"
       return simplify(tree.tokens.first.as(ParseTree))
 
+    when "StatementExpression"
+      # NOTE: lmao, this rule name is not a typo.
+      return simplify(tree.tokens.first.as(ParseTree))
+
+
+    when "ForInit"
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "ForUpdate"
+      return simplify(tree.tokens.first.as(ParseTree))
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                            STATEMENTS                                   #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Expression"
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "DimExpr"
+      return simplify(tree.tokens.to_a[1].as(ParseTree))
+
+    when "ConstantExpression"
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "AssignmentExpression"
@@ -451,6 +504,18 @@ class Simplification
       # wrapped inside another parse node.
       op = tree.tokens.to_a[1].as(ParseTree).tokens.first.as(Lexeme).sem
       return AST::ExprOp.new(op, lhs, rhs)
+
+    when "AssignmentOperator"
+      # As the exception says, this node should never be traversed as it
+      # is not peered into in the above case block. If this is
+      # encountered, it is a bug.
+      raise Exception.new("unexpected ParseNode \"AssignmentOperator\", this node should not be traversed")
+
+    when "Dims"
+      # As the exception says, this node should never be traversed as it
+      # is not peered into in the above case block. If this is
+      # encountered, it is a bug.
+      raise Exception.new("unexpected ParseNode \"Dims\", this node should not be traversed")
 
     when "UnaryExpression", "UnaryExpressionNotPlusMinus"
       if tree.tokens.size == 1
@@ -537,10 +602,20 @@ class Simplification
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Super"                      then return simplify(tree.tokens.to_a[1].as(ParseTree))
 
-    when "ClassType", "InterfaceType", "ClassOrInterfaceType",
-         "InterfaceMemberDeclaration", "ConstantDeclaration",
-         "AbstractMethodDeclaration", "ClassBodyDeclaration",
-         "ClassMemberDeclaration", "BlockStatement"
+    when "ClassType"
+      # FIXME(joey): A marker should be added to the Name node here to
+      # signify that the Name must resolve to a Class type.
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "InterfaceType"
+      # FIXME(joey): A marker should be added to the Name node here to
+      # signify that the Name must resolve to an Interface type.
+      return simplify(tree.tokens.first.as(ParseTree))
+
+    when "ClassOrInterfaceType", "InterfaceMemberDeclaration",
+         "ConstantDeclaration", "AbstractMethodDeclaration",
+         "ClassBodyDeclaration", "ClassMemberDeclaration",
+         "BlockStatement"
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "LocalVariableDeclarationStatement"
@@ -567,11 +642,24 @@ class Simplification
       name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
       params = [] of AST::Param
 
+      # Note: We peer into the ConstructorDeclarator here, so we should
+      # never call `simplify_tree` on a ConstructorDeclarator parse
+      # node, hence the empty implementation below.
       if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormatParameterList")); !params_t.nil?
         params = simplify_tree(params_t).as(Array(AST::Param))
       end
       body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
       return AST::ConstructorDecl.new(name, mods, params, body)
+
+    when "ConstructorDeclarator"
+      # This `ParseTree` should not be processed, because we never call
+      # `simplify_tree` on it. Instead, the parent `ParseTree` peers
+      # into the contents of this `ParseTree`, which is commented
+      # immediately above.
+      #
+      # This implementation is meant to fulfill the simplification_spec
+      # test, which checks for exhaustive rule implementations.
+      raise Exception.new("unexpected ParseNode \"ConstructorImplementation\". See the comment in the code for why.")
 
     when "MethodDeclarator"
       if (decl = tree.tokens.get_tree("MethodDeclarator")); !decl.nil?
