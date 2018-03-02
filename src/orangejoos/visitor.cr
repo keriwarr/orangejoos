@@ -30,6 +30,7 @@ module Visitor
     abstract def visit(node : AST::ConstNull) : AST::Node
     abstract def visit(node : AST::VariableDecl) : AST::Node
     abstract def visit(node : AST::DeclStmt) : AST::Node
+    abstract def visit(node : AST::ForStmt) : AST::Node
     abstract def visit(node : AST::MethodDecl) : AST::Node
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
     abstract def visit(node : AST::ReturnStmt) : AST::Node
@@ -173,6 +174,14 @@ module Visitor
     def visit(node : AST::DeclStmt) : AST::Node
       node.typ = node.typ.accept(self)
       node.var = node.var.accept(self)
+      return node
+    end
+
+    def visit(node : AST::ForStmt) : AST::Node
+      node.init = node.init.accept(self)
+      node.expr = node.expr.accept(self)
+      node.update = node.update.accept(self)
+      node.body = node.body.accept(self)
       return node
     end
 

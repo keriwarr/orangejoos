@@ -371,10 +371,32 @@ class Simplification
       # TODO(joey)
 
     when "ForStatement", "ForStatementNoShortif"
-      # TODO(joey)
+      init = nil
+      if (init_tree = tree.tokens.get_tree("ForInit")); !init_tree.nil?
+        init = simplify(init_tree).as(AST::Stmt)
+      end
+
+      expr = nil
+      if (expr_tree = tree.tokens.get_tree("ForExpr")); !expr_tree.nil?
+        expr = simplify(expr_tree).as(AST::Expr)
+      end
+
+      update = nil
+      if (update_tree = tree.tokens.get_tree("ForUpdate")); !update_tree.nil?
+        update = simplify(update_tree).as(AST::Stmt)
+      end
+
+      if (stmt_tree = tree.tokens.get_tree("Statement")); !stmt_tree.nil?
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      else
+        stmt_tree = tree.tokens.get_tree!("StatementNoShortIf")
+        stmt = simplify(stmt_tree).as(AST::Stmt)
+      end
+
+      return AST::ForStmt.new(init, expr, update, stmt)
 
     when "ExpressionStatement"
-      # TODO(joey)
+      return simplify(tree.tokens.first.as(ParseTree))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                            STATEMENTS                                   #

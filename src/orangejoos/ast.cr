@@ -481,6 +481,39 @@ module AST
     end
   end
 
+  # `ForStmt` is a for-loop block. It may have an init `Stmt`, a
+  # comparison `Expr`, and a update `Stmt`. It will always have a `Stmt`
+  # block. A for-loop is created by the following code:
+  # ```java
+  # for ( /*init*/ ; /*expr*/; /*update*/) {
+  #   /*stmt*/
+  # }
+  # ```
+  class ForStmt < Stmt
+    property! init : Stmt
+    property! expr : Expr
+    property! update : Stmt
+    property body : Stmt
+
+    def initialize(@init : Stmt | Nil, @expr : Expr | Nil, @update : Stmt | Nil, @body : Stmt)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return (
+        "#{indent}For:\n" \
+        "#{indent}  Init: #{@init.try &.pprint}\n" \
+        "#{indent}  Expr: #{@expr.try &.pprint}\n" \
+        "#{indent}  Update: #{@update.try &.pprint}\n" \
+        "#{indent}  Body:\n#{body.pprint(depth+1)}"
+      )
+    end
+
+    def children
+      [init, expr.as(Stmt), update, body] of Stmt
+    end
+  end
+
   # `ExprOp` is an operator expression. Each expression has an operator
   # (`op`) and any number of `operands`. They generically any type of
   # operator, including unary and binary.
