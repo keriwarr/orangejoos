@@ -1,2 +1,2 @@
+require "../src/orangejoos/*"
 require "spec"
-# require "../src/orangejoos"

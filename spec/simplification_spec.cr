@@ -47,7 +47,7 @@ describe Simplification do
     end
 
     if unimplemented_rules.size > 0
-      puts "unimplemented rules:\n#{unimplemented_rules.join("\n")}"
+      puts "\nunimplemented rules:\n#{unimplemented_rules.join("\n")}"
     end
     unimplemented_rules.size.should eq 0
   end

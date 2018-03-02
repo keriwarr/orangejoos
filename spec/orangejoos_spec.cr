@@ -1,9 +1,3 @@
 require "./spec_helper"
 
-# describe Orangejoos do
-#   # TODO: Write tests
-
-#   it "works" do
-#     false.should eq(true)
-#   end
-# end
+# TODO(slnt) consolodate tests in this file, probably. Do some magic so each set of tests is loaded properly.
