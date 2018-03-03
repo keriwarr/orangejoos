@@ -1,5 +1,7 @@
 #!/bin/bash
 
+file_name_test=$1
+
 make
 
 TEST_FOLDER="test"
@@ -25,6 +27,10 @@ do_test() {
   should_pass=$2
   args=$3 # to be passed to ./joosc
   context=$4 # will be printed next to the file name
+
+  if [[ $file != *"$file_name_test"* ]]; then
+    return
+  fi
 
   RESULT=$(./joosc $file $args >/dev/null 2>/dev/null)
   result=$?
