@@ -4,6 +4,8 @@ JLALR_SRCS := $(find tools/jlalr -name '*.java')
 
 default: joosc
 
+all: joosc orangejoos docs
+
 .PHONY: joosc
 joosc: ## joosc is the general compiler.
 joosc: $(CRYSTAL_SRCS)
@@ -39,3 +41,6 @@ grammar/joos1w.lr1: grammar/joos1w.cfg jlalr1
 orangejoos.zip: ## Zip up the compiler for submission on marmoset.
 orangejoos.zip: clean
 	zip -r $@ . -x orangejoos.zip .git/\* .idea/\* docs/\* joosc orangejoos orangejoos.dwarf joosc.dwarf pub/\* test/\*
+
+docs:
+	crystal docs

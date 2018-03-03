@@ -3,10 +3,14 @@ version: 0.1.0
 
 authors:
   - slantin <slantinga95@gmail.com>
+  - Keri Warr <keri@warr.ca>
+  - Joey Pereira <joey@pereira.io>
 
 targets:
   orangejoos:
     main: src/orangejoos.cr
+  joosc:
+    main: src/joosc.cr
 
 crystal: 0.24.1
 
