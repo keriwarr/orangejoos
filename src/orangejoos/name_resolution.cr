@@ -35,26 +35,45 @@ class NameResolution
     # 2) Try any single-type import (A.B.C.D)
     # 3) Try same package import.
     # 4) Try any import-on-demand package (A.B.C.*) including java.lang.*
+    # 5) System packages implicitly imported from java.lang.*
 
     single_type_imports = [] of Tuple(String, AST::TypeDecl)
     same_package_imports = [] of Tuple(String, AST::TypeDecl)
     on_demand_imports = [] of Tuple(String, AST::TypeDecl)
+    system_imports = [] of Tuple(String, AST::TypeDecl)
 
 
     files.each do |file|
       ast = file.ast
       imports = ast.imports.flat_map do |import|
         import_tree = exported_items.get(import.path.parts)
-        STDERR.puts "import_tree=#{import_tree.inspect}"
         prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
         prefix += "." if prefix.size > 0
         if import_tree.is_a?(TypeNode)
           single_type_imports += import_tree.enumerate(prefix)
         elsif import_tree.is_a?(PackageNode) && import.on_demand
-          on_demand_imports += import_tree.enumerate(prefix)
+          if import.path.name == "java.lang"
+            system_imports += import_tree.enumerate(prefix)
+          else
+            on_demand_imports += import_tree.enumerate(prefix)
+          end
         else
           raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.pprint}")
         end
+      end
+
+      # Import java.lang.*, which is by default always imported at a
+      # lower priority.
+      import = AST::ImportDecl.new(AST::QualifiedName.new(["java", "lang"]), true)
+      import_tree = exported_items.get(import.path.parts)
+      prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+      prefix += "." if prefix.size > 0
+      if import_tree.is_a?(TypeNode)
+        raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+      elsif import_tree.is_a?(PackageNode) && import.on_demand
+        system_imports += import_tree.enumerate(prefix)
+      else
+        raise NameResolutionStageError.new("error importing java.lang.* stdlib")
       end
 
       # TODO(joey): same package imports, but do not include the class
@@ -64,6 +83,8 @@ class NameResolution
       STDERR.puts "#{single_type_imports.map(&.first).join("\n")}"
       STDERR.puts "=== FILE:#{file.path} ON DEMAND IMPORTS ==="
       STDERR.puts "#{on_demand_imports.map(&.first).join("\n")}"
+      STDERR.puts "=== FILE:#{file.path} SYSTEM IMPORTS ==="
+      STDERR.puts "#{system_imports.map(&.first).join("\n")}"
 
     end
   end
@@ -154,7 +175,7 @@ class PackageNode < PackageTree
     if path.size > 0 && children.has_key?(path.first)
       return children[path.first].get(path[1..path.size])
     elsif path.size > 0
-      raise NameResolutionStageError.new("path does not exist")
+      raise NameResolutionStageError.new("path does not exist: #{path}")
     else
       return self
     end
