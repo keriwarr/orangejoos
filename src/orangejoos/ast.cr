@@ -1,9 +1,12 @@
 # The AST is a simple and easy to manipulate representation of the
 # source code.
 
-# TODO(joey): It would be great to have a simple reference to see all of
-# the AST nodes and their fields. Maybe we can document this and use a
-# tool to pull out the documentation for a concise reference?
+# TODO(joey): A great way to represent names and their resolved types
+# would be adding functionality to `Name` to have a settable referenced
+# type. That way each `Name` gets evaluated and a reference is added in
+# that AST node, without having to add extra machinery in the parent
+# node.
+
 
 require "./visitor.cr"
 
@@ -215,7 +218,7 @@ module AST
   # ```
   class ImportDecl < Node
     # The _path_ the import declaration is importing.
-    property! path : Name
+    property path : Name
 
     # _on_demand_ is whether the import is a wildcard import. An example
     # of that is:
@@ -351,6 +354,7 @@ module AST
   abstract class Name < Node
 
     abstract def name : String
+    abstract def parts : Array(String)
   end
 
   # `SimpleName` refers to a resolvable entity, such as local
@@ -359,6 +363,10 @@ module AST
     getter name : String
 
     def initialize(@name : String)
+    end
+
+    def parts
+      [name] of String
     end
 
     def pprint(depth : Int32)
@@ -438,6 +446,18 @@ module AST
       end
       decs = decls.map {|i| i.pprint(depth+1) }.join("\n")
       return "File:\n#{pkg}#{imps}#{decs}"
+    end
+
+    def decl?(name)
+      decls.map(&.name).select(&.==(name)).size > 0
+    end
+
+    def decl(name) : TypeDecl
+      results = decls.select {|decl| decl.name == name}
+      if results.size > 1
+        raise Exception.new("more than 1 decl, got: #{results}")
+      end
+      return results.first
     end
   end
 
