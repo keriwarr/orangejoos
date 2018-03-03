@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# If any argument is passed, run extra tests
-all_tests=false
-if [[ $# -gt 0 ]]; then
-  all_tests=true
-fi
-
 make
 
 TEST_FOLDER="test"
@@ -24,7 +18,7 @@ errors=0
 
 failed_test_descr_file="failed_tests.tmp"
 
-rm $failed_test_descr_file
+rm $failed_test_descr_file 2> /dev/null
 
 do_test() {
   file=$1
@@ -79,7 +73,7 @@ done
 # Run against assignment test files, and std lib
 # ----------------------------------------------------------------------------
 
-regex="^\/\/ ?(([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+,)*[A-Z_0-9]+)$"
+regex="^\/\/ ?(([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+, ?)*[A-Z_0-9]+),? *$"
 
 for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
   should_pass=true;
@@ -99,7 +93,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
         regex_lines=$((regex_lines + 1))
 
         dialect="${BASH_REMATCH[2]}"
-        tagwordlist="${BASH_REMATCH[3]}"
+        tagwordlist="${BASH_REMATCH[3]// /}"
         IFS=',' read -r -a tagwords <<< "$tagwordlist"
 
         if [ -z "$dialect" ]; then
@@ -129,7 +123,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
           # Have we already seen this tagword?
           already_executed=false
           for tagword_index in "${!executed_tagwords[@]}"; do
-            if [[ $tagword -eq "${executed_tagwords[tagword_index]}" ]]; then
+            if [[ $tagword = "${executed_tagwords[tagword_index]}" ]]; then
               already_executed=true
             fi
           done
@@ -138,7 +132,6 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
           fi
 
           executed_tagwords+=($tagword)
-
           case $tagword in
             PARSER_WEEDER)
               # I am interpreting "PARSER_WEEDER" as: should have either passed or failed by the end of the weeding stage
@@ -248,9 +241,115 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
               ;;
             JOOS1_CLOSEST_MATCH_OVERLOADING)
               ;;
+            JOOS1_INC_DEC)
+              ;;
+            ASSIGN_TO_FINAL_FIELD)
+              ;;
+            NON_NUMERIC_INC_DEC)
+              ;;
+            NON_NUMERIC_ARRAY_SIZE)
+              ;;
+            DUPLICATE_FIELD)
+              ;;
+            SINGLE_TYPE_IMPORT_CLASH_WITH_CLASS)
+              ;;
+            DIFFERENT_RETURN_TYPE)
+              ;;
+            ILLEGAL_THROWS_IN_REPLACE)
+              ;;
+            DUPLICATE_METHOD)
+              ;;
+            PROTECTED_REPLACE_PUBLIC)
+              ;;
+            CIRCULAR_INHERITANCE)
+              ;;
+            DUPLICATE_VARIABLE)
+              ;;
+            DUPLICATE_TYPE)
+              ;;
+            AMBIGUOUS_CLASS_NAME)
+              ;;
+            NON_EXISTING_PACKAGE)
+              ;;
+            PREFIX_RESOLVES_TO_TYPE)
+              ;;
+            PACKAGE_CLASH_WITH_TYPE)
+              ;;
+            UNRESOLVED_TYPE)
+              ;;
+            VARIABLE_OR_TYPE_NOT_FOUND)
+              ;;
+            TWO_SINGLE_TYPE_IMPORTS_CLASH)
+              ;;
+            CLASS_MUST_BE_ABSTRACT)
+              ;;
+            DUPLICATE_CONSTRUCTOR)
+              ;;
+            EXTENDS_FINAL_CLASS)
+              ;;
+            EXTENDS_NON_CLASS)
+              ;;
+            REPLACE_FINAL)
+              ;;
+            IMPLEMENTS_NON_INTERFACE)
+              ;;
+            REPEATED_INTERFACE)
+              ;;
+            STATIC_REPLACE_NONSTATIC)
+              ;;
+            NONSTATIC_REPLACE_STATIC)
+              ;;
+            JOOS1_IMPLICIT_THIS_CLASS_STATIC_METHOD)
+              ;;
+            JOOS1_ARRAY_METHOD_CALL)
+              ;;
+            PROTECTED_MEMBER_ACCESS)
+              ;;
+            THIS_IN_STATIC_CONTEXT)
+              ;;
+            VARIABLE_NOT_FOUND)
+              ;;
+            UNOP_TYPE)
+              ;;
+            NON_REFERENCE_RECEIVER)
+              ;;
+            ILLEGAL_FORWARD_FIELD_REFERENCE)
+              ;;
+            FIELD_NOT_FOUND)
+              ;;
+            INVALID_CAST)
+              ;;
+            NON_BOOLEAN_CONDITION)
+              ;;
+            BINOP_TYPE)
+              ;;
+            CONSTRUCTOR_NAME)
+              ;;
+            INSTANTIATE_ABSTRACT_CLASS)
+              ;;
+            INSTANTIATE_INTERFACE)
+              ;;
+            NON_JOOS_RETURN_TYPE)
+              ;;
+            STATIC_FIELD_LINKED_AS_NONSTATIC)
+              ;;
+            STATIC_METHOD_LINKED_AS_NONSTATIC)
+              ;;
+            PROTECTED_CONSTRUCTOR_INVOCATION)
+              ;;
+            NONSTATIC_FIELD_LINKED_AS_STATIC)
+              ;;
+            NONSTATIC_METHOD_LINKED_AS_STATIC)
+              ;;
+            VARIABLE_MIGHT_NOT_HAVE_BEEN_INITIALIZED)
+              ;;
+            MISSING_RETURN_STATEMENT)
+              ;;
+            JOOS1_LOCAL_VARIABLE_IN_OWN_INITIALIZER)
+              ;;
             *)
               echo ""
-              echo "${RED}EROR${NC}: unrecognized tagword: ${tagword}. Please incorporate it into ${0}."
+              echo "${RED}EROR${NC}: unrecognized tagword: ${tagword} Please incorporate it into ${0}."
               echo ""
               exit 1
           esac
@@ -262,7 +361,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
   done < $filename
 
   # No metadata/tagwords? Test it without any arguments.
-  if [[ $all_tests == true && $regex_lines == 0 ]]; then
+  if [[ $regex_lines == 0 ]]; then
     do_test $filename $should_pass
   fi
 done
