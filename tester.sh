@@ -39,7 +39,7 @@ do_test() {
   if [[ $result = 42 && $should_pass = true ]]; then
     description="== ${RED}FAIL${NC}: ${file} ${context}"
     bad_fail=$((bad_fail + 1))
-    echo "== ${RED}FAIL${NC}: ./joosc $file $args" >> $failed_test_descr_file
+    echo "== ${RED}FAIL${NC}: ./joosc $file $args -v" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
     description="== ${GREEN}PASS${NC}: ${file} ${context}"
     correct_pass=$((correct_pass + 1))
@@ -49,11 +49,11 @@ do_test() {
   elif [[ $result = 0  && $should_pass = false ]]; then
     description="== ${RED}PASS${NC}: ${file} ${context}"
     bad_pass=$((bad_pass + 1))
-    echo "== ${RED}PASS${NC}: ./joosc $file $args" >> $failed_test_descr_file
+    echo "== ${RED}PASS${NC}: ./joosc $file $args -v" >> $failed_test_descr_file
   else
     description="== ${RED}EROR${NC}: ${file} ${context}"
     errors=$((errors + 1))
-    echo "== ${RED}EROR${NC}: ./joosc $file $args" >> $failed_test_descr_file
+    echo "== ${RED}EROR${NC}: ./joosc $file $args -v" >> $failed_test_descr_file
   fi
 
   echo $description
@@ -79,7 +79,7 @@ done
 # Run against assignment test files, and std lib
 # ----------------------------------------------------------------------------
 
-regex="^\/\/ (([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+,)*[A-Z_0-9]+)$"
+regex="^\/\/ ?(([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+,)*[A-Z_0-9]+)$"
 
 for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
   should_pass=true;
@@ -93,7 +93,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
   regex_lines=0
   while IFS='' read -r line || [[ -n "$line" ]]; do
     # Some testing files begin with a series of single line comments containing metadata
-    if [[ $line == \/\/\ * ]]; then
+    if [[ $line == \/\/* ]]; then
       # Each line contains a list of tag-words, optionally prepended by the name of a JOOS dialect
       if [[ $line =~ $regex ]]; then
         regex_lines=$((regex_lines + 1))
