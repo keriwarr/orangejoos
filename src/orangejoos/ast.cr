@@ -449,7 +449,7 @@ module AST
     end
 
     def decl?(name)
-      decls.map(&.name).map(&.==(name)).size > 0
+      decls.map(&.name).filter(&.==(name)).size > 0
     end
 
     def decl(name) : TypeDecl

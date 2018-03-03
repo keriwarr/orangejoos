@@ -1,7 +1,7 @@
-require "./compiler_errors.cr"
-require "./ast.cr"
-require "./visitor.cr"
-require "./source_file.cr"
+require "./compiler_errors"
+require "./ast"
+require "./visitor"
+require "./source_file"
 
 # NameResolution is a step that resolves any name references found in
 # the program. It will modify the AST to populate them where
