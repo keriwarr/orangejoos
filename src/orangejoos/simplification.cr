@@ -538,7 +538,7 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "PrimaryNoNewArray"
-      return simplify(tree.tokens.to_a[1].as(ParseTree)) if tree.tokens.size == 3
+      return AST::ParenExpr.new(simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)) if tree.tokens.size == 3
       # else
       case tree.tokens.first
       # FIXME(joey): Seems weird to special case this. We may also not need to support

@@ -965,4 +965,20 @@ module AST
       end
     end
   end
+
+  class ParenExpr < Expr
+    property expr : Expr
+
+    def initialize(@expr : Expr)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "#{indent}( #{expr.pprint(0)} )"
+    end
+
+    def children
+      return [expr]
+    end
+  end
 end
