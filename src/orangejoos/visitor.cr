@@ -41,6 +41,7 @@ module Visitor
     abstract def visit(node : AST::ReturnStmt) : AST::Node
     abstract def visit(node : AST::CastExpr) : AST::Node
     abstract def visit(node : AST::ParenExpr) : AST::Node
+    abstract def visit(node : AST::Variable) : AST::Node
 
     abstract def descend()
     abstract def ascend()
@@ -252,6 +253,11 @@ module Visitor
 
     def visit(node : AST::ParenExpr) : AST::Node
       node.expr = node.expr.accept(self)
+      return node
+    end
+
+    def visit(node : AST::Variable) : AST::Node
+      node.name = node.name.accept(self).as(AST::Name | AST::ExprArrayAccess | AST::ExprFieldAccess)
       return node
     end
 

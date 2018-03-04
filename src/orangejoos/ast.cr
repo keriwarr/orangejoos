@@ -35,6 +35,7 @@ module AST
     # Internal function: `pprint` with a depth, which represents the
     # indentation level of depth the node belongs in.
     abstract def pprint(depth : Int32) : String
+
     def accept(v : Visitor::Visitor) : Node
       v.descend
       result = v.visit(self)
@@ -606,11 +607,12 @@ module AST
   # TODO: can we make operands into type `Expr | NamedTuple(lhs: Expr, rhs: Expr)` ?
   class ExprOp < Expr
     property op : String
-    property operands : Array(Expr) = [] of Expr
+    property operands : Array(Expr | Variable) = [] of Expr | Variable
 
     def initialize(@op : String, *ops)
       ops.each do |operand|
-        if operand.is_a?(Expr)
+        # FIXME: (keri) this is gross
+        if operand.is_a?(Expr | Variable)
           @operands.push(operand)
         else
           raise Exception.new("unexpected type, got operand: #{operand.inspect}")
@@ -1045,6 +1047,21 @@ module AST
 
     def children
       return [expr]
+  class Variable < Node
+    @name : Name | ExprArrayAccess | ExprFieldAccess
+
+    def name=(@name)
+    end
+
+    def name
+      @name
+    end
+
+    def initialize(@name)
+    end
+
+    def pprint(depth : Int32)
+      return name.pprint(depth)
     end
   end
 end
