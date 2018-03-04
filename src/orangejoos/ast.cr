@@ -782,7 +782,11 @@ module AST
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      return "#{indent}MethodInvoc of #{expr.try &.pprint(0)} name=#{name.pprint(0)} args=#{args.map &.pprint(0)}"
+      expr_str = ""
+      if expr?
+        expr_str = "of " + expr.pprint(0) + " "
+      end
+      return "#{indent}MethodInvoc #{expr_str}name=#{name.pprint(0)} args=#{args.map &.pprint(0)}"
     end
 
     def children

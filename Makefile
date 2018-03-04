@@ -4,12 +4,10 @@ JLALR_SRCS := $(find tools/jlalr -name '*.java')
 
 default: joosc
 
-.PHONY: joosc
 joosc: ## joosc is the general compiler.
 joosc: $(CRYSTAL_SRCS)
 	crystal build ./src/joosc.cr
 
-.PHONY: orangejoos
 orangejoos: ## orangejoos is the general compiler with debug options.
 orangejoos: $(CRYSTAL_SRCS)
 	crystal build ./src/orangejoos.cr

@@ -2,7 +2,11 @@
 
 file_name_test=$1
 
-make
+if make ; then
+  :
+else
+  exit 1
+fi
 
 TEST_FOLDER="test"
 PUB_FOLDER="pub"
@@ -22,24 +26,30 @@ failed_test_descr_file="failed_tests.tmp"
 
 rm $failed_test_descr_file 2> /dev/null
 
+stdlib=$(find $PUB_FOLDER/stdlib/2.0 -type f -name "*.java" -exec echo -n '{} ' \;)
+
 do_test() {
   file=$1
   should_pass=$2
   args=$3 # to be passed to ./joosc
   context=$4 # will be printed next to the file name
+  include_stdlib=${5:-true}
+  includes=""
 
   if [[ $file != *"$file_name_test"* ]]; then
     return
   fi
-
-  RESULT=$(./joosc $file $args >/dev/null 2>/dev/null)
+  if [[ $include_stdlib = true ]]; then
+    includes=$stdlib
+  fi
+  ./joosc $includes $file $args >/dev/null 2>/dev/null
   result=$?
   description=""
 
   if [[ $result = 42 && $should_pass = true ]]; then
     description="== ${RED}FAIL${NC}: ${file} ${context}"
     bad_fail=$((bad_fail + 1))
-    echo "== ${RED}FAIL${NC}: ./joosc $file $args -v" >> $failed_test_descr_file
+    echo "== ${RED}FAIL${NC}: ./joosc $includes $file $args -v" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
     description="== ${GREEN}PASS${NC}: ${file} ${context}"
     correct_pass=$((correct_pass + 1))
@@ -49,11 +59,11 @@ do_test() {
   elif [[ $result = 0  && $should_pass = false ]]; then
     description="== ${RED}PASS${NC}: ${file} ${context}"
     bad_pass=$((bad_pass + 1))
-    echo "== ${RED}PASS${NC}: ./joosc $file $args -v" >> $failed_test_descr_file
+    echo "== ${RED}PASS${NC}: ./joosc $includes $file $args -v" >> $failed_test_descr_file
   else
     description="== ${RED}EROR${NC}: ${file} ${context}"
     errors=$((errors + 1))
-    echo "== ${RED}EROR${NC}: ./joosc $file $args -v" >> $failed_test_descr_file
+    echo "== ${RED}EROR${NC}: ./joosc $includes $file $args -v" >> $failed_test_descr_file
   fi
 
   echo $description
@@ -64,8 +74,8 @@ do_test() {
 # https://www.student.cs.uwaterloo.ca/~cs444/joos.html
 # ----------------------------------------------------------------------------
 
-PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f)
-FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f)
+PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f | grep "$file_name_test")
+FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f | grep "$file_name_test")
 
 for file in $PASS_FILES; do
   do_test $file true
@@ -81,7 +91,7 @@ done
 
 regex="^\/\/ ?(([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+, ?)*[A-Z_0-9]+),? *$"
 
-for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
+for filename in `find ${PUB_FOLDER} -name "*.java" -type f | grep "$file_name_test" | sort`; do
   should_pass=true;
   # I believe "Je" stands for Joos Error
   if [[ $(basename $filename) == Je* ]]; then
@@ -141,7 +151,7 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
           case $tagword in
             PARSER_WEEDER)
               # I am interpreting "PARSER_WEEDER" as: should have either passed or failed by the end of the weeding stage
-              do_test $filename $should_pass "-s weed" $tagword
+              do_test $filename $should_pass "-s weed" $tagword false
               ;;
             CODE_GENERATION)
               ;;
@@ -368,7 +378,13 @@ for filename in `find ${PUB_FOLDER} -name "*.java" -type f | sort`; do
 
   # No metadata/tagwords? Test it without any arguments.
   if [[ $regex_lines == 0 ]]; then
-    do_test $filename $should_pass
+    if [[ $filename = "${PUB_FOLDER}/assignment_testcases/a1"* ]]; then
+      do_test $filename $should_pass "-s weed" "" false
+    elif [[ $filename = "${PUB_FOLDER}/assignment_testcases/a2"* ]]; then
+      do_test $filename $should_pass "-s nameresolution"
+    else
+      do_test $filename $should_pass
+    fi
   fi
 done
 
@@ -380,7 +396,7 @@ echo ""
 echo "=== FAILING TESTS ==="
 echo ""
 
-cat $failed_test_descr_file
+cat $failed_test_descr_file 2>/dev/null
 
 echo ""
 echo "=== RESULTS ==="
