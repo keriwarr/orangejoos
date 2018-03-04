@@ -9,7 +9,7 @@ describe Simplification do
     contents.split("\n").each do |line|
       if /[A-Za-z]+\:/ =~ line
         lhs = /(?<lhs>^[A-Za-z]+):/.match(line).try &.["lhs"]
-        if !lhs.nil?
+        unless lhs.nil?
           lhs_rules.push(lhs)
         end
       end
