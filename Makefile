@@ -5,11 +5,11 @@ JLALR_SRCS := $(shell find tools/jlalr -name '*.java')
 default: joosc
 
 joosc: ## joosc is the general compiler.
-joosc: $(CRYSTAL_SRCS)
+joosc: $(CRYSTAL_SRCS) grammar/joos1w.lr1
 	crystal build ./src/joosc.cr
 
 orangejoos: ## orangejoos is the general compiler with debug options.
-orangejoos: $(CRYSTAL_SRCS)
+orangejoos: $(CRYSTAL_SRCS) grammar/joos1w.lr1
 	crystal build ./src/orangejoos.cr
 
 jlalr1: ## JLALR1 is the LALR(1) prediction table generated, provided by CS444.
@@ -24,6 +24,8 @@ clean:
 	rm -f orangejoos.zip
 	rm -f joosc joosc.dwarf
 	rm -f failed_tests.tmp
+	rm -f grammar/joos1w.lr1
+	rm -f grammar/joos1w.cfg
 
 grammar/joos1w.cfg: ## The context-free grammar file.
 grammar/joos1w.cfg: grammar/joos1w.bnf tools/jlalr/bnf_to_cfg.py

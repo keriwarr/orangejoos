@@ -19,3 +19,6 @@
 
 *.DS_Store
 failed_tests.tmp
+
+grammar/joos1w.cfg
+grammar/joos1w.lr1
