@@ -728,7 +728,7 @@ class Simplification
     when "VariableDeclaratorId"
       return simplify(tree.tokens.first.as(ParseTree))
 
-    when "VariableDeclarator"
+    when "VariableDeclarator", "InitializedVariableDeclarator"
       var_name = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal).val
 
       init = nil

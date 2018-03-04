@@ -208,6 +208,9 @@ ClassMemberDeclaration:
 FieldDeclaration:
   Modifiers Type VariableDeclarator ;
 
+InitializedVariableDeclarator:
+  VariableDeclaratorId = VariableInitializer
+
 VariableDeclarator:
   VariableDeclaratorId
   VariableDeclaratorId = VariableInitializer
@@ -319,7 +322,7 @@ LocalVariableDeclarationStatement:
 LocalVariableDeclaration:
   # FIXME(joey): We need to ensure the VariableDeclarator has no
   # assignment.
-  Type VariableDeclarator
+  Type InitializedVariableDeclarator
 
 Statement:
   StatementWithoutTrailingSubstatement
