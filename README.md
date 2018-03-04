@@ -106,3 +106,4 @@ From the specification:
 
 - Replace `has_modifier("<modifier>") with a series of methods of the form `is_<modifier>`
 - Create two separate generic visitors: one for simplification which is mutative and returns nodes, one for weeding which is not and returns Nil
+- Enumerate parse node names (due to reuse).
