@@ -1,6 +1,6 @@
 
-CRYSTAL_SRCS := $(find src -name '*.cr')
-JLALR_SRCS := $(find tools/jlalr -name '*.java')
+CRYSTAL_SRCS := $(shell find ./src -name '*.cr')
+JLALR_SRCS := $(shell find tools/jlalr -name '*.java')
 
 default: joosc
 
