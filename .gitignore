@@ -1,6 +1,7 @@
 /doc/
 /bin/
 /.shards/
+/docs/**/*
 
 # Java
 
@@ -15,7 +16,7 @@
 
 /joosc
 /joosc.dwarf
-/orangejoos.zip
+/joosc.zip
 
 *.DS_Store
 failed_tests.tmp
