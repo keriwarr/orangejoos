@@ -989,4 +989,62 @@ module AST
       end
     end
   end
+
+  class CastExpr < Expr
+    property rhs : Expr
+    property! typ : PrimitiveTyp
+    property is_arr : Bool
+    property! expr : Expr
+    property! name : Name
+
+    def initialize(@rhs : Expr, @typ : PrimitiveTyp, @is_arr : Bool)
+    end
+
+    def initialize(@rhs : Expr, @expr : Expr)
+      @is_arr = false
+    end
+
+    def initialize(@rhs : Expr, @name : Name)
+      @is_arr = true
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      type_str = (
+        if typ?
+          typ.pprint(0)
+        elsif expr?
+          expr.pprint(0)
+        else
+          name.pprint(0)
+        end
+      )
+
+      return "#{indent}Cast: type={#{type_str}} value={#{@rhs.pprint(0)}}"
+    end
+
+    def children
+      if expr?
+        [rhs, expr] of Expr
+      else
+        [rhs] of Expr
+      end
+    end
+  end
+
+  class ParenExpr < Expr
+    property expr : Expr
+
+    def initialize(@expr : Expr)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "#{indent}( #{expr.pprint(0)} )"
+    end
+
+    def children
+      return [expr]
+    end
+  end
 end

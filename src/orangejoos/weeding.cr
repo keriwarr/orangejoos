@@ -17,6 +17,7 @@ class Weeding
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
     @root.accept(NegativeIntegerVisitor.new)
     @root.accept(LiteralRangeCheckerVisitor.new)
+    @root.accept(InvalidCastExpressionVisitor.new)
   end
 end
 
@@ -140,6 +141,11 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
 end
 
 class NegativeIntegerVisitor < Visitor::GenericVisitor
+  # Note that we only perform this simplification if the ConstInteger is the direct child of the ExprOp
+  # When a ConstInteger is the direct child of a unary negation operator, JLS expects us to treat this
+  # as an individual ConstInteger
+  # "-n" is represented as a ConstInteger which is a child of an ExprOp in the AST, but "-(n)" is
+  # represented as a ConstInteger which is the child of a ParenExpr, which is the child of an ExprOp
   def visit(node : AST::ExprOp) : AST::Node
     if node.op == "-" && node.operands.size == 1 && node.operands[0].is_a?(AST::ConstInteger)
       constInteger = node.operands[0].as(AST::ConstInteger)
@@ -157,6 +163,18 @@ class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
     rescue ArgumentError
       raise WeedingStageError.new("Integer out of bounds")
     end
+    return node
+  end
+end
+
+class InvalidCastExpressionVisitor < Visitor::GenericVisitor
+  def visit(node : AST::CastExpr) : AST::Node
+    return node unless node.expr?
+
+    unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
+      raise WeedingStageError.new("Cannot cast value #{node.rhs.pprint(0)} to #{node.expr.pprint(0)}")
+    end
+
     return node
   end
 end

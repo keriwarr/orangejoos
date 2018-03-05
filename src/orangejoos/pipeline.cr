@@ -92,9 +92,9 @@ class Pipeline
   end
 
   # do_name_resolution! resolves names across all abstract syntax trees
-  def self.do_name_resolution!(files : Array(SourceFile))
+  def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool)
     begin
-     NameResolution.new(files).resolve
+     NameResolution.new(files, verbose).resolve
     rescue ex : NameResolutionStageError
       STDERR.puts "Found name resolution error: #{ex}"
       exit 42
@@ -180,9 +180,9 @@ class Pipeline
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                                 NAME RESOLUTION                         #
     #                                                                         #
-    # Resolve any names to their referenced nodes.                             #
+    # Resolve any names to their referenced nodes.                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    source_files = Pipeline.do_name_resolution!(source_files)
+    source_files = Pipeline.do_name_resolution!(source_files, @verbose)
     source_files.map &.debug_print(Stage::NAME_RESOLUTION) if @verbose
     exit 0 if @end_stage == Stage::NAME_RESOLUTION
   end

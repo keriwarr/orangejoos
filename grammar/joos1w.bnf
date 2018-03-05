@@ -466,9 +466,6 @@ UnaryExpressionNotPlusMinus:
 
 CastExpression:
   ( PrimitiveType Dims? ) UnaryExpression
-  # Joos1W unsupported feature: expression casts, but we need this
-  # otherwise we get a reduce conflict with Primary when we make it
-  # something else.
   ( Expression ) UnaryExpressionNotPlusMinus
   ( Name Dims ) UnaryExpressionNotPlusMinus
 

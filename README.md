@@ -96,6 +96,9 @@ From the specification:
 - [ ] Repeated function definitions.
 - Refer to the JLS1 spec to find more rules.
 
+### Name Resolution
+
+- [ ] Just calling this out now: during name resolution I think we need to assert that if it is ExprRef, then the reference must resolve to a Class or Interface.
 
 ## Resources
 
@@ -106,3 +109,4 @@ From the specification:
 
 - Replace `has_modifier("<modifier>") with a series of methods of the form `is_<modifier>`
 - Create two separate generic visitors: one for simplification which is mutative and returns nodes, one for weeding which is not and returns Nil
+- Enumerate parse node names (due to reuse).
