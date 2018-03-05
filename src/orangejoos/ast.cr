@@ -55,7 +55,7 @@ module AST
       results = [] of Object
 
       result, cont = map(self)
-      if !cont
+      unless cont
         return result
       end
 
@@ -63,7 +63,7 @@ module AST
 
       self.children.each do |c|
         result, cont = c.traverse(map, reduce)
-        if !cont
+        unless cont
           return {result, cont}
         end
         results.push(result)

@@ -149,9 +149,9 @@ class PackageNode < PackageTree
 
   def add_child(parts : Array(String), node : TypeNode)
     if parts.size > 0
-      children[parts.first] = PackageNode.new(parts.first) if !children.has_key?(parts.first)
+      children[parts.first] = PackageNode.new(parts.first) unless children.has_key?(parts.first)
       c = children[parts.first]
-      if !c.is_a?(PackageNode)
+      unless c.is_a?(PackageNode)
         raise NameResolutionStageError.new("type decl is prefix of existing package path")
       end
       c.add_child(parts[1..parts.size], node)

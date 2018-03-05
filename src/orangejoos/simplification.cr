@@ -294,7 +294,7 @@ class Simplification
 
     when "ReferenceType"
       class_tree = tree.tokens.get_tree("ClassOrInterfaceType")
-      if !class_tree.nil?
+      unless class_tree.nil?
         class_name = simplify(class_tree).as(AST::Name)
         return AST::ReferenceTyp.new(class_name)
       else
@@ -572,7 +572,7 @@ class Simplification
       # Check if the method invocation is either a `Name()` or an
       # `Primary.SimpleName()`. In the latter, we expect the `Expr` to
       # return a class or interface type.
-      if !tree.tokens.get_tree("Name").nil?
+      unless tree.tokens.get_tree("Name").nil?
         name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
         return AST::MethodInvoc.new(nil, name, args)
       else
