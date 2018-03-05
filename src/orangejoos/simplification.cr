@@ -581,7 +581,6 @@ class Simplification
         name = AST::SimpleName.new(ident.val)
         return AST::MethodInvoc.new(expr, name, args)
       end
-      obj = simplify().as(AST::Expr)
 
     when "ArrayAccess"
       arr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr | AST::Name)
@@ -597,17 +596,17 @@ class Simplification
       end
 
     when "CastExpression"
-      # TODO(Joey): Casting is hard. There are a few tricky problems,
-      # the casting type can be:
-      # - PrimativeTyp, also as an array
-      # - Name (aka ClassOrInterfaceType), also as an array
-      #
-      # Unfortunately, due to grammar problems the Name not as array is
-      # ambigious, and so we need to use Expression, where we only
-      # desire a Name. This is also a problem because normally extra
-      # parenthesis are silently omitted, but for casts there can no be
-      # two layers of parenthesis.
-      return AST::ExprThis.new
+      rhs = simplify(tree.tokens.to_a.last.as(ParseTree)).as(AST::Expr)
+
+      if !tree.tokens.get_tree("PrimitiveType").nil?
+        typ = simplify(tree.tokens.get_tree!("PrimitiveType")).as(AST::PrimitiveTyp)
+        dims = !tree.tokens.get_tree("Dims").nil?
+        return AST::CastExpr.new(rhs, typ, dims)
+      else
+        typ = simplify(tree.tokens.to_a[1].as(ParseTree))
+        return AST::CastExpr.new(rhs, typ.as(AST::Name)) if typ.is_a?(AST::Name)
+        return AST::CastExpr.new(rhs, typ.as(AST::Expr))
+      end
 
     when "ArrayCreationExpression"
       # FIXME(joey): Specialize the node type used here.
