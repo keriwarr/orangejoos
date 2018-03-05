@@ -12,6 +12,7 @@ orangejoos: ## orangejoos is the general compiler with debug options.
 orangejoos: $(CRYSTAL_SRCS) grammar/joos1w.lr1
 	crystal build ./src/orangejoos.cr
 
+.PHONY: jlalr1
 jlalr1:
 jlalr1: tools/jlalr/Jlalr1.class
 
