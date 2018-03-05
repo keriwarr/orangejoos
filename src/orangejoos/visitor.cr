@@ -40,6 +40,7 @@ module Visitor
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
     abstract def visit(node : AST::ReturnStmt) : AST::Node
     abstract def visit(node : AST::CastExpr) : AST::Node
+    abstract def visit(node : AST::ParenExpr) : AST::Node
 
     abstract def descend()
     abstract def ascend()
@@ -246,6 +247,11 @@ module Visitor
 
     def visit(node : AST::CastExpr) : AST::Node
       node.rhs = node.rhs.accept(self)
+      return node
+    end
+
+    def visit(node : AST::ParenExpr) : AST::Node
+      node.expr = node.expr.accept(self)
       return node
     end
 

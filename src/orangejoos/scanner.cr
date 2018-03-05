@@ -1,6 +1,6 @@
 require "./lexeme.cr"
 require "./compiler_errors.cr"
-require "util"
+require "./util.cr"
 
 NEWLINES = Set{'\n', '\r'}
 

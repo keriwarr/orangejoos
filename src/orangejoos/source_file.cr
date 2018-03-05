@@ -8,6 +8,10 @@ class SourceFile
   getter! path : String
   getter! contents : String
 
+  property! single_type_imports : Array(String)
+  property! on_demand_imports : Array(String)
+  property! system_imports : Array(String)
+
   def initialize(@path : String)
   end
 
@@ -57,12 +61,20 @@ class SourceFile
   end
 
   def debug_print(stage : Stage)
+    return if @path.try &.includes?("/stdlib/") && @path.try &.includes?("/java/")
+
+    print_sections : Array({data_type: String, data: String | Nil}) = [] of {data_type: String, data: String | Nil}
+
     case stage
-    when Stage::SCAN     then data_type = "lexemes";                     data = @tokens
-    when Stage::PARSE    then data_type = "parse tree";                  data = @parse_tree.as?(ParseTree).try &.pprint(0)
-    when Stage::SIMPLIFY then data_type = "abstract syntax tree";        data = @ast.as?(AST::File).try &.pprint(0)
-    when Stage::WEED     then data_type = "weeded abstract syntax tree"; data = @ast.as?(AST::File).try &.pprint(0)
+    when Stage::SCAN     then print_sections.push({data_type: "lexemes",                     data: @tokens.to_s})
+    when Stage::PARSE    then print_sections.push({data_type: "parse tree",                  data: @parse_tree.as?(ParseTree).try &.pprint(0)})
+    when Stage::SIMPLIFY then print_sections.push({data_type: "abstract syntax tree",        data: @ast.as?(AST::File).try &.pprint(0)})
+    when Stage::WEED     then print_sections.push({data_type: "weeded abstract syntax tree", data: @ast.as?(AST::File).try &.pprint(0)})
+    when Stage::NAME_RESOLUTION
+      print_sections.push({data_type: "single type imports", data: @single_type_imports.try &.join("\n")})
+      print_sections.push({data_type: "on demand imports", data: @on_demand_imports.try &.join("\n")})
+      print_sections.push({data_type: "system imports", data: @system_imports.try &.join("\n")})
     end
-    STDERR.puts "=== FILE #{data_type}: #{@path} ===\n#{data}"
+    print_sections.each { |s| STDERR.puts "=== #{s[:data_type]}: #{@path} ===\n#{s[:data]}\n\nqq" }
   end
 end
