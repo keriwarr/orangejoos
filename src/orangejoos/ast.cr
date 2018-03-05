@@ -992,19 +992,20 @@ module AST
 
   class CastExpr < Expr
     property rhs : Expr
-    property! typ : PrimitiveTyp | Nil
-    property dims : Bool = false
-    property! expr : Expr | Nil
-    property! name : Name | Nil
+    property! typ : PrimitiveTyp
+    property is_arr : Bool
+    property! expr : Expr
+    property! name : Name
 
-    def initialize(@rhs : Expr, @typ : PrimitiveTyp, @dims : Bool)
+    def initialize(@rhs : Expr, @typ : PrimitiveTyp, @is_arr : Bool)
     end
 
     def initialize(@rhs : Expr, @expr : Expr)
+      @is_arr = false
     end
 
     def initialize(@rhs : Expr, @name : Name)
-      @dims = true
+      @is_arr = true
     end
 
     def pprint(depth : Int32)

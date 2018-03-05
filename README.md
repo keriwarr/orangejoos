@@ -96,6 +96,9 @@ From the specification:
 - [ ] Repeated function definitions.
 - Refer to the JLS1 spec to find more rules.
 
+### Name Resolution
+
+- [ ] Just calling this out now: during name resolution I think we need to assert that if it is ExprRef, then the reference must resolve to a Class or Interface.
 
 ## Resources
 
