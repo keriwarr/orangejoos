@@ -208,6 +208,9 @@ ClassMemberDeclaration:
 FieldDeclaration:
   Modifiers Type VariableDeclarator ;
 
+InitializedVariableDeclarator:
+  VariableDeclaratorId = VariableInitializer
+
 VariableDeclarator:
   VariableDeclaratorId
   VariableDeclaratorId = VariableInitializer
@@ -317,9 +320,8 @@ LocalVariableDeclarationStatement:
   LocalVariableDeclaration ;
 
 LocalVariableDeclaration:
-  # FIXME(joey): We need to ensure the VariableDeclarator has no
-  # assignment.
-  Type VariableDeclarator
+  # This rule was modified from the JLS bnf to require Initialized variable declarators
+  Type InitializedVariableDeclarator
 
 Statement:
   StatementWithoutTrailingSubstatement
