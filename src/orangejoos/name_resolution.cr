@@ -30,7 +30,7 @@ class NameResolution
     return package_root
   end
 
-  def populate_imports(files, exported_items)
+  def populate_imports(file, exported_items)
     # These are populated separately because this defines the name
     # resolution priority. The order is:
     # 1) Try enclosed (same-file) class or interface
@@ -38,53 +38,70 @@ class NameResolution
     # 3) Try same package import.
     # 4) Try any import-on-demand package (A.B.C.*) including java.lang.*
     # 5) System packages implicitly imported from java.lang.*
+    single_type_imports = [] of Tuple(String, AST::TypeDecl)
+    same_package_imports = [] of Tuple(String, AST::TypeDecl)
+    on_demand_imports = [] of Tuple(String, AST::TypeDecl)
+    system_imports = [] of Tuple(String, AST::TypeDecl)
 
-    files.each do |file|
-      single_type_imports = [] of Tuple(String, AST::TypeDecl)
-      same_package_imports = [] of Tuple(String, AST::TypeDecl)
-      on_demand_imports = [] of Tuple(String, AST::TypeDecl)
-      system_imports = [] of Tuple(String, AST::TypeDecl)
-
-      ast = file.ast
-      imports = ast.imports.flat_map do |import|
-        import_tree = exported_items.get(import.path.parts)
-        prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
-        prefix += "." if prefix.size > 0
-        if import_tree.is_a?(TypeNode)
-          single_type_imports += import_tree.enumerate(prefix)
-        elsif import_tree.is_a?(PackageNode) && import.on_demand
-          if import.path.name == "java.lang"
-            system_imports += import_tree.enumerate(prefix)
-          else
-            on_demand_imports += import_tree.enumerate(prefix)
-          end
-        else
-          raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.pprint}")
-        end
-      end
-
-      # Import java.lang.*, which is by default always imported at a
-      # lower priority.
-      import = AST::ImportDecl.new(AST::QualifiedName.new(["java", "lang"]), true)
+    ast = file.ast
+    imports = ast.imports.flat_map do |import|
       import_tree = exported_items.get(import.path.parts)
       prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
       prefix += "." if prefix.size > 0
       if import_tree.is_a?(TypeNode)
-        raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+        single_type_imports += import_tree.enumerate(prefix)
       elsif import_tree.is_a?(PackageNode) && import.on_demand
-        system_imports += import_tree.enumerate(prefix)
+        if import.path.name == "java.lang"
+          system_imports += import_tree.enumerate(prefix)
+        else
+          on_demand_imports += import_tree.enumerate(prefix)
+        end
       else
-        raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+        raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.pprint}")
       end
-
-      # TODO(joey): same package imports, but do not include the class
-      # declared in this file.
-
-      file.single_type_imports = single_type_imports.map(&.first)
-      file.on_demand_imports = on_demand_imports.map(&.first)
-      file.system_imports = system_imports.map(&.first)
     end
+
+    # Import java.lang.*, which is by default always imported at a
+    # lower priority.
+    import = AST::ImportDecl.new(AST::QualifiedName.new(["java", "lang"]), true)
+    import_tree = exported_items.get(import.path.parts)
+    prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+    prefix += "." if prefix.size > 0
+    if import_tree.is_a?(TypeNode)
+      raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+    elsif import_tree.is_a?(PackageNode) && import.on_demand
+      system_imports += import_tree.enumerate(prefix)
+    else
+      raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+    end
+
+    # TODO(joey): same package imports, but do not include the class
+    # declared in this file.
+
+
+    namespace = ImportNamespace.new(
+      single_type_imports,
+      same_package_imports,
+      on_demand_imports,
+      system_imports,
+    )
+
+    file.single_type_imports = single_type_imports.map(&.first)
+    file.same_package_imports = same_package_imports.map(&.first)
+    file.on_demand_imports = on_demand_imports.map(&.first)
+    file.system_imports = system_imports.map(&.first)
+
+    return namespace
   end
+
+
+  def resolve_inheritance(file, namespace)
+    ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    # ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+
+    return file.ast
+  end
+
 
   def resolve
     exported_items = generate_exported_items(@files)
@@ -96,7 +113,13 @@ class NameResolution
       STDERR.puts "#{classes.map(&.first).reject(&.starts_with? "java.").join("\n")}\n\n"
     end
 
-    populate_imports(@files, exported_items)
+    # Populate the imports for each file in-place.
+    files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
+
+    # Populate the inheritance information for the interfaces and
+    # classes in each file.
+    # FIXME(joey): Do we want to modify file.ast in-place? probably ok
+    files = files.map {|file, namespace| file.ast = resolve_inheritance(file, namespace)}
 
     return @files
   end
@@ -178,5 +201,56 @@ class PackageNode < PackageTree
     else
       return self
     end
+  end
+end
+
+
+class InterfaceResolutionVisitor < Visitor::GenericVisitor
+  @namespace : ImportNamespace
+
+  def initialize(@namespace : ImportNamespace)
+  end
+
+  def visit(node : AST::InterfaceDecl) : AST::Node
+    node.extensions.each do |name|
+      STDERR.puts "interface=#{node.name} extension=#{name.name}"
+    end
+
+    return super
+  end
+end
+
+# class ClassResolutionVisitor < Visitor::GenericVisitor
+#   def initialize(@namespace)
+#   end
+
+#   def visit(node : AST::ClassDecl) : AST::Node
+#     node.body.each do |b|
+#       if b.is_a?(AST::MethodDecl) && (b.has_mod("static") || b.has_mod("final") || b.has_mod("native"))
+#         # An interface method cannot be static, final, or native.
+#         raise WeedingStageError.new("interfaces cannot have final, static, or native functions: function #{b.name} was bad")
+#       end
+#     end
+
+#     return super
+#   end
+# end
+
+class ImportNamespace
+  property single_type : Array(Tuple(String, AST::TypeDecl))
+  property same_package : Array(Tuple(String, AST::TypeDecl))
+  property on_demand : Array(Tuple(String, AST::TypeDecl))
+  property system : Array(Tuple(String, AST::TypeDecl))
+
+  def initialize(
+    @single_type : Array(Tuple(String, AST::TypeDecl)),
+    @same_package : Array(Tuple(String, AST::TypeDecl)),
+    @on_demand : Array(Tuple(String, AST::TypeDecl)),
+    @system : Array(Tuple(String, AST::TypeDecl)),
+  )
+  end
+
+  def has_type(name : String)
+    return true
   end
 end
