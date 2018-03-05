@@ -7,7 +7,7 @@ require "./source_file"
 # the program. It will modify the AST to populate them where
 # appropriate.
 class NameResolution
-  def initialize(@files : Array(SourceFile))
+  def initialize(@files : Array(SourceFile), @verbose : Bool)
   end
 
   def generate_exported_items(files)
@@ -19,7 +19,9 @@ class NameResolution
         if ast.decl?(file.class_name)
           decl = ast.decl(file.class_name)
           typ = TypeNode.new(decl.name, decl)
-          STDERR.puts "decl=#{decl.name} in package=#{ast.package.pprint}"
+          if @verbose && !ast.package.path.name.starts_with? "java."
+            STDERR.puts "decl=#{decl.name} in package=#{ast.package.pprint}"
+          end
           package_root.add_child(ast.package.path.parts, typ)
         end
       end
@@ -37,13 +39,12 @@ class NameResolution
     # 4) Try any import-on-demand package (A.B.C.*) including java.lang.*
     # 5) System packages implicitly imported from java.lang.*
 
-    single_type_imports = [] of Tuple(String, AST::TypeDecl)
-    same_package_imports = [] of Tuple(String, AST::TypeDecl)
-    on_demand_imports = [] of Tuple(String, AST::TypeDecl)
-    system_imports = [] of Tuple(String, AST::TypeDecl)
-
-
     files.each do |file|
+      single_type_imports = [] of Tuple(String, AST::TypeDecl)
+      same_package_imports = [] of Tuple(String, AST::TypeDecl)
+      on_demand_imports = [] of Tuple(String, AST::TypeDecl)
+      system_imports = [] of Tuple(String, AST::TypeDecl)
+
       ast = file.ast
       imports = ast.imports.flat_map do |import|
         import_tree = exported_items.get(import.path.parts)
@@ -79,13 +80,9 @@ class NameResolution
       # TODO(joey): same package imports, but do not include the class
       # declared in this file.
 
-      STDERR.puts "=== FILE:#{file.path} SINGLE TYPE IMPORTS ==="
-      STDERR.puts "#{single_type_imports.map(&.first).join("\n")}"
-      STDERR.puts "=== FILE:#{file.path} ON DEMAND IMPORTS ==="
-      STDERR.puts "#{on_demand_imports.map(&.first).join("\n")}"
-      STDERR.puts "=== FILE:#{file.path} SYSTEM IMPORTS ==="
-      STDERR.puts "#{system_imports.map(&.first).join("\n")}"
-
+      file.single_type_imports = single_type_imports.map(&.first)
+      file.on_demand_imports = on_demand_imports.map(&.first)
+      file.system_imports = system_imports.map(&.first)
     end
   end
 
@@ -94,8 +91,10 @@ class NameResolution
 
     # DEBUG INFO
     classes = exported_items.enumerate
-    STDERR.puts "==== EXPORTED ITEMS ===="
-    STDERR.puts "#{classes.map(&.first).join("\n")}"
+    if @verbose
+      STDERR.puts "=== EXPORTED ITEMS ==="
+      STDERR.puts "#{classes.map(&.first).reject(&.starts_with? "java.").join("\n")}\n\n"
+    end
 
     populate_imports(@files, exported_items)
 
