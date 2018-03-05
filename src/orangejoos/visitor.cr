@@ -30,6 +30,12 @@ module Visitor
     abstract def visit(node : AST::ConstNull) : AST::Node
     abstract def visit(node : AST::VariableDecl) : AST::Node
     abstract def visit(node : AST::DeclStmt) : AST::Node
+    abstract def visit(node : AST::ForStmt) : AST::Node
+    abstract def visit(node : AST::WhileStmt) : AST::Node
+    abstract def visit(node : AST::IfStmt) : AST::Node
+    abstract def visit(node : AST::MethodInvoc) : AST::Node
+    abstract def visit(node : AST::ExprArrayAccess) : AST::Node
+    abstract def visit(node : AST::ExprArrayCreation) : AST::Node
     abstract def visit(node : AST::MethodDecl) : AST::Node
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
     abstract def visit(node : AST::ReturnStmt) : AST::Node
@@ -173,6 +179,46 @@ module Visitor
     def visit(node : AST::DeclStmt) : AST::Node
       node.typ = node.typ.accept(self)
       node.var = node.var.accept(self)
+      return node
+    end
+
+    def visit(node : AST::ForStmt) : AST::Node
+      node.init = node.init.accept(self) if node.init?
+      node.expr = node.expr.accept(self) if node.expr?
+      node.update = node.update.accept(self) if node.update?
+      node.body = node.body.accept(self)
+      return node
+    end
+
+    def visit(node : AST::WhileStmt) : AST::Node
+      node.expr = node.expr.accept(self)
+      node.body = node.body.accept(self)
+      return node
+    end
+
+    def visit(node : AST::IfStmt) : AST::Node
+      node.expr = node.expr.accept(self)
+      node.if_body = node.if_body.accept(self)
+      node.else_body = node.else_body.accept(self) if node.else_body?
+      return node
+    end
+
+    def visit(node : AST::MethodInvoc) : AST::Node
+      node.expr = node.expr.accept(self) if node.expr?
+      node.args.map!      { |b| b.accept(self) }
+      return node
+    end
+
+    def visit(node : AST::ExprArrayAccess) : AST::Node
+      node.arr_expr = node.arr_expr.accept(self) if node.arr_expr?
+      node.index = node.index.accept(self)
+      return node
+    end
+
+    def visit(node : AST::ExprArrayCreation) : AST::Node
+      # FIXME(joey): Not added due to the type specificity problem.
+      # node.arr = node.arr.accept(self)
+      node.dim = node.dim.accept(self)
       return node
     end
 

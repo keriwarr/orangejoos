@@ -1,17 +1,16 @@
 
-CRYSTAL_SRCS := $(find src -name '*.cr')
-JLALR_SRCS := $(find tools/jlalr -name '*.java')
+CRYSTAL_SRCS := $(shell find ./src -name '*.cr')
+JLALR_SRCS := $(shell find tools/jlalr -name '*.java')
 
 default: joosc
 
+.PHONY: all
 all: joosc orangejoos docs
 
-.PHONY: joosc
 joosc: ## joosc is the general compiler.
 joosc: $(CRYSTAL_SRCS)
 	crystal build ./src/joosc.cr
 
-.PHONY: orangejoos
 orangejoos: ## orangejoos is the general compiler with debug options.
 orangejoos: $(CRYSTAL_SRCS)
 	crystal build ./src/orangejoos.cr

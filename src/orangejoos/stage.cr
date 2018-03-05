@@ -4,6 +4,7 @@ enum Stage
   PARSE
   SIMPLIFY
   WEED
+  NAME_RESOLUTION
   ALL
 
   # takes a string and gets the corresponding enum token, or else raises an exception
@@ -13,6 +14,7 @@ enum Stage
     when "parse"    then return Stage::PARSE
     when "simplify" then return Stage::SIMPLIFY
     when "weed"     then return Stage::WEED
+    when "nameresolution"     then return Stage::NAME_RESOLUTION
     when "all"      then return Stage::ALL
     else raise Exception.new("got unexpected stage: \"#{stage}\"")
     end

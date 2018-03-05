@@ -3,77 +3,10 @@ require "./ast"
 require "./lalr1_table"
 require "./parse_tree"
 require "./weeding"
+require "./name_resolution"
 require "./compiler_errors"
 require "./stage"
-
-# A SourceFile represents a file containing source code to be compiled and eventually linked. As the
-# pipeline runs the data is modified to
-class SourceFile
-  property! tokens : Array(Lexeme)
-  property! parse_tree : ParseTree
-  property! ast : AST::File
-
-  getter! path : String
-  getter! contents : String
-
-  def initialize(@path : String)
-  end
-
-  def read!
-    @contents = File.read(path)
-    return contents
-  end
-
-  # The type name that this file is allowed to export.
-  # - If the file has a hyphen or any special characters, they become
-  #   underscores.
-  # - If the filename is a keyword, append an underscore. (May not be
-  #   relevant, only for packages).
-  # - If the filename starts with a digit add an underscore prefix.
-  def class_name
-    if /\.jav$/ =~ path
-      filename = File.basename(path, ".jav")
-    else
-      filename = File.basename(path, ".java")
-    end
-
-    # If the name starts with a number, prefix it with an underscore.
-    filename = "_" + filename if filename[0].ascii_number?
-
-    # Replace all invalid name characters with underscores. Only ascii
-    # letters, numbers, '$', and '_' are considered valid.
-    cleaned_filename = ""
-    # new_word = true
-    filename.chars.each do |c|
-      if c.ascii_letter?
-        # if new_word
-        #   new_word = false
-        #   cleaned_filename += c.upcase
-        # else
-          cleaned_filename += c
-        # end
-      elsif c.ascii_number? || c == '$' || c == '_'
-        # new_word = true
-        cleaned_filename += c
-      else
-        # new_word = true
-        cleaned_filename += "_"
-      end
-    end
-
-    return cleaned_filename
-  end
-
-  def debug_print(stage : Stage)
-    case stage
-    when Stage::SCAN     then data_type = "lexemes";                     data = @tokens
-    when Stage::PARSE    then data_type = "parse tree";                  data = @parse_tree.as?(ParseTree).try &.pprint(0)
-    when Stage::SIMPLIFY then data_type = "abstract syntax tree";        data = @ast.as?(AST::File).try &.pprint(0)
-    when Stage::WEED     then data_type = "weeded abstract syntax tree"; data = @ast.as?(AST::File).try &.pprint(0)
-    end
-    STDERR.puts "=== FILE #{data_type}: #{@path} ===\n#{data}"
-  end
-end
+require "./source_file"
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
@@ -105,7 +38,7 @@ class Pipeline
     begin
       tokens = Scanner.new(file.contents.to_slice).scan
     rescue ex : ScanningStageError
-      STDERR.puts "Failed to scan with exception: #{ex}"
+      STDERR.puts "Failed #{file.path} to scan with exception: #{ex}"
       exit 42
     end
 
@@ -113,7 +46,7 @@ class Pipeline
     # FIXME(joey): Collect errors.
     tokens.each do |res|
       if res.typ == Type::Bad
-        STDERR.puts "Failed to parse, got tokens: "
+        STDERR.puts "Failed #{file.path} to parse, got tokens: "
         STDERR.puts tokens
         exit 42
       end
@@ -129,7 +62,7 @@ class Pipeline
     begin
       parse_tree = Parser.new(table, file.tokens).parse
     rescue ex : ParseStageError
-      STDERR.puts "Failed to parse with exception: #{ex}"
+      STDERR.puts "Failed #{file.path} to parse with exception: #{ex}"
       exit 42
     end
     file.parse_tree = parse_tree
@@ -141,19 +74,29 @@ class Pipeline
     begin
      ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     rescue ex : SimplifyStageError
-      STDERR.puts "Failed to simplify with exception: #{ex}"
+      STDERR.puts "Failed #{file.path} to simplify with exception: #{ex}"
       exit 42
     end
     file.ast = ast
     return ast
   end
 
-  # do_weed! weeds the abstract suntax tree of errors
+  # do_weed! weeds the abstract syntax tree of errors
   def do_weed!(file : SourceFile)
     begin
      Weeding.new(file.ast, file.class_name).weed
     rescue ex : WeedingStageError
-      STDERR.puts "Found weeding error: #{ex}"
+      STDERR.puts "Found #{file.path} weeding error: #{ex}"
+      exit 42
+    end
+  end
+
+  # do_name_resolution! resolves names across all abstract syntax trees
+  def self.do_name_resolution!(files : Array(SourceFile))
+    begin
+     NameResolution.new(files).resolve
+    rescue ex : NameResolutionStageError
+      STDERR.puts "Found name resolution error: #{ex}"
       exit 42
     end
   end
@@ -233,5 +176,14 @@ class Pipeline
     source_files.each { |file| do_weed!(file) }
     source_files.map &.debug_print(Stage::WEED) if @verbose
     exit 0 if @end_stage == Stage::WEED
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                                 NAME RESOLUTION                         #
+    #                                                                         #
+    # Resolve any names to their referenced nodes.                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    source_files = Pipeline.do_name_resolution!(source_files)
+    source_files.map &.debug_print(Stage::NAME_RESOLUTION) if @verbose
+    exit 0 if @end_stage == Stage::NAME_RESOLUTION
   end
 end
