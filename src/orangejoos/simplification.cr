@@ -538,6 +538,7 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "PrimaryNoNewArray"
+      # The following return is for "( Expr )", the only rule with 3 tokens
       return AST::ParenExpr.new(simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)) if tree.tokens.size == 3
       # else
       case tree.tokens.first
