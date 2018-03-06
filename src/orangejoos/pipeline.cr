@@ -20,8 +20,7 @@ class Pipeline
     validate # make sure args are correct
   end
 
-  def initialize(@table_file : String, @paths : Array(String), end_stage : String, @verbose : Bool)
-    @end_stage = Stage.get(end_stage.downcase)
+  def initialize(@table_file : String, @paths : Array(String), @end_stage : Stage, @verbose : Bool)
     validate # make sure args are correct
   end
 
