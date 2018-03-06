@@ -77,6 +77,6 @@ class SourceFile
       print_sections.push({data_type: "on demand imports", data: @on_demand_imports.try &.join("\n")})
       print_sections.push({data_type: "system imports", data: @system_imports.try &.join("\n")})
     end
-    print_sections.each { |s| STDERR.puts "=== #{s[:data_type]}: #{@path} ===\n#{s[:data]}\n\nqq" }
+    print_sections.each { |s| STDERR.puts "=== #{s[:data_type]}: #{@path} ===\n#{s[:data]}\n\n" }
   end
 end
