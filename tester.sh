@@ -91,7 +91,7 @@ done
 
 regex="^\/\/ ?(([A-Z_0-9]+)\: ?)?(([A-Z_0-9]+, ?)*[A-Z_0-9]+),? *$"
 
-for filename in `find ${PUB_FOLDER} -name "*.java" -type f | grep "$file_name_test" | sort`; do
+for filename in `find ${PUB_FOLDER} -name "*.java" -type f | grep -v "stdlib" | grep "$file_name_test" | sort`; do
   should_pass=true;
   # I believe "Je" stands for Joos Error
   if [[ $(basename $filename) == Je* ]]; then
