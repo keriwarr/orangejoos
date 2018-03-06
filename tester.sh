@@ -2,7 +2,7 @@
 
 file_name_test=$1
 
-if make ; then
+if make ASSN=A_NONE ; then
   :
 else
   exit 1
