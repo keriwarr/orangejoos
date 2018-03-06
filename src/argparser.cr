@@ -4,8 +4,10 @@ require "option_parser"
 END_STAGE = Stage::ALL
 {% elsif flag?(:A1) %}
 END_STAGE = Stage::WEED
+{% elsif flag?(:A_NONE) %}
+END_STAGE = Stage::WEED
 {% else %}
-"Compilation error: unexpected assignment"
+Compilation error: unexpected assignment
 {% end %}
 
 # haha nice meme dude
