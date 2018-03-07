@@ -86,6 +86,7 @@ class Pipeline
      Weeding.new(file.ast, file.class_name).weed
     rescue ex : WeedingStageError
       STDERR.puts "Found #{file.path} weeding error: #{ex}"
+      STDERR.puts "#{ex.inspect_with_backtrace}"
       exit 42
     end
   end
@@ -96,6 +97,7 @@ class Pipeline
      NameResolution.new(files, verbose).resolve
     rescue ex : NameResolutionStageError
       STDERR.puts "Found name resolution error: #{ex}"
+      STDERR.puts "#{ex.inspect_with_backtrace}"
       exit 42
     end
   end

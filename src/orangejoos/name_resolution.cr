@@ -25,10 +25,26 @@ class NameResolution
         package_parts = ROOT_PACKAGE
       end
 
+      # FIXME(joey): We need to handle the specifics for protected
+      # classes that are available within the same package or the root
+      # package.
       if ast.decl?(file.class_name)
         decl = ast.decl(file.class_name)
         typ = TypeNode.new(decl.name, decl)
         package_root.add_child(package_parts, typ)
+      end
+    end
+
+    # Add qualified names to each `TypeDecl`.
+    files.each do |file|
+      ast = file.ast
+      if ast.package?
+        package = ast.package.path.name
+      else
+        package = ""
+      end
+      ast.decls.each do |decl|
+        decl.qualified_name = "#{package}.#{decl.name}"
       end
     end
 
@@ -87,8 +103,13 @@ class NameResolution
       prefix += "." if prefix.size > 0
       same_package_imports += import_tree.enumerate(prefix)
     else
-      import_tree = exported_items.get(ROOT_PACKAGE)
-      same_package_imports += import_tree.enumerate("")
+      # If nothing is exported in the root package we need to check first.
+      if exported_items.has_path?("")
+        import_tree = exported_items.get(ROOT_PACKAGE)
+        # These get created with a "."" prefix that needs to be removed.
+        same_package_imports += import_tree.enumerate("")
+        same_package_imports = same_package_imports.map {|s, n| Tuple.new(s[1..s.size], n)}
+      end
     end
 
     same_file_imports = file.ast.decls.map {|decl| Tuple.new(decl.name, decl)}
@@ -104,7 +125,6 @@ class NameResolution
       full_namespace,
     )
 
-
     file.same_file_imports = same_file_imports.map(&.first)
     file.single_type_imports = single_type_imports.map(&.first)
     file.same_package_imports = same_package_imports.map(&.first)
@@ -118,6 +138,9 @@ class NameResolution
   def resolve_inheritance(file, namespace)
     ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
     ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+
+    # ast = file.ast.accept(InterfaceCycleVisitor.new(namespace))
+    # ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     return file.ast
   end
@@ -213,6 +236,10 @@ class PackageNode < PackageTree
     end
   end
 
+  def has_path?(path : String)
+    return children.has_key?(path)
+  end
+
   def get(path : Array(String))
     if path.size > 0 && children.has_key?(path.first)
       return children[path.first].get(path[1..path.size])
@@ -233,6 +260,7 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::InterfaceDecl) : AST::Node
+    # Populate each interface name reference.
     node.extensions.each do |interface|
       typ = @namespace.fetch(interface)
       if typ.nil?
@@ -242,6 +270,17 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
       end
       interface.ref = typ
     end
+
+    # Check for repeated interfaces. We do this after resolution because
+    # `java.lang.Clonable, Clonable` is a compile-time error.
+    interfaces = Set(String).new
+    node.extensions.each do |interface|
+      if interfaces.includes?(interface.ref.as(AST::InterfaceDecl).qualified_name)
+        raise NameResolutionStageError.new("interface #{node.name} extends #{interface.name} multiple times")
+      end
+      interfaces.add(interface.ref.as(AST::InterfaceDecl).qualified_name)
+    end
+
     return super
   end
 end
@@ -276,6 +315,19 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
       end
       interface.ref = typ
     end
+
+    # Check for repeated interfaces. We do this after resolution because
+    # `java.lang.Clonable, Clonable` is a compile-time error.
+    interfaces = Set(String).new
+    node.interfaces.each do |interface|
+      if interfaces.includes?(interface.ref.as(AST::InterfaceDecl).qualified_name)
+        raise NameResolutionStageError.new("class #{node.name} implements #{interface.name} multiple times")
+      else
+        STDERR.puts("class #{node.name} implements #{interface.name} for first time")
+      end
+      interfaces.add(interface.ref.as(AST::InterfaceDecl).qualified_name)
+    end
+
     return super
   end
 end

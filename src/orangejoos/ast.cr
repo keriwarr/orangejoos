@@ -282,6 +282,7 @@ module AST
   # node.
   abstract class TypeDecl < Node
     property! name : String
+    property! qualified_name : String
     getter modifiers : Array(Modifier) = [] of Modifier
 
     # FIXME(joey): This could easily be a mixin for types that have
