@@ -3,6 +3,10 @@ require "./ast"
 require "./visitor"
 require "./source_file"
 
+# ROOT_PACKAGE is a special sentinel package that undeclared packages
+# fall into. This is common for main.
+ROOT_PACKAGE = [""]
+
 # NameResolution is a step that resolves any name references found in
 # the program. It will modify the AST to populate them where
 # appropriate.
@@ -16,14 +20,15 @@ class NameResolution
     files.each do |file|
       ast = file.ast
       if ast.package?
-        if ast.decl?(file.class_name)
-          decl = ast.decl(file.class_name)
-          typ = TypeNode.new(decl.name, decl)
-          if @verbose && !ast.package.path.name.starts_with? "java."
-            STDERR.puts "decl=#{decl.name} in package=#{ast.package.pprint}"
-          end
-          package_root.add_child(ast.package.path.parts, typ)
-        end
+        package_parts = ast.package.path.parts
+      else
+        package_parts = ROOT_PACKAGE
+      end
+
+      if ast.decl?(file.class_name)
+        decl = ast.decl(file.class_name)
+        typ = TypeNode.new(decl.name, decl)
+        package_root.add_child(package_parts, typ)
       end
     end
 
@@ -81,9 +86,14 @@ class NameResolution
       prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
       prefix += "." if prefix.size > 0
       same_package_imports += import_tree.enumerate(prefix)
+    else
+      import_tree = exported_items.get(ROOT_PACKAGE)
+      same_package_imports += import_tree.enumerate("")
     end
 
     same_file_imports = file.ast.decls.map {|decl| Tuple.new(decl.name, decl)}
+
+    full_namespace = exported_items.enumerate
 
     namespace = ImportNamespace.new(
       same_file_imports,
@@ -91,6 +101,7 @@ class NameResolution
       same_package_imports,
       on_demand_imports,
       system_imports,
+      full_namespace,
     )
 
 
@@ -180,7 +191,6 @@ class PackageNode < PackageTree
   end
 
   def add_child(parts : Array(String), node : TypeNode)
-    # STDERR.puts "parts=#{parts} node=#{node.name}"
     if parts.size > 0
       children[parts.first] = PackageNode.new(parts.first) if !children.has_key?(parts.first)
       c = children[parts.first]
@@ -214,7 +224,8 @@ class PackageNode < PackageTree
   end
 end
 
-
+# `InterfaceResolutionVisitor` populates all extended interfaces within
+# an `InterfaceDecl`.
 class InterfaceResolutionVisitor < Visitor::GenericVisitor
   @namespace : ImportNamespace
 
@@ -223,7 +234,7 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::InterfaceDecl) : AST::Node
     node.extensions.each do |interface|
-      typ = @namespace.fetch(interface.name)
+      typ = @namespace.fetch(interface)
       if typ.nil?
         raise NameResolutionStageError.new("interface #{node.name} extends #{interface.name} but #{interface.name} was not found")
       elsif node.is_a?(AST::ClassDecl)
@@ -235,6 +246,8 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
   end
 end
 
+# `ClassResolutionVisitor` populates the super class and all implemented
+# interface references within a `ClassDecl`.
 class ClassResolutionVisitor < Visitor::GenericVisitor
   @namespace : ImportNamespace
 
@@ -243,22 +256,22 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ClassDecl) : AST::Node
     if node.super_class?
-      typ = @namespace.fetch(node.super_class.name)
+      typ = @namespace.fetch(node.super_class)
       if typ.nil?
         raise NameResolutionStageError.new("class #{node.name} extends #{node.super_class.name} but #{node.super_class.name} was not found")
       elsif node.super_class.name == node.name
         raise NameResolutionStageError.new("class #{node.name} cannot extend itself")
-      elsif node.is_a?(AST::InterfaceDecl)
+      elsif typ.is_a?(AST::InterfaceDecl)
         raise NameResolutionStageError.new("class #{node.name} extends #{node.super_class.name} but #{node.super_class.name} is an Interface")
       end
       node.super_class.ref = typ
     end
 
     node.interfaces.each do |interface|
-      typ = @namespace.fetch(node.super_class.name)
+      typ = @namespace.fetch(interface)
       if typ.nil?
         raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} was not found")
-      elsif node.is_a?(AST::ClassDecl)
+      elsif typ.is_a?(AST::ClassDecl)
         raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} is a Class")
       end
       interface.ref = typ
@@ -268,7 +281,8 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
 end
 
 class ImportNamespace
-  property namespace : Hash(String, AST::TypeDecl)
+  property simple_names : Hash(String, AST::TypeDecl)
+  property qualified_names : Hash(String, AST::TypeDecl)
 
   def initialize(
     same_file : Array(Tuple(String, AST::TypeDecl)),
@@ -276,19 +290,29 @@ class ImportNamespace
     same_package : Array(Tuple(String, AST::TypeDecl)),
     on_demand : Array(Tuple(String, AST::TypeDecl)),
     system : Array(Tuple(String, AST::TypeDecl)),
+    global : Array(Tuple(String, AST::TypeDecl)),
   )
 
-    @namespace = Hash(String, AST::TypeDecl).new
+    @simple_names = Hash(String, AST::TypeDecl).new
     # Add items to the namespace in this order. They will overload based
     # on the precedence rules.
     [system, on_demand, same_package, single_type, same_file].each do |scope|
-      scope.each do |k, v|
-        namespace[v.name] = v
+      scope.each do |_, v|
+        simple_names[v.name] = v
       end
+    end
+
+    @qualified_names = Hash(String, AST::TypeDecl).new
+    global.each do |k, v|
+      qualified_names[k] = v
     end
   end
 
-  def fetch(name : String)
-    return namespace.fetch(name, nil)
+  def fetch(node : AST::Name)
+    if node.is_a?(AST::QualifiedName)
+      return qualified_names.fetch(node.name, nil)
+    else
+      return simple_names.fetch(node.name, nil)
+    end
   end
 end
