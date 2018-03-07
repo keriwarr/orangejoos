@@ -135,12 +135,13 @@ class NameResolution
   end
 
 
-  def resolve_inheritance(file, namespace)
+  def resolve_inheritance(file, namespace, cycle_tracker)
+    # FIXME(joey): Maybe it would be great to replace Name instances
+    # with QualifiedNameResolution.
     ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
     ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
 
-    # ast = file.ast.accept(InterfaceCycleVisitor.new(namespace))
-    # ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+    ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
 
     return file.ast
   end
@@ -162,7 +163,10 @@ class NameResolution
     # Populate the inheritance information for the interfaces and
     # classes in each file.
     # FIXME(joey): Do we want to modify file.ast in-place? probably ok
-    files = files.map {|file, namespace| file.ast = resolve_inheritance(file, namespace)}
+    cycle_tracker = CycleTracker.new
+    files = files.map {|file, namespace| file.ast = resolve_inheritance(file, namespace, cycle_tracker)}
+    # Check the hierarchy graph for any cycles.
+    cycle_tracker.check()
 
     return @files
   end
@@ -328,6 +332,93 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
       interfaces.add(interface.ref.as(AST::InterfaceDecl).qualified_name)
     end
 
+    return super
+  end
+end
+
+class CycleTracker
+  @vertices : Set(String)
+  @edges : Hash(String, Array(String))
+
+  def initialize
+    @vertices = Set(String).new
+    @edges = Hash(String, Array(String)).new
+  end
+
+  # Adds the directed dependancy edge.
+  def add_edge(from : String, to : String)
+    @vertices.add(from) if !@vertices.includes?(from)
+    @edges[from] = Array(String).new if !@edges.has_key?(from)
+    @edges[from].push(to)
+  end
+
+  # NOTE: visited_arr is tracking the call-stack for debugging purposes
+  # only.
+  def check_vertex(orig_v : String, verified, visited, visited_arr = Array(String).new)
+    # If the graph stops here, add this verted as already traversed and
+    # return.
+    if !@edges.has_key?(orig_v)
+      verified.add(orig_v)
+      return
+    end
+
+    # Traverse down the dependancy tree.
+    visited.add(orig_v)
+    visited_arr.push(orig_v)
+    @edges[orig_v].each do |c|
+      # Check if the vertex has already been traversed to short-circuit.
+      next if verified.includes?(c)
+      # Check for a cycle if this has already been detected.
+      if visited.includes?(c)
+        visited_arr.push(c)
+        msg = visited_arr.join(" -> ")
+        raise NameResolutionStageError.new("cycle detected: #{msg}")
+      end
+
+      # Traverse deeper into the graph.
+      check_vertex(c, verified, visited, visited_arr)
+    end
+    verified.add(orig_v)
+    visited.delete(orig_v)
+    visited_arr.pop
+  end
+
+  def check
+    # _verified_ is the set of all nodes that have been visited previously
+    # and do not need to be checekd again. This allows for
+    # short-circuiting path traversal.
+    verified = Set(String).new
+
+    @vertices.each do |v|
+      # _visited_ is the set of all nodes visited during iteration of a
+      # single path.
+      visited = Set(String).new
+      check_vertex(v, verified, visited)
+    end
+  end
+end
+
+# `CycleVisitor` checks if there are interface cycles.
+class CycleVisitor < Visitor::GenericVisitor
+  @cycle_tracker : CycleTracker
+  @namespace : ImportNamespace
+
+  def initialize(@namespace : ImportNamespace, @cycle_tracker : CycleTracker)
+  end
+
+  def visit(node : AST::InterfaceDecl) : AST::Node
+    node.extensions.each do |interface_name|
+      interface = interface_name.ref.as(AST::InterfaceDecl)
+      @cycle_tracker.add_edge(node.qualified_name, interface.qualified_name)
+    end
+    return super
+  end
+
+  def visit(node : AST::ClassDecl) : AST::Node
+    if node.super_class?
+      soup_class = node.super_class.ref.as(AST::ClassDecl)
+      @cycle_tracker.add_edge(node.qualified_name, soup_class.qualified_name)
+    end
     return super
   end
 end
