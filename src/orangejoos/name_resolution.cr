@@ -105,7 +105,7 @@ class NameResolution
 
 
   def resolve_inheritance(file, namespace)
-    # ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
     ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     return file.ast
@@ -222,10 +222,15 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::InterfaceDecl) : AST::Node
-    node.extensions.each do |name|
-      STDERR.puts "interface=#{node.name} extension=#{name.name}"
+    node.extensions.each do |interface|
+      typ = @namespace.fetch(interface.name)
+      if typ.nil?
+        raise NameResolutionStageError.new("interface #{node.name} extends #{interface.name} but #{interface.name} was not found")
+      elsif node.is_a?(AST::ClassDecl)
+        raise NameResolutionStageError.new("interface #{node.name} extends #{interface.name} but #{interface.name} is a Class")
+      end
+      interface.ref = typ
     end
-
     return super
   end
 end
@@ -237,29 +242,53 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ClassDecl) : AST::Node
-    interfaces = node.interfaces.map {|interface| interface.name}
-    STDERR.puts "class=#{node.name} super=#{node.super_class? ? node.super_class.name : nil} interfaces=#{interfaces}"
+    if node.super_class?
+      typ = @namespace.fetch(node.super_class.name)
+      if typ.nil?
+        raise NameResolutionStageError.new("class #{node.name} extends #{node.super_class.name} but #{node.super_class.name} was not found")
+      elsif node.super_class.name == node.name
+        raise NameResolutionStageError.new("class #{node.name} cannot extend itself")
+      elsif node.is_a?(AST::InterfaceDecl)
+        raise NameResolutionStageError.new("class #{node.name} extends #{node.super_class.name} but #{node.super_class.name} is an Interface")
+      end
+      node.super_class.ref = typ
+    end
+
+    node.interfaces.each do |interface|
+      typ = @namespace.fetch(node.super_class.name)
+      if typ.nil?
+        raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} was not found")
+      elsif node.is_a?(AST::ClassDecl)
+        raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} is a Class")
+      end
+      interface.ref = typ
+    end
     return super
   end
 end
 
 class ImportNamespace
-  property same_file : Array(Tuple(String, AST::TypeDecl))
-  property single_type : Array(Tuple(String, AST::TypeDecl))
-  property same_package : Array(Tuple(String, AST::TypeDecl))
-  property on_demand : Array(Tuple(String, AST::TypeDecl))
-  property system : Array(Tuple(String, AST::TypeDecl))
+  property namespace : Hash(String, AST::TypeDecl)
 
   def initialize(
-    @same_file : Array(Tuple(String, AST::TypeDecl)),
-    @single_type : Array(Tuple(String, AST::TypeDecl)),
-    @same_package : Array(Tuple(String, AST::TypeDecl)),
-    @on_demand : Array(Tuple(String, AST::TypeDecl)),
-    @system : Array(Tuple(String, AST::TypeDecl)),
+    same_file : Array(Tuple(String, AST::TypeDecl)),
+    single_type : Array(Tuple(String, AST::TypeDecl)),
+    same_package : Array(Tuple(String, AST::TypeDecl)),
+    on_demand : Array(Tuple(String, AST::TypeDecl)),
+    system : Array(Tuple(String, AST::TypeDecl)),
   )
+
+    @namespace = Hash(String, AST::TypeDecl).new
+    # Add items to the namespace in this order. They will overload based
+    # on the precedence rules.
+    [system, on_demand, same_package, single_type, same_file].each do |scope|
+      scope.each do |k, v|
+        namespace[v.name] = v
+      end
+    end
   end
 
-  def has_type(name : String)
-    return true
+  def fetch(name : String)
+    return namespace.fetch(name, nil)
   end
 end

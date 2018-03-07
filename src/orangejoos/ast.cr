@@ -362,6 +362,7 @@ module AST
   # Vector
   # ```
   abstract class Name < Node
+    property! ref : Node
 
     abstract def name : String
     abstract def parts : Array(String)
