@@ -75,17 +75,26 @@ class NameResolution
       raise NameResolutionStageError.new("error importing java.lang.* stdlib")
     end
 
-    # TODO(joey): same package imports, but do not include the class
-    # declared in this file.
+    # Import all objects that exist in the internal package.
+    if file.ast.package?
+      import_tree = exported_items.get(file.ast.package.path.parts)
+      prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+      prefix += "." if prefix.size > 0
+      same_package_imports += import_tree.enumerate(prefix)
+    end
 
+    same_file_imports = file.ast.decls.map {|decl| Tuple.new(decl.name, decl)}
 
     namespace = ImportNamespace.new(
+      same_file_imports,
       single_type_imports,
       same_package_imports,
       on_demand_imports,
       system_imports,
     )
 
+
+    file.same_file_imports = same_file_imports.map(&.first)
     file.single_type_imports = single_type_imports.map(&.first)
     file.same_package_imports = same_package_imports.map(&.first)
     file.on_demand_imports = on_demand_imports.map(&.first)
@@ -96,8 +105,8 @@ class NameResolution
 
 
   def resolve_inheritance(file, namespace)
-    ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
-    # ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+    # ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     return file.ast
   end
@@ -171,6 +180,7 @@ class PackageNode < PackageTree
   end
 
   def add_child(parts : Array(String), node : TypeNode)
+    # STDERR.puts "parts=#{parts} node=#{node.name}"
     if parts.size > 0
       children[parts.first] = PackageNode.new(parts.first) if !children.has_key?(parts.first)
       c = children[parts.first]
@@ -220,29 +230,28 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
   end
 end
 
-# class ClassResolutionVisitor < Visitor::GenericVisitor
-#   def initialize(@namespace)
-#   end
+class ClassResolutionVisitor < Visitor::GenericVisitor
+  @namespace : ImportNamespace
 
-#   def visit(node : AST::ClassDecl) : AST::Node
-#     node.body.each do |b|
-#       if b.is_a?(AST::MethodDecl) && (b.has_mod("static") || b.has_mod("final") || b.has_mod("native"))
-#         # An interface method cannot be static, final, or native.
-#         raise WeedingStageError.new("interfaces cannot have final, static, or native functions: function #{b.name} was bad")
-#       end
-#     end
+  def initialize(@namespace : ImportNamespace)
+  end
 
-#     return super
-#   end
-# end
+  def visit(node : AST::ClassDecl) : AST::Node
+    interfaces = node.interfaces.map {|interface| interface.name}
+    STDERR.puts "class=#{node.name} super=#{node.super_class? ? node.super_class.name : nil} interfaces=#{interfaces}"
+    return super
+  end
+end
 
 class ImportNamespace
+  property same_file : Array(Tuple(String, AST::TypeDecl))
   property single_type : Array(Tuple(String, AST::TypeDecl))
   property same_package : Array(Tuple(String, AST::TypeDecl))
   property on_demand : Array(Tuple(String, AST::TypeDecl))
   property system : Array(Tuple(String, AST::TypeDecl))
 
   def initialize(
+    @same_file : Array(Tuple(String, AST::TypeDecl)),
     @single_type : Array(Tuple(String, AST::TypeDecl)),
     @same_package : Array(Tuple(String, AST::TypeDecl)),
     @on_demand : Array(Tuple(String, AST::TypeDecl)),

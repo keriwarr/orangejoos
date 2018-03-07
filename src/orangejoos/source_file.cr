@@ -8,6 +8,7 @@ class SourceFile
   getter! path : String
   getter! contents : String
 
+  property! same_file_imports : Array(String)
   property! single_type_imports : Array(String)
   property! same_package_imports : Array(String)
   property! on_demand_imports : Array(String)
@@ -72,6 +73,7 @@ class SourceFile
     when Stage::SIMPLIFY then print_sections.push({data_type: "abstract syntax tree",        data: @ast.as?(AST::File).try &.pprint(0)})
     when Stage::WEED     then print_sections.push({data_type: "weeded abstract syntax tree", data: @ast.as?(AST::File).try &.pprint(0)})
     when Stage::NAME_RESOLUTION
+      print_sections.push({data_type: "same file imports", data: @same_file_imports.try &.join("\n")})
       print_sections.push({data_type: "single type imports", data: @single_type_imports.try &.join("\n")})
       print_sections.push({data_type: "same pack imports", data: @same_package_imports.try &.join("\n")})
       print_sections.push({data_type: "on demand imports", data: @on_demand_imports.try &.join("\n")})
