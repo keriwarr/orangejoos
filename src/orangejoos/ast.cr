@@ -985,7 +985,16 @@ module AST
     end
 
     def signature : MethodSignature
-
+      # FIXME(joey): Parameters in the method signature use the string
+      # in the source tree. Both of the arguments have the same type,
+      # but their signature will not match. This is incorrect, and
+      # depends on resolving names in Typ to fix:
+      #
+      # ```java
+      # foo(a java.lang.Object);
+      # foo(a Object)
+      # ```
+      return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.name_str))
     end
 
     def pprint(depth : Int32)
@@ -1120,7 +1129,15 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name.pprint(depth)
+      if name?
+        return name.pprint(depth)
+      elsif array_access?
+        return array_access.pprint(depth)
+      elsif field_access?
+        return field_access.pprint(depth)
+      else
+        raise Exception.new("unhandled case")
+      end
     end
 
     def children

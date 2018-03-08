@@ -234,7 +234,7 @@ class PackageNode < PackageTree
       end
       c.add_child(parts[1..parts.size], node)
     elsif children.has_key?(node.name)
-        raise NameResolutionStageError.new("name #{node.name} already exists in package TODO")
+        raise NameResolutionStageError.new("name #{node.name} already exists in package (TODO produce package name)")
     else
       children[node.name] = node
     end
@@ -321,9 +321,9 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
     node.interfaces.each do |interface|
       typ = @namespace.fetch(interface)
       if typ.nil?
-        raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} was not found")
+        raise NameResolutionStageError.new("class #{node.name} implements #{interface.name} but #{interface.name} was not found")
       elsif typ.is_a?(AST::ClassDecl)
-        raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} is a Class")
+        raise NameResolutionStageError.new("class #{node.name} implements #{interface.name} but #{interface.name} is a Class")
       end
       interface.ref = typ
     end
