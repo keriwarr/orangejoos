@@ -79,11 +79,11 @@ module Visitor
     end
 
     def visit(node : AST::Modifier) : AST::Node
+      raise Exception.new("should not be executed")
       return node
     end
 
     def visit(node : AST::ClassDecl) : AST::Node
-      node.modifiers.map!  { |m| m.accept(self) }
       node.interfaces.map! { |i| i.accept(self) }
       node.body.map!       { |b| b.accept(self) }
       node.super_class = node.super_class.accept(self) if node.super_class?
@@ -91,7 +91,6 @@ module Visitor
     end
 
     def visit(node : AST::InterfaceDecl) : AST::Node
-      node.modifiers.map!  { |m| m.accept(self) }
       node.extensions.map! { |i| i.accept(self) }
       node.body.map!       { |b| b.accept(self) }
       return node
@@ -106,7 +105,6 @@ module Visitor
     end
 
     def visit(node : AST::FieldDecl) : AST::Node
-      node.modifiers.map! { |m| m.accept(self) }
       node.typ = node.typ.accept(self)
       node.decl = node.decl.accept(self)
       return node
@@ -227,7 +225,6 @@ module Visitor
 
     def visit(node : AST::MethodDecl) : AST::Node
       node.typ = node.typ.accept(self)
-      node.modifiers.map! { |m| m.accept(self) }
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) } if node.body?
       return node
@@ -235,7 +232,6 @@ module Visitor
 
     def visit(node : AST::ConstructorDecl) : AST::Node
       node.name = node.name.accept(self)
-      node.modifiers.map! { |m| m.accept(self) }
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) }
       return node

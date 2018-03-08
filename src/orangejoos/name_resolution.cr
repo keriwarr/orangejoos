@@ -479,7 +479,7 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
     field_set = Set(String).new
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
-      raise NameResolutionStageError.new("field \"#{field.decl.name}\" already exists") if field_set.includes?(field.decl.name)
+      raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
       field_set.add(field.decl.name)
     end
 
