@@ -607,12 +607,12 @@ module AST
   # TODO: can we make operands into type `Expr | NamedTuple(lhs: Expr, rhs: Expr)` ?
   class ExprOp < Expr
     property op : String
-    property operands : Array(Expr | Variable) = [] of Expr | Variable
+    property operands : Array(Expr) = [] of Expr
 
     def initialize(@op : String, *ops)
       ops.each do |operand|
         # FIXME: (keri) this is gross
-        if operand.is_a?(Expr | Variable)
+        if operand.is_a?(Expr)
           @operands.push(operand)
         else
           raise Exception.new("unexpected type, got operand: #{operand.inspect}")
@@ -1047,21 +1047,37 @@ module AST
 
     def children
       return [expr]
-  class Variable < Node
-    @name : Name | ExprArrayAccess | ExprFieldAccess
+    end
+  end
 
-    def name=(@name)
+  class Variable < Expr
+    property! name : Name
+    property! array_access : ExprArrayAccess
+    property! field_access : ExprFieldAccess
+
+    def initialize(@name : Name)
     end
 
-    def name
-      @name
+    def initialize(@array_access : ExprArrayAccess)
     end
 
-    def initialize(@name)
+    def initialize(@field_access : ExprFieldAccess)
     end
 
     def pprint(depth : Int32)
       return name.pprint(depth)
+    end
+
+    def children
+      if name?
+        return [] of Expr
+      elsif array_access?
+        return [array_access] of Expr
+      elsif field_access?
+        return [field_access] of Expr
+      else
+        raise Exception.new("unhandled case")
+      end
     end
   end
 end

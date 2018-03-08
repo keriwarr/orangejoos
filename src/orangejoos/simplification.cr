@@ -612,7 +612,13 @@ class Simplification
 
     when "LeftHandSide"
       result = simplify(tree.tokens.first.as(ParseTree)).as(AST::Name | AST::ExprArrayAccess | AST::ExprFieldAccess)
-      return AST::Variable.new(result)
+      # A `case` is used to to dereference the specific types.
+      case result
+      when AST::Name then return AST::Variable.new(result)
+      when AST::ExprArrayAccess then return AST::Variable.new(result)
+      when AST::ExprFieldAccess then return AST::Variable.new(result)
+      else raise Exception.new("unexpected node #{result}")
+      end
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                              LITERALS                                   #

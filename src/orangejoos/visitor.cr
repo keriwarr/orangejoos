@@ -257,7 +257,15 @@ module Visitor
     end
 
     def visit(node : AST::Variable) : AST::Node
-      node.name = node.name.accept(self).as(AST::Name | AST::ExprArrayAccess | AST::ExprFieldAccess)
+      if node.name?
+        node.name = node.name.accept(self)
+      end
+      if node.array_access?
+        node.array_access = node.array_access.accept(self)
+      end
+      if node.field_access?
+        node.field_access = node.field_access.accept(self)
+      end
       return node
     end
 
