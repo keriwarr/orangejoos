@@ -8,7 +8,8 @@
 # node.
 
 
-require "./visitor.cr"
+require "./visitor"
+require "./typing"
 
 INDENT = ->(depth : Int32) { "  " * depth }
 
@@ -35,6 +36,7 @@ module AST
     # Internal function: `pprint` with a depth, which represents the
     # indentation level of depth the node belongs in.
     abstract def pprint(depth : Int32) : String
+
     def accept(v : Visitor::Visitor) : Node
       v.descend
       result = v.visit(self)
@@ -77,7 +79,15 @@ module AST
   # of `Stmt`, meaning they are also traversable and are only
   # distinguished by the property of returning values.
   abstract class Expr < Stmt
+    include Typing
+
     def initialize
+    end
+
+    # TODO(joey): Implement for each type and remove this stubbed method.
+    private def resolve_type
+      raise Exception.new("Unimplemented")
+      return ExprTyp.new("huzza")
     end
   end
 
@@ -610,6 +620,7 @@ module AST
 
     def initialize(@op : String, *ops)
       ops.each do |operand|
+        # FIXME: (keri) this is gross
         if operand.is_a?(Expr)
           @operands.push(operand)
         else
@@ -709,7 +720,7 @@ module AST
   class ExprArrayCreation < Expr
     # FIXME(joey): Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
-    # such as Name (or Class/Interface) and PrimativTyp.
+    # such as Name (or Class/Interface) and PrimitiveTyp.
     property arr : Node
     property dim : Expr
 
@@ -1045,6 +1056,37 @@ module AST
 
     def children
       return [expr]
+    end
+  end
+
+  class Variable < Expr
+    property! name : Name
+    property! array_access : ExprArrayAccess
+    property! field_access : ExprFieldAccess
+
+    def initialize(@name : Name)
+    end
+
+    def initialize(@array_access : ExprArrayAccess)
+    end
+
+    def initialize(@field_access : ExprFieldAccess)
+    end
+
+    def pprint(depth : Int32)
+      return name.pprint(depth)
+    end
+
+    def children
+      if name?
+        return [] of Expr
+      elsif array_access?
+        return [array_access] of Expr
+      elsif field_access?
+        return [field_access] of Expr
+      else
+        raise Exception.new("unhandled case")
+      end
     end
   end
 end

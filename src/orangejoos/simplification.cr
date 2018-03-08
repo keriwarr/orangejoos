@@ -37,10 +37,6 @@ class TMPMethodDecl < AST::Node
   def pprint(depth : Int32)
     raise Exception.new("unexpected call")
   end
-
-  def accept(v : Visitor::Visitor) : Nil
-    v.visit(self)
-  end
 end
 
 # Simplification is a stage that simplifies the initial parse tree.
@@ -498,7 +494,7 @@ class Simplification
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
       # else ...
       lhs_a = simplify(tree.tokens.first.as(ParseTree))
-      lhs = lhs_a.as(AST::Expr)
+      lhs = lhs_a.as(AST::Variable)
       rhs = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
       # Only different here from the above case is the operator is
       # wrapped inside another parse node.
@@ -615,10 +611,14 @@ class Simplification
       return AST::ExprArrayCreation.new(typ, dim_expr)
 
     when "LeftHandSide"
-      # FIXME(joey): Properly return an LValue type (name, field access, or array access).
-      # result = simplify(tree.tokens.first.as(ParseTree)).as(AST::Name)
-      # return AST::LValue.new()
-      return AST::ExprThis.new
+      result = simplify(tree.tokens.first.as(ParseTree)).as(AST::Name | AST::ExprArrayAccess | AST::ExprFieldAccess)
+      # A `case` is used to to dereference the specific types.
+      case result
+      when AST::Name then return AST::Variable.new(result)
+      when AST::ExprArrayAccess then return AST::Variable.new(result)
+      when AST::ExprFieldAccess then return AST::Variable.new(result)
+      else raise Exception.new("unexpected node #{result}")
+      end
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                              LITERALS                                   #
