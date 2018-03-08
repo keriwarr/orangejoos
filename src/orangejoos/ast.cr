@@ -8,7 +8,8 @@
 # node.
 
 
-require "./visitor.cr"
+require "./visitor"
+require "./typing"
 
 INDENT = ->(depth : Int32) { "  " * depth }
 
@@ -77,7 +78,15 @@ module AST
   # of `Stmt`, meaning they are also traversable and are only
   # distinguished by the property of returning values.
   abstract class Expr < Stmt
+    include Typing
+
     def initialize
+    end
+
+    # TODO(joey): Implement for each type and remove this stubbed method.
+    private def resolve_type
+      raise Exception.new("Unimplemented")
+      return ExprTyp.new("huzza")
     end
   end
 
@@ -709,7 +718,7 @@ module AST
   class ExprArrayCreation < Expr
     # FIXME(joey): Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
-    # such as Name (or Class/Interface) and PrimativTyp.
+    # such as Name (or Class/Interface) and PrimitiveTyp.
     property arr : Node
     property dim : Expr
 
