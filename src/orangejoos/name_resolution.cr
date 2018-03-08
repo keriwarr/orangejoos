@@ -160,6 +160,10 @@ class NameResolution
     # Populate the imports for each file in-place.
     files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
 
+    files.each do |f, _|
+      f.ast = f.ast.accept(MethodEnvironmentVisitor.new)
+    end
+
     # Populate the inheritance information for the interfaces and
     # classes in each file.
     # FIXME(joey): Do we want to modify file.ast in-place? probably ok
@@ -458,4 +462,25 @@ class ImportNamespace
       return simple_names.fetch(node.name, nil)
     end
   end
+end
+
+class MethodEnvironmentVisitor < Visitor::GenericVisitor
+  @method : AST::MethodDecl | Nil
+
+  def visit(node : AST::MethodDecl) : AST::Node
+    @method = node
+    node.params.each do |p|
+      if node.namespace.has_key?(p.name)
+        raise NameResolutionStageError.new("Duplicate parameter #{p.name} in method #{node.name}")
+      end
+      node.namespace[p.name] = p
+    end
+
+    node.body.map! { |b| b.accept(self) } if node.body?
+    return node
+  end
+
+  # def visit(node : AST::VariableDecl) : AST::Node
+
+  # end
 end
