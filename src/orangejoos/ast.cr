@@ -304,6 +304,23 @@ module AST
     def initialize(@name : String, @modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name), @body : Array(MemberDecl))
     end
 
+    def fields
+      if super_class?
+        return body.select(&.is_a?(FieldDecl)).concat(super_class.ref.as(ClassDecl).fields)
+      else
+        body.select(&.is_a?(FieldDecl))
+      end
+    end
+
+    def non_static_fields
+      fields.reject {|f| f.has_mod?("static")}
+      body.select(&.is_a?(FieldDecl))
+    end
+
+    def static_fields
+      fields.select {|f| f.has_mod?("static")}
+    end
+
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       super_str = ""

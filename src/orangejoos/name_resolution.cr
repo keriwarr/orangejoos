@@ -138,12 +138,16 @@ class NameResolution
   def resolve_inheritance(file, namespace, cycle_tracker)
     # FIXME(joey): Maybe it would be great to replace Name instances
     # with QualifiedNameResolution.
-    ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
-    ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+    file.ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    file.ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
 
-    ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
+    file.ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
 
-    return file.ast
+    return file
+  end
+
+  def check_correctness(file)
+      file.ast = file.ast.accept(DuplicateFieldVisitor.new)
   end
 
 
@@ -164,9 +168,13 @@ class NameResolution
     # classes in each file.
     # FIXME(joey): Do we want to modify file.ast in-place? probably ok
     cycle_tracker = CycleTracker.new
-    files = files.map {|file, namespace| file.ast = resolve_inheritance(file, namespace, cycle_tracker)}
+    files = files.map {|file, namespace| resolve_inheritance(file, namespace, cycle_tracker)}
     # Check the hierarchy graph for any cycles.
     cycle_tracker.check()
+
+    # Check the correctness of classes and interfaces.
+    files = files.map {|file| check_correctness(file)}
+
 
     return @files
   end
@@ -457,5 +465,24 @@ class ImportNamespace
     else
       return simple_names.fetch(node.name, nil)
     end
+  end
+end
+
+
+# `DuplicateFieldVisitor` checks the correctness of a classes
+# declarations, also taking into account inheritance.
+class DuplicateFieldVisitor < Visitor::GenericVisitor
+  def initialize
+  end
+
+  def visit(node : AST::ClassDecl) : AST::Node
+    field_set = Set(String).new
+    node.fields.each do |f|
+      field = f.as(AST::FieldDecl)
+      raise NameResolutionStageError.new("field \"#{field.decl.name}\" already exists") if field_set.includes?(field.decl.name)
+      field_set.add(field.decl.name)
+    end
+
+    return super
   end
 end
