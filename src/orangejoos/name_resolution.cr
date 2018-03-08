@@ -137,9 +137,16 @@ class NameResolution
 
   def resolve_inheritance(file, namespace, cycle_tracker)
     # FIXME(joey): Maybe it would be great to replace Name instances
-    # with QualifiedNameResolution.
+    # with QualifiedNameResolution for doing better static assertion of
+    # resolution?
     file.ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
     file.ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+
+    # Check for clashes of the namespace with any classes defined in the
+    # file.
+    # TODO(joey): Check that any decl in file.ast does not class with
+    # anything in namespace (excluding the single exported type that
+    # comes from this file).
 
     file.ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
 
@@ -479,6 +486,7 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
     field_set = Set(String).new
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
+      # FIXME(joey): A field can be shadowed, so only check non-inherited fields.
       raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
       field_set.add(field.decl.name)
     end
