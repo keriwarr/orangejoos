@@ -33,37 +33,37 @@ bad_pass=0
 errors=0
 
 do_test() {
-  file=$1
+  files="$1"
   should_pass=$2
   args=$3
   stdlib="$4"
 
-  if [[ $file != *"$file_name_test"* ]]; then
+  if [[ $files != *"$file_name_test"* ]]; then
     return
   fi
 
-  ./joosc $stdlib $file $args >/dev/null 2>/dev/null
+  ./joosc $stdlib $files $args >/dev/null 2>/dev/null
   result=$?
   description=""
 
   if [[ $result = 42 && $should_pass = true ]]; then
-    description="== ${RED}FAIL${NC}: ${file}"
+    description="== ${RED}FAIL${NC}: ${files}"
     bad_fail=$((bad_fail + 1))
-    echo "== ${RED}FAIL${NC}: ./joosc $stdlib $file $args -v" >> $failed_test_descr_file
+    echo "== ${RED}FAIL${NC}: ./joosc $stdlib $files $args -v" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
-    description="== ${GREEN}PASS${NC}: ${file}"
+    description="== ${GREEN}PASS${NC}: ${files}"
     correct_pass=$((correct_pass + 1))
   elif [[ $result = 42 && $should_pass = false ]]; then
-    description="== ${GREEN}FAIL${NC}: ${file}"
+    description="== ${GREEN}FAIL${NC}: ${files}"
     correct_fail=$((correct_fail + 1))
   elif [[ $result = 0  && $should_pass = false ]]; then
-    description="== ${RED}PASS${NC}: ${file}"
+    description="== ${RED}PASS${NC}: ${files}"
     bad_pass=$((bad_pass + 1))
-    echo "== ${RED}PASS${NC}: ./joosc $stdlib $file $args -v" >> $failed_test_descr_file
+    echo "== ${RED}PASS${NC}: ./joosc $stdlib $files $args -v" >> $failed_test_descr_file
   else
-    description="== ${RED}EROR${NC}: ${file}"
+    description="== ${RED}EROR${NC}: ${files}"
     errors=$((errors + 1))
-    echo "== ${RED}EROR${NC}: ./joosc $stdlib $file $args -v" >> $failed_test_descr_file
+    echo "== ${RED}EROR${NC}: ./joosc $stdlib $files $args -v" >> $failed_test_descr_file
   fi
 
   echo $description
@@ -74,8 +74,8 @@ do_test() {
 # https://www.student.cs.uwaterloo.ca/~cs444/joos.html
 # ----------------------------------------------------------------------------
 
-PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f | grep "$file_name_test" | sort)
-FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f | grep "$file_name_test" | sort)
+PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f | sort)
+FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f | sort)
 
 for filename in $PASS_FILES; do
   do_test $filename true "-s weed"
@@ -91,7 +91,7 @@ done
 # Run against assignment test files, and std lib
 # ----------------------------------------------------------------------------
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a1 -name "*.java" -type f | grep "$file_name_test" | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a1 -name "*.java" -type f | sort`; do
   should_pass=true;
   # I believe "Je" stands for Joos Error
   if [[ $(basename $filename) == Je* ]]; then
@@ -101,7 +101,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a1 -name "*.java" -type
   do_test $filename $should_pass "-s weed"
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -name "*.java" -type f | grep "$file_name_test" | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -name "*.java" -type f -depth 1 | sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -110,32 +110,39 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -name "*.java" -type
   do_test $filename $should_pass "-s nameresolution" "$stdlib2"
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -name "*.java" -type f | grep "$file_name_test" | sort`; do
+for foldername in `find ${PUB_FOLDER}/assignment_testcases/a2 -type d -depth 1 | sort`; do
+  files=$(find ${foldername} -name "*.java" -type f | sort)
   should_pass=true;
-  if [[ $(basename $filename) == Je* ]]; then
+  if [[ $(basename $foldername) == Je* ]]; then
     should_pass=false;
   fi
 
-  # TODO:
+  do_test "$files" $should_pass "-s nameresolution" "$stdlib2"
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -name "*.java" -type f | grep "$file_name_test" | sort`; do
-  should_pass=true;
-  if [[ $(basename $filename) == Je* ]]; then
-    should_pass=false;
-  fi
+# # TODO:
+# for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -name "*.java" -type f | sort`; do
+#   should_pass=true;
+#   if [[ $(basename $filename) == Je* ]]; then
+#     should_pass=false;
+#   fi
+# done
 
-  # TODO:
-done
+# # TODO:
+# for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -name "*.java" -type f | sort`; do
+#   should_pass=true;
+#   if [[ $(basename $filename) == Je* ]]; then
+#     should_pass=false;
+#   fi
+# done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f | grep "$file_name_test" | sort`; do
-  should_pass=true;
-  if [[ $(basename $filename) == Je* ]]; then
-    should_pass=false;
-  fi
-
-  # TODO:
-done
+# # TODO:
+# for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f | sort`; do
+#   should_pass=true;
+#   if [[ $(basename $filename) == Je* ]]; then
+#     should_pass=false;
+#   fi
+# done
 
 # ----------------------------------------------------------------------------
 # Tally the results
