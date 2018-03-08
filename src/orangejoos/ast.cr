@@ -36,6 +36,7 @@ module AST
     # Internal function: `pprint` with a depth, which represents the
     # indentation level of depth the node belongs in.
     abstract def pprint(depth : Int32) : String
+
     def accept(v : Visitor::Visitor) : Node
       v.descend
       result = v.visit(self)
@@ -619,6 +620,7 @@ module AST
 
     def initialize(@op : String, *ops)
       ops.each do |operand|
+        # FIXME: (keri) this is gross
         if operand.is_a?(Expr)
           @operands.push(operand)
         else
@@ -1054,6 +1056,37 @@ module AST
 
     def children
       return [expr]
+    end
+  end
+
+  class Variable < Expr
+    property! name : Name
+    property! array_access : ExprArrayAccess
+    property! field_access : ExprFieldAccess
+
+    def initialize(@name : Name)
+    end
+
+    def initialize(@array_access : ExprArrayAccess)
+    end
+
+    def initialize(@field_access : ExprFieldAccess)
+    end
+
+    def pprint(depth : Int32)
+      return name.pprint(depth)
+    end
+
+    def children
+      if name?
+        return [] of Expr
+      elsif array_access?
+        return [array_access] of Expr
+      elsif field_access?
+        return [field_access] of Expr
+      else
+        raise Exception.new("unhandled case")
+      end
     end
   end
 end

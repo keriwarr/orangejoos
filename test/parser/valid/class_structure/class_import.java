@@ -1,7 +1,7 @@
-import java.util.Vector;
+import java.io.OutputStream;
 
 protected class A {
   public A() {}
-  protected Vector c;
+  protected OutputStream c;
 }
 
