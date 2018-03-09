@@ -83,3 +83,29 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
   # abstract def visit(node : AST::ParenExpr) : AST::Node
   # abstract def visit(node : AST::Variable) : AST::Node
 end
+
+# `StmtTypeCheckVisitor` checks that all statements have valid type
+# inputs. For example, a for loops comparison expression must evaluate
+# to a boolean. This includes:
+# - For loop comparison clause.
+# - While loop comparison clause.
+# ...
+class StmtTypeCheckVisitor < Visitor::GenericVisitor
+  def initialize
+  end
+
+  def visit(node : AST::ForStmt) : AST::Node
+    if node.expr? && node.expr.get_type() != "bool"
+      raise TypeCheckStageError.new("for loop comparison is not a bool, instead: #{node.expr.get_type()}")
+    end
+    return super
+  end
+
+  def visit(node : AST::WhileStmt) : AST::Node
+    if node.expr? && node.expr.get_type() != "bool"
+      raise TypeCheckStageError.new("while update is not a bool, instead: #{node.expr.get_type()}")
+    end
+    return super
+  end
+
+end
