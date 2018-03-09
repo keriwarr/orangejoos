@@ -612,12 +612,16 @@ module AST
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      return (
-        "#{indent} If:\n" \
+      main_str = (
+        "#{indent}If:\n" \
         "#{indent}  Expr: #{expr.pprint}\n" \
         "#{indent}  IfBody:\n#{if_body.pprint(depth+1)}"
-        "#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+2)}"
       )
+      if else_body?
+        return main_str + "\n#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+1)}"
+      else
+        return main_str
+      end
     end
 
     def children

@@ -501,9 +501,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
     visitStmts(node.body) if node.body?
 
-    node.params.each do |p|
-      @namespace.pop
-    end
+    @namespace = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
 
     return node
   end
