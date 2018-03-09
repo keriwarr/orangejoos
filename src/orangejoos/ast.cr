@@ -14,6 +14,13 @@ require "./typing"
 
 INDENT = ->(depth : Int32) { "  " * depth }
 
+# Type checking constants.
+# FIXME(joey): Change these to sets.
+BOOLEAN_OPS = ["==", "!=", "&", "|", "^", "&&", "||"]
+BINARY_NUM_OPS = ["+", "-", "/", "*", "%"]
+UNARY_NUM_OPS = ["+", "-"]
+NUM_CMP_OPS = [">", "<", "<=", ">=", "!=", "=="]
+
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
 # categories of nodes:
 # - _Statements_, which are all decendants of `Stmt`
@@ -100,15 +107,9 @@ module AST
   # of `Stmt`, meaning they are also traversable and are only
   # distinguished by the property of returning values.
   abstract class Expr < Stmt
-    include Typing
+    include Typing::Typed
 
     def initialize
-    end
-
-    # TODO(joey): Implement for each type and remove this stubbed method.
-    private def resolve_type
-      raise Exception.new("Unimplemented")
-      return ExprTyp.new("huzza")
     end
   end
 
@@ -156,6 +157,10 @@ module AST
       indent = INDENT.call(depth)
       return "#{indent}#{name_str}"
     end
+
+    def resolve_type
+      Typing::Type.new("type")
+    end
   end
 
   # `ClassType` represents user-defined Class and Interface types,
@@ -178,6 +183,10 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       return "#{indent}#{name_str}"
+    end
+
+    def resolve_type
+      Typing::Type.new("type")
     end
   end
 
@@ -700,6 +709,30 @@ module AST
     def children
       return operands
     end
+
+    def resolve_type
+      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type() == "bool"}
+        return Typing::Type.new("bool")
+      end
+
+      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type() == "num"}
+        return Typing::Type.new("num")
+      end
+
+      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? {|o| o.get_type() == "num"}
+        return Typing::Type.new("num")
+      end
+
+      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type() == "num"}
+        return Typing::Type.new("bool")
+      end
+
+      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type() == "bool"}
+        return Typing::Type.new("bool")
+      end
+
+      # FIXME(joey): Maybe handle !num.
+    end
   end
 
   # `ExprClassInit` is an expression that is initializing a new class.
@@ -723,6 +756,11 @@ module AST
     def children
       return args
     end
+
+    def resolve_type
+      # TODO(joey): Proper type.
+      return Typing::Type.new("class:#{name.name}")
+    end
   end
 
   # `ExprFieldAccess` represents a instance field access.
@@ -740,6 +778,12 @@ module AST
 
     def children
       return [obj]
+    end
+
+    def resolve_type
+      # TODO(joey): Actually resolve type. Look up obj type and check
+      # the field of it, if it is a class type.
+      return Typing::Type.new("TODO")
     end
   end
 
@@ -770,6 +814,17 @@ module AST
         return [index]
       end
     end
+
+
+    def resolve_type
+      if arr_expr?
+        arr_expr.get_type().undo_array_type
+      elsif arr_name?
+        arr_name.ref.get_type().undo_array_type
+      else
+        raise Exception.new("unexpected case")
+      end
+    end
   end
 
   # `ExprArrayCreation` represents an array creation.
@@ -791,6 +846,11 @@ module AST
     def children
       return [arr, dim]
     end
+
+
+    def resolve_type
+      raise Exception.new("unimplemented: ExprArrayCreation resolve_type")
+    end
   end
 
   # `ExprThis` represents the `this` expression, which will return the
@@ -806,6 +866,12 @@ module AST
 
     def children
       [] of Expr
+    end
+
+    def resolve_type
+      # This one will have to resolve to a type based on a pass earlier
+      # disambigiating any this nodes.
+      raise Exception.new("unimplemented: ExprThis resolve_type")
     end
   end
 
@@ -829,6 +895,11 @@ module AST
 
     def children
       [] of Expr
+    end
+
+    def resolve_type
+      # Dependant on local name resolution.
+      raise Exception.new("unimplemented: ExprRef resolve_type")
     end
   end
 
@@ -863,6 +934,13 @@ module AST
         args
       end
     end
+
+    def resolve_type
+      # Dependant on resolving this invocation to a signature.
+      # 1) Get the expr's class/interface type.
+      # 2) Look for a signature that matches this.
+      raise Exception.new("unimplemented: MethodInvoc resolve_type")
+    end
   end
 
   # `Const` are expressions with a constant value.
@@ -883,6 +961,13 @@ module AST
       indent = INDENT.call(depth)
       return "#{indent}#{val}"
     end
+
+    def resolve_type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new("num")
+    end
   end
 
   class ConstBool < Const
@@ -895,6 +980,13 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       return "#{indent}#{val}"
+    end
+
+    def resolve_type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new("bool")
     end
   end
 
@@ -910,6 +1002,12 @@ module AST
       return "#{indent}'#{val}'"
     end
 
+    def resolve_type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new("char")
+    end
   end
 
   class ConstString < Const
@@ -922,6 +1020,13 @@ module AST
       indent = INDENT.call(depth)
       return "#{indent}\"#{val}\""
     end
+
+    def resolve_type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new("string")
+    end
   end
 
   class ConstNull < Const
@@ -931,6 +1036,12 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       return "#{indent}null"
+    end
+
+    def resolve_type
+      # FIXME(joey): We have to use this to resolve to an arbitrary
+      # class/interface type.
+      raise Exception.new("unimplemented: ConstNull, not sure what type this can be.")
     end
   end
 
@@ -1109,7 +1220,14 @@ module AST
       [rhs] of Expr
     end
 
-    # TODO(joey): Add get_type() for new CastExpr.
+    def resolve_type
+      raise Exception.new("unimplemented CastExpr resolve_type")
+      # TODO(joey): Take into account is_arr.
+      # if typ?
+      #   # TODO(joey): Resolve to proper type based on the PrimativeTyp.
+      #   return Typing::Type.new(typ.name)
+      # elsif name?
+    end
   end
 
   class ParenExpr < Expr
@@ -1125,6 +1243,10 @@ module AST
 
     def children
       return [expr]
+    end
+
+    def resolve_type
+      return expr.get_type()
     end
   end
 
@@ -1161,6 +1283,18 @@ module AST
         return [array_access] of Expr
       elsif field_access?
         return [field_access] of Expr
+      else
+        raise Exception.new("unhandled case")
+      end
+    end
+
+    def resolve_type
+      if name?
+        raise Exception.new("unimplemented: Variable.name resolve_type")
+      elsif array_access?
+        return array_access.get_type()
+      elsif field_access?
+        return field_access.get_type()
       else
         raise Exception.new("unhandled case")
       end

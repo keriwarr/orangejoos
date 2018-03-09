@@ -7,6 +7,7 @@ require "./name_resolution"
 require "./compiler_errors"
 require "./stage"
 require "./source_file"
+require "./typing"
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
@@ -90,13 +91,12 @@ class Pipeline
 
   # do_name_resolution! resolves names across all abstract syntax trees
   def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool)
-    begin
-      NameResolution.new(files, verbose).resolve
-    rescue ex : NameResolutionStageError
-      STDERR.puts "Found name resolution error: #{ex}"
-      STDERR.puts "#{ex.inspect_with_backtrace}"
-      exit 42
-    end
+    NameResolution.new(files, verbose).resolve
+  end
+
+  # do_type_checking! runs type checks.
+  def self.do_type_checking!(file : SourceFile, verbose : Bool)
+    TypeCheck.new(file, verbose).check
   end
 
   # exec executes the compiler pipeline up to the specified ending stage.
@@ -149,6 +149,15 @@ class Pipeline
     @sources = Pipeline.do_name_resolution!(@sources, @verbose)
     @sources.map &.debug_print(Stage::NAME_RESOLUTION) if @verbose
     return true if @end_stage == Stage::NAME_RESOLUTION
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                                 TYPE CHECKING                           #
+    #                                                                         #
+    #                                                                         #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    @sources.each { |file| Pipeline.do_type_checking!(file, @verbose) }
+    @sources.map &.debug_print(Stage::TYPE_CHECK) if @verbose
+    return true if @end_stage == Stage::TYPE_CHECK
 
     # Stage:ALL
     return true

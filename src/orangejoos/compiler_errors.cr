@@ -30,3 +30,9 @@ end
 # resolution stage.
 class NameResolutionStageError < CompilerError
 end
+
+
+# A TypeCheckStageError is an error encountered during the type check
+# stage.
+class TypeCheckStageError < Exception
+end

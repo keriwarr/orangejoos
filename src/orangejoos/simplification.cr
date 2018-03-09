@@ -482,6 +482,10 @@ class Simplification
          "AdditiveExpression",
          "MultiplicativeExpression"
 
+      # TODO(joey): Resolve instanceof to a specific type, to make
+      # expressions easier where they will not contain a name referring
+      # to a class and only names referring to variables.
+
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
 
       if tree.tokens.to_a[1].as(Lexeme).sem == "instanceof"

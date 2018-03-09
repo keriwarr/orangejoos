@@ -630,9 +630,9 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
     field_set = Set(String).new
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
-      # FIXME(joey): A field can be shadowed, so only check non-inherited fields.
-      raise NameResolutionStageError.new("field \"#{field.var.name}\" is redefined") if field_set.includes?(field.var.name)
-      field_set.add(field.var.name)
+      # FIXME(joey): A field can be shadowed, so this check is removed. This should only check non-inherited fields.
+      # raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
+      field_set.add(field.decl.name)
     end
 
     super

@@ -20,6 +20,10 @@ rescue ex : NameResolutionStageError
   STDERR.puts "Name resolution error: #{ex}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
+rescue ex : TypeCheckStageError
+  STDERR.puts "Found type check error: #{ex}"
+  STDERR.puts "#{ex.inspect_with_backtrace}"
+  exit 42
 rescue ex : CompilerError
   STDERR.puts ex.inspect_with_backtrace
   exit 42
