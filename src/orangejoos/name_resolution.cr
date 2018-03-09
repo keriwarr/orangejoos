@@ -137,13 +137,24 @@ class NameResolution
 
   def resolve_inheritance(file, namespace, cycle_tracker)
     # FIXME(joey): Maybe it would be great to replace Name instances
-    # with QualifiedNameResolution.
-    ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
-    ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+    # with QualifiedNameResolution for doing better static assertion of
+    # resolution?
+    file.ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    file.ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
 
-    ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
+    # Check for clashes of the namespace with any classes defined in the
+    # file.
+    # TODO(joey): Check that any decl in file.ast does not class with
+    # anything in namespace (excluding the single exported type that
+    # comes from this file).
 
-    return file.ast
+    file.ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
+
+    return file
+  end
+
+  def check_correctness(file)
+      file.ast = file.ast.accept(DuplicateFieldVisitor.new)
   end
 
 
@@ -168,9 +179,13 @@ class NameResolution
     # classes in each file.
     # FIXME(joey): Do we want to modify file.ast in-place? probably ok
     cycle_tracker = CycleTracker.new
-    files = files.map {|file, namespace| file.ast = resolve_inheritance(file, namespace, cycle_tracker)}
+    files = files.map {|file, namespace| resolve_inheritance(file, namespace, cycle_tracker)}
     # Check the hierarchy graph for any cycles.
     cycle_tracker.check()
+
+    # Check the correctness of classes and interfaces.
+    files = files.map {|file| check_correctness(file)}
+
 
     return @files
   end
@@ -230,7 +245,7 @@ class PackageNode < PackageTree
       end
       c.add_child(parts[1..parts.size], node)
     elsif children.has_key?(node.name)
-        raise NameResolutionStageError.new("name #{node.name} already exists in package TODO")
+        raise NameResolutionStageError.new("name #{node.name} already exists in package (TODO produce package name)")
     else
       children[node.name] = node
     end
@@ -317,9 +332,9 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
     node.interfaces.each do |interface|
       typ = @namespace.fetch(interface)
       if typ.nil?
-        raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} was not found")
+        raise NameResolutionStageError.new("class #{node.name} implements #{interface.name} but #{interface.name} was not found")
       elsif typ.is_a?(AST::ClassDecl)
-        raise NameResolutionStageError.new("class #{node.name} implements #{node.super_class.name} but #{node.super_class.name} is a Class")
+        raise NameResolutionStageError.new("class #{node.name} implements #{interface.name} but #{interface.name} is a Class")
       end
       interface.ref = typ
     end
@@ -483,4 +498,23 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   # def visit(node : AST::VariableDecl) : AST::Node
 
   # end
+end
+
+# `DuplicateFieldVisitor` checks the correctness of a classes
+# declarations, also taking into account inheritance.
+class DuplicateFieldVisitor < Visitor::GenericVisitor
+  def initialize
+  end
+
+  def visit(node : AST::ClassDecl) : AST::Node
+    field_set = Set(String).new
+    node.fields.each do |f|
+      field = f.as(AST::FieldDecl)
+      # FIXME(joey): A field can be shadowed, so only check non-inherited fields.
+      raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
+      field_set.add(field.decl.name)
+    end
+
+    return super
+  end
 end

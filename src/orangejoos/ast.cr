@@ -24,6 +24,20 @@ INDENT = ->(depth : Int32) { "  " * depth }
 # `Const`.
 module AST
 
+  module Modifiers
+    getter modifiers : Set(String) = Set(String).new
+
+    def modifiers=(mods : Array(Modifier))
+      @modifiers = Set(String).new(mods.map(&.name))
+    end
+
+    # FIXME(joey): For maximum correctness, the parameter type should be
+    # an ENUM of all correct modifiers.
+    def has_mod?(modifier : String)
+      modifiers.includes?(modifier)
+    end
+  end
+
   # `Node` is the root type of all `AST` elements.
   abstract class Node
 
@@ -281,16 +295,10 @@ module AST
   # FIXME(joey): Interface and Class could maybe be squashed into one
   # node.
   abstract class TypeDecl < Node
+    include Modifiers
+
     property! name : String
     property! qualified_name : String
-    getter modifiers : Array(Modifier) = [] of Modifier
-
-    # FIXME(joey): This could easily be a mixin for types that have
-    # modifiers.
-    def has_mod(modifier : String)
-      # FIXME(joey): This is terrible and we can use a set instead.
-      modifiers.select {|m| m.name == modifier}.size > 0
-    end
   end
 
   # `ClassDecl` is a top-level declaration for classes. Classes contain
@@ -301,7 +309,22 @@ module AST
     getter interfaces : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, @modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name), @body : Array(MemberDecl))
+      self.modifiers = modifiers
+    end
+
+    def fields : Array(FieldDecl)
+      visible_fields = body.select(&.is_a?(FieldDecl))
+      visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
+      return visible_fields.map(&.as(FieldDecl))
+    end
+
+    def non_static_fields : Array(FieldDecl)
+      fields.reject &.has_mod?("static")
+    end
+
+    def static_fields : Array(FieldDecl)
+      fields.select &.has_mod?("static")
     end
 
     def pprint(depth : Int32)
@@ -314,11 +337,10 @@ module AST
       if interfaces.size > 0
         interface_names = interfaces.map {|i| i.name }.join(", ")
       end
-      mods = modifiers.map {|i| i.name }.join(", ")
       decls = body.map {|b| b.pprint(depth+2)}.join("\n")
       return (
         "#{indent}Class #{name}:\n" \
-        "#{indent}  Modifiers: #{mods}\n" \
+        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
         "#{indent}  Super: #{super_str}\n" \
         "#{indent}  Interfaces: #{interface_names}\n" \
         "#{indent}  Decls:\n#{decls}"
@@ -332,7 +354,8 @@ module AST
     getter extensions : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, @modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
+      self.modifiers = modifiers
     end
 
     def pprint(depth : Int32)
@@ -341,11 +364,10 @@ module AST
       if extensions.size > 0
         extensions_str = extensions.map {|i| i.name }.join(", ")
       end
-      mods = modifiers.map {|i| i.name }
       decls = body.map {|b| b.pprint(depth+2)}.join("\n")
       return (
         "#{indent}Interface #{name}:\n" \
-        "#{indent}  Modifiers: #{mods}\n" \
+        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
         "#{indent}  Extensions: #{extensions_str}\n" \
         "#{indent}  Decls:\n#{decls}"
       )
@@ -408,12 +430,7 @@ module AST
   # `MemberDecl` represents declarations which are members of an object
   # (either `InterfaceDecl` or `ClassDecl`).
   abstract class MemberDecl < Node
-    getter modifiers : Array(Modifier) = [] of Modifier
-
-    def has_mod(modifier : String)
-      # FIXME(joey): This is terrible and we can use a set instead.
-      modifiers.select {|m| m.name == modifier}.size > 0
-    end
+    include Modifiers
   end
 
   # `FieldDecl` represents a field declaration in a class. For example:
@@ -426,13 +443,13 @@ module AST
     property typ : Typ
     property decl : VariableDecl
 
-    def initialize(@modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl)
+    def initialize(modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl)
+      self.modifiers = modifiers
     end
 
     def pprint(depth : Int32)
-      mods = modifiers.map {|i| i.name }.join(",")
       indent = INDENT.call(depth)
-      return "#{indent}field #{decl.pprint(0)} type=#{typ.name_str} mods=#{mods}"
+      return "#{indent}field #{decl.pprint(0)} type=#{typ.name_str} mods=#{modifiers.join(",")}"
     end
   end
 
@@ -930,26 +947,66 @@ module AST
   # `MethodDecl` is a method declaration. It includes `name`, `typ,`
   # `modifiers`, `params` for the method signature, and the `body`.
   class MethodDecl < MemberDecl
+    include Modifiers
+
     property name : String
     property typ : Typ
-    property modifiers : Array(Modifier) = [] of Modifier
     property params : Array(Param) = [] of Param
     property! body : Array(Stmt) | Nil
     property namespace : Hash(String, Param | VariableDecl) = {} of String => Param | VariableDecl
 
-    def initialize(@name : String, @typ : Typ, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, @typ : Typ, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+      self.modifiers = modifiers
+    end
+
+    class MethodSignature
+      getter name : String
+      getter typ : String
+      getter modifiers : Set(String)
+      getter params : Array(String)
+
+      def initialize(@name : String, @typ : String, @modifiers : Set(String), @params : Array(String))
+      end
+
+      # Similar checks if the method signature is similar, i.e. it has
+      # the same name.
+      def similar(other : MethodSignature)
+        self.name == other.name
+      end
+
+      # Equiv checks if the function signature is equivilant, i.e. the
+      # name and formal parameters are equal.
+      def equiv(other : MethodSignature)
+        similar(other) && params_equiv(other)
+      end
+
+      def params_equiv(other : MethodSignature)
+        params.size == other.params.size && params.zip(other.params).all? {|a, b| a == b}
+      end
+    end
+
+    def signature : MethodSignature
+      # FIXME(joey): Parameters in the method signature use the string
+      # in the source tree. Both of the arguments have the same type,
+      # but their signature will not match. This is incorrect, and
+      # depends on resolving names in Typ to fix:
+      #
+      # ```java
+      # foo(a java.lang.Object);
+      # foo(a Object)
+      # ```
+      return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.name_str))
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
       if body?
         body_str = (body.map {|b| b.pprint(depth+1)}).join("\n")
       else
         body_str = "<no body>"
       end
-      return "#{indent}method #{name} #{typ.pprint(0)} #{mods} #{p}\n#{body_str}"
+      return "#{indent}method #{name} #{typ.pprint(0)} #{modifiers.join(",")} #{p}\n#{body_str}"
     end
   end
 
@@ -959,24 +1016,20 @@ module AST
   # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
   # with a flag denoting it's a constructor with no type.
   class ConstructorDecl < MemberDecl
+    include Modifiers
+
     property name : SimpleName
-    property modifiers : Array(Modifier) = [] of Modifier
     property params : Array(Param) = [] of Param
     property body : Array(Stmt) = [] of Stmt
 
-    def initialize(@name : SimpleName, @modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
-    end
-
-    def has_mod(modifier : SimpleName)
-      # FIXME(joey): This is terrible and we can use a set instead.
-      modifiers.select {|m| m.name == modifier}.size > 0
+    def initialize(@name : SimpleName, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+      self.modifiers = modifiers
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      mods = modifiers.map {|i| i.name }
       p = params.map {|i| i.pprint(0)}
-      return "#{indent}constructor #{name.pprint(0)} #{mods} #{p}"
+      return "#{indent}constructor #{name.pprint(0)} #{modifiers.to_a} #{p}"
     end
   end
 
@@ -1077,7 +1130,15 @@ module AST
     end
 
     def pprint(depth : Int32)
-      return name.pprint(depth)
+      if name?
+        return name.pprint(depth)
+      elsif array_access?
+        return array_access.pprint(depth)
+      elsif field_access?
+        return field_access.pprint(depth)
+      else
+        raise Exception.new("unhandled case")
+      end
     end
 
     def children
