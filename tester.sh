@@ -120,6 +120,25 @@ for foldername in `find ${PUB_FOLDER}/assignment_testcases/a2 -type d -depth 1 |
   do_test "$files" $should_pass "-s nameresolution" "$stdlib2"
 done
 
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -name "*.java" -type f -depth 1 | sort`; do
+  should_pass=true;
+  if [[ $(basename $filename) == Je* ]]; then
+    should_pass=false;
+  fi
+
+  do_test $filename $should_pass "$stdlib3"
+done
+
+for foldername in `find ${PUB_FOLDER}/assignment_testcases/a3 -type d -depth 1 | sort`; do
+  files=$(find ${foldername} -name "*.java" -type f | sort)
+  should_pass=true;
+  if [[ $(basename $foldername) == Je* ]]; then
+    should_pass=false;
+  fi
+
+  do_test "$files" $should_pass "$stdlib3"
+done
+
 # # TODO:
 # for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -name "*.java" -type f | sort`; do
 #   should_pass=true;

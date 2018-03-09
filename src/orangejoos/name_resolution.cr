@@ -187,6 +187,8 @@ class NameResolution
     files = files.map {|file| check_correctness(file)}
 
 
+
+
     return @files
   end
 end
@@ -557,6 +559,24 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
       field_set.add(field.decl.name)
     end
 
+    return super
+  end
+end
+
+# `ReferenceTypResolutionVisitor` resolves the types in variable and
+# field declarations.
+class ReferenceTypResolutionVisitor < Visitor::GenericVisitor
+  @namespace : ImportNamespace
+
+  def initialize(@namespace : ImportNamespace)
+  end
+
+  def visit(node : AST::ReferenceTyp) : AST::Node
+    typ = @namespace.fetch(node.name)
+    if typ.nil?
+      raise NameResolutionStageError.new("#{node.name.name} type was not found")
+    end
+    node.name.ref = typ
     return super
   end
 end
