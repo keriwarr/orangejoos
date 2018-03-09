@@ -24,7 +24,7 @@ end
 class InterfaceDeclVisitor < Visitor::GenericVisitor
   def visit(node : AST::InterfaceDecl) : AST::Node
     node.body.each do |b|
-      if b.is_a?(AST::MethodDecl) && (b.has_mod("static") || b.has_mod("final") || b.has_mod("native"))
+      if b.is_a?(AST::MethodDecl) && (b.has_mod?("static") || b.has_mod?("final") || b.has_mod?("native"))
         # An interface method cannot be static, final, or native.
         raise WeedingStageError.new("interfaces cannot have final, static, or native functions: function #{b.name} was bad")
       end
@@ -40,7 +40,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
 
     # A class annot be final and abstract.
     # TODO(joey): add reference to specific JLS section for rule.
-    if node.has_mod("final") && node.has_mod("abstract")
+    if node.has_mod?("final") && node.has_mod?("abstract")
       raise WeedingStageError.new("class #{node.name} is both final and abstract.")
     end
 
@@ -54,7 +54,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
       end
     end
 
-    if !node.has_mod("abstract") && !found_constructor
+    if !node.has_mod?("abstract") && !found_constructor
       raise WeedingStageError.new("class #{node.name} has no constructors")
     end
 
@@ -70,43 +70,43 @@ class ClassDeclVisitor < Visitor::GenericVisitor
 
   def handleFieldDecl(node : AST::ClassDecl, fd : AST::FieldDecl)
     # Do not allow fields to be final.
-    if fd.has_mod("final")
+    if fd.has_mod?("final")
       raise WeedingStageError.new("field #{node.name}.#{fd.decl.name} is final, but final is not allowed")
     end
   end
 
   def handleMethodDecl(node : AST::ClassDecl, md : AST::MethodDecl)
     # A method requires an access modifier, either protected or public.
-    if !md.has_mod("public") && !md.has_mod("protected")
+    if !md.has_mod?("public") && !md.has_mod?("protected")
       raise WeedingStageError.new("method #{node.name}.#{md.name} has no access modifier (public/private)")
     end
 
     # A method cannot be both static and final.
-    if md.has_mod("static") && md.has_mod("final")
+    if md.has_mod?("static") && md.has_mod?("final")
       raise WeedingStageError.new("method #{node.name}.#{md.name} cannot be both static and final")
     end
 
     # An abstract method cannot be static or final.
-    if md.has_mod("abstract") && (md.has_mod("static") || md.has_mod("final"))
+    if md.has_mod?("abstract") && (md.has_mod?("static") || md.has_mod?("final"))
       raise WeedingStageError.new("method #{node.name}.#{md.name} cannot be both abstract and static/final")
     end
 
     # An abstract method cannot have a body.
-    if md.has_mod("abstract") && md.body?
+    if md.has_mod?("abstract") && md.body?
       raise WeedingStageError.new("method #{node.name}.#{md.name} is abstract but has a body")
     end
 
     # An non-abstract method requires a body.
-    if !md.has_mod("abstract") && !md.has_mod("native") && !md.body?
+    if !md.has_mod?("abstract") && !md.has_mod?("native") && !md.body?
       raise WeedingStageError.new("method #{node.name}.#{md.name} is not abstract but does not have a body")
     end
 
     # Restrict use of the native modifier to only methods
     # without a body and are static. Otherwise, if we encounter
     # native the function signature is invalid.
-    if md.has_mod("native") && md.has_mod("static") && !md.body?
+    if md.has_mod?("native") && md.has_mod?("static") && !md.body?
       # Allow signature.
-    elsif md.has_mod("native")
+    elsif md.has_mod?("native")
       raise WeedingStageError.new("method #{node.name}.#{md.name} is not allowed to be native if does not conform to the signature\n <Visibility> static native <Name>(...);")
     end
   end
@@ -116,7 +116,7 @@ class PublicDeclVisitor < Visitor::GenericVisitor
   @public_classes = [] of String
 
   def visit(node : AST::TypeDecl) : AST::Node
-    @public_classes.push(node.name) if node.has_mod("public")
+    @public_classes.push(node.name) if node.has_mod?("public")
     return node
   end
 
@@ -133,7 +133,7 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::TypeDecl) : AST::Node
     # TODO(keri): implement .is_public? ??
-    if node.has_mod("public") && node.name != @public_class_name
+    if node.has_mod?("public") && node.name != @public_class_name
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
     end
     return node
