@@ -2,20 +2,39 @@ module Typing
   class Type
     def initialize(@name : String)
     end
+
+    def undo_array_type : Type
+      raise Exception.new("undo_array_type not implemented")
+    end
+
+    def is_type?(s : String)
+      if s == "num"
+        # TODO(joey): Check all types of integers.
+        return ["num"].includes?(@name)
+      end
+      return s == @name
+    end
+
+    def to_s : String
+      return "<Type \"#{@name}\">"
+    end
   end
 
   module Typed
-    property! _typ : Type
+    property! evaluated_typ : Type
 
     def get_type : Type
-      if self._typ?
-        return self._typ
+      if !evaluated_typ?
+        # This is done to assert `resolve_type` signature is (Type). If
+        # the user forgets to return, it accidentally becomes `(Type |
+        # Nil)`.
+        typ : Type = resolve_type()
+        evaluated_typ = typ
       end
-      self._typ = self.resolve_type
-      return self._typ
+      return evaluated_typ.not_nil!
     end
 
-    abstract def resolve_type() : Type
+    abstract def resolve_type : Type
   end
 end
 
@@ -25,6 +44,7 @@ class TypeCheck
 
   def check
     @file.ast = @file.ast.accept(TypeResolutionVisitor.new)
+    @file.ast = @file.ast.accept(StmtTypeCheckVisitor.new)
   end
 end
 
@@ -95,15 +115,15 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ForStmt) : AST::Node
-    if node.expr? && node.expr.get_type() != "bool"
-      raise TypeCheckStageError.new("for loop comparison is not a bool, instead: #{node.expr.get_type()}")
+    if node.expr? && node.expr.get_type().is_type?("bool")
+      raise TypeCheckStageError.new("for-loop comparison clause is not a bool, instead got: #{node.expr.get_type()}")
     end
     return super
   end
 
   def visit(node : AST::WhileStmt) : AST::Node
-    if node.expr? && node.expr.get_type() != "bool"
-      raise TypeCheckStageError.new("while update is not a bool, instead: #{node.expr.get_type()}")
+    if !node.expr.get_type().is_type?("bool")
+      raise TypeCheckStageError.new("while-loop comparison clause is not a bool, instead got: #{node.expr.get_type().to_s}")
     end
     return super
   end
