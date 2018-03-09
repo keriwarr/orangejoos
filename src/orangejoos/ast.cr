@@ -159,6 +159,7 @@ module AST
   # including the cardinality.
   class ReferenceTyp < Typ
     property name : Name
+    property cardinality : Int32
 
     def initialize(@name : Name)
       @cardinality = 0
