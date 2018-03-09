@@ -559,7 +559,7 @@ module AST
     end
 
     def children
-      [init, expr.as(Stmt), update, body] of Stmt
+      ([init?, expr?.as?(Stmt), update?, body] of Stmt | Nil).compact
     end
   end
 
