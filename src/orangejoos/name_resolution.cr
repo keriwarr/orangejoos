@@ -480,24 +480,81 @@ class ImportNamespace
 end
 
 class MethodEnvironmentVisitor < Visitor::GenericVisitor
-  @method : AST::MethodDecl | Nil
+  @namespace : Array({name: String, decl: AST::Param | AST::VariableDecl}) = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
+
+  def addToNamespace(decl : AST::Param | AST::VariableDecl, methodName : String)
+    @namespace.each do |n|
+      if n[:name] == decl.name
+        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{methodName}")
+      end
+    end
+    @namespace.push({name: decl.name, decl: decl})
+  end
 
   def visit(node : AST::MethodDecl) : AST::Node
-    @method = node
     node.params.each do |p|
-      if node.namespace.has_key?(p.name)
-        raise NameResolutionStageError.new("Duplicate parameter #{p.name} in method #{node.name}")
-      end
-      node.namespace[p.name] = p
+      addToNamespace(p, node.name)
     end
 
-    node.body.map! { |b| b.accept(self) } if node.body?
+    node.body = visitStmts(node.body, node.name) if node.body?
+
+    node.params.each do |p|
+      @namespace.pop
+    end
+
     return node
   end
 
-  # def visit(node : AST::VariableDecl) : AST::Node
+  def visitStmts(body : Array(AST::Stmt), methodName : String) : Array(AST::Stmt)
+    return [] of AST::Stmt if body.size == 0
 
-  # end
+    stmt = body.first
+    result : Array(AST::Stmt) = [] of AST::Stmt
+
+    # puts body
+    # puts ""
+    # puts @namespace
+    # puts ""
+    # puts "----------------------"
+    # puts ""
+
+    case stmt
+    when AST::DeclStmt
+      # TODO: resolve the init expr
+      addToNamespace(stmt.var, methodName)
+      result.push(AST::Block.new(
+        [stmt.as(AST::Stmt)].concat(visitStmts(body[1..-1], methodName))
+      ))
+      @namespace.pop
+    when AST::Block
+    when AST::Expr
+    when AST::IfStmt
+      # TODO: resolve stmt.expr
+      stmt.if_body = visitStmt(stmt.if_body, methodName)
+      stmt.else_body = visitStmt(stmt.else_body, methodName) if stmt.else_body?
+    else
+
+    end
+
+    return result
+  end
+
+  def visitStmt(stmt : AST::Stmt, methodName : String) : AST::Stmt
+    case stmt
+    when AST::DeclStmt
+      # TODO: resolve the init expr
+      return stmt
+    when AST::IfStmt
+      # TODO: resolve stmt.expr
+      stmt.if_body = visitStmt(stmt.if_body, methodName)
+      stmt.else_body = visitStmt(stmt.else_body, methodName) if stmt.else_body?
+    when AST::Block
+      visitStmts(stmt.stmts, methodName)
+    else
+    end
+
+    return stmt
+  end
 end
 
 # `DuplicateFieldVisitor` checks the correctness of a classes

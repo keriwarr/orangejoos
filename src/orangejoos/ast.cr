@@ -953,7 +953,6 @@ module AST
     property typ : Typ
     property params : Array(Param) = [] of Param
     property! body : Array(Stmt) | Nil
-    property namespace : Hash(String, Param | VariableDecl) = {} of String => Param | VariableDecl
 
     def initialize(@name : String, @typ : Typ, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
