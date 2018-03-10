@@ -2,6 +2,8 @@ require "option_parser"
 
 {% if flag?(:A2) %}
 END_STAGE = Stage::NAME_RESOLUTION
+{% elsif flag?(:A3) %}
+END_STAGE = Stage::ALL
 {% elsif flag?(:A1) %}
 END_STAGE = Stage::WEED
 {% elsif flag?(:A_NONE) %}

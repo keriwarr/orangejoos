@@ -809,19 +809,19 @@ module AST
   #
   class MethodInvoc < Expr
     property! expr : Expr
-    property name : Name
+    property name : String
     property args : Array(Expr)
 
-    def initialize(@expr : Expr | Nil, @name : Name, @args : Array(Expr))
+    def initialize(@expr : Expr | Nil, @name : String, @args : Array(Expr))
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       expr_str = ""
       if expr?
-        expr_str = "of " + expr.pprint(0) + " "
+        expr_str = "of " + expr.pprint + " "
       end
-      return "#{indent}MethodInvoc #{expr_str}name=#{name.pprint(0)} args=#{args.map &.pprint(0)}"
+      return "#{indent}MethodInvoc #{expr_str}name=#{name} args=#{args.map &.pprint(0)}"
     end
 
     def children
