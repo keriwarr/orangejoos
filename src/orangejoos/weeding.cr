@@ -21,7 +21,7 @@ class Weeding
 end
 
 class InterfaceDeclVisitor < Visitor::GenericVisitor
-  def visit(node : AST::InterfaceDecl)
+  def visit(node : AST::InterfaceDecl) : Nil
     node.body.each do |b|
       if b.is_a?(AST::MethodDecl) && (b.has_mod?("static") || b.has_mod?("final") || b.has_mod?("native"))
         # An interface method cannot be static, final, or native.
@@ -34,7 +34,7 @@ class InterfaceDeclVisitor < Visitor::GenericVisitor
 end
 
 class ClassDeclVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ClassDecl)
+  def visit(node : AST::ClassDecl) : Nil
     found_constructor = false
 
     # A class annot be final and abstract.
@@ -114,7 +114,7 @@ end
 class PublicDeclVisitor < Visitor::GenericVisitor
   @public_classes = [] of String
 
-  def visit(node : AST::TypeDecl)
+  def visit(node : AST::TypeDecl) : Nil
     @public_classes.push(node.name) if node.has_mod?("public")
   end
 
@@ -129,7 +129,7 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
   def initialize(@public_class_name : String)
   end
 
-  def visit(node : AST::TypeDecl)
+  def visit(node : AST::TypeDecl) : Nil
     # TODO(keri): implement .is_public? ??
     if node.has_mod?("public") && node.name != @public_class_name
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
@@ -138,7 +138,7 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
 end
 
 class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ConstInteger)
+  def visit(node : AST::ConstInteger) : Nil
     begin
       node.val.to_i32
     rescue ArgumentError
@@ -148,7 +148,7 @@ class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
 end
 
 class InvalidCastExpressionVisitor < Visitor::GenericVisitor
-  def visit(node : AST::CastExpr)
+  def visit(node : AST::CastExpr) : Nil
     return node unless node.expr?
 
     unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
