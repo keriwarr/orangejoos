@@ -535,6 +535,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::SimpleName) : AST::Node
+    return node if node.ref?
     @namespace.each do |n|
       if n[:name] == node.name
         node.ref = n[:decl]
