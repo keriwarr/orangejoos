@@ -12,10 +12,11 @@ ifndef ASSN
 # If assignment.mk does not exist, this is being run locally
 # without `ASSN` incorrectly.
 ifeq ("","$(wildcard ./assignment.mk)")
-$(error "Please provide an assignment target. For example: `make joosc ASSN=A2`")
+ASSN := A_NONE
+else
+include assignment.mk
 endif
 
-include assignment.mk
 endif
 
 # TODO(joey): Check that `ASSN` is valid.

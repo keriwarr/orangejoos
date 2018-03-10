@@ -94,7 +94,7 @@ class Pipeline
   # do_name_resolution! resolves names across all abstract syntax trees
   def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool)
     begin
-     NameResolution.new(files, verbose).resolve
+      NameResolution.new(files, verbose).resolve
     rescue ex : NameResolutionStageError
       STDERR.puts "Found name resolution error: #{ex}"
       STDERR.puts "#{ex.inspect_with_backtrace}"

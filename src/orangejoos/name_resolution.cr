@@ -171,6 +171,10 @@ class NameResolution
     # Populate the imports for each file in-place.
     files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
 
+    files.each do |f, _|
+      f.ast = f.ast.accept(MethodEnvironmentVisitor.new)
+    end
+
     # Populate the inheritance information for the interfaces and
     # classes in each file.
     # FIXME(joey): Do we want to modify file.ast in-place? probably ok
@@ -477,6 +481,69 @@ class ImportNamespace
   end
 end
 
+class MethodEnvironmentVisitor < Visitor::GenericVisitor
+  @namespace : Array({name: String, decl: AST::Param | AST::VariableDecl}) = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
+  @methodName : String = ""
+
+  def addToNamespace(decl : AST::Param | AST::VariableDecl)
+    @namespace.each do |n|
+      if n[:name] == decl.name
+        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{@methodName}")
+      end
+    end
+    @namespace.push({name: decl.name, decl: decl})
+  end
+
+  def visit(node : AST::MethodDecl) : AST::Node
+    @methodName = node.name
+
+    node.params.each do |p|
+      addToNamespace(p)
+    end
+
+    visitStmts(node.body) if node.body?
+
+    @namespace = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
+
+    return node
+  end
+
+  def visitStmts(stmts : Array(AST::Stmt))
+    return if stmts.size == 0
+
+    stmt = stmts.first
+    case stmt
+    when AST::DeclStmt
+      addToNamespace(stmt.var)
+      stmt.var = stmt.var.accept(self)
+      visitStmts(stmts[1..-1])
+      @namespace.pop
+    else
+      stmt = stmt.accept(self)
+      visitStmts(stmts[1..-1])
+    end
+  end
+
+  def visit(node : AST::Block) : AST::Node
+    visitStmts(node.children)
+    return node
+  end
+
+  def visit(node : AST::ForStmt) : AST::Node
+    visitStmts(node.children)
+    return node
+  end
+
+  def visit(node : AST::SimpleName) : AST::Node
+    return node if node.ref?
+    @namespace.each do |n|
+      if n[:name] == node.name
+        node.ref = n[:decl]
+      end
+    end
+    return node
+  end
+end
 
 # `DuplicateFieldVisitor` checks the correctness of a classes
 # declarations, also taking into account inheritance.

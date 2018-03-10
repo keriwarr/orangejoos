@@ -560,7 +560,7 @@ module AST
     end
 
     def children
-      [init, expr.as(Stmt), update, body] of Stmt
+      ([init?, expr?.as?(Stmt), update?, body] of Stmt | Nil).compact
     end
   end
 
@@ -613,12 +613,16 @@ module AST
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      return (
-        "#{indent} If:\n" \
+      main_str = (
+        "#{indent}If:\n" \
         "#{indent}  Expr: #{expr.pprint}\n" \
         "#{indent}  IfBody:\n#{if_body.pprint(depth+1)}"
-        "#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+2)}"
       )
+      if else_body?
+        return main_str + "\n#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+1)}"
+      else
+        return main_str
+      end
     end
 
     def children
@@ -805,19 +809,19 @@ module AST
   #
   class MethodInvoc < Expr
     property! expr : Expr
-    property name : Name
+    property name : String
     property args : Array(Expr)
 
-    def initialize(@expr : Expr | Nil, @name : Name, @args : Array(Expr))
+    def initialize(@expr : Expr | Nil, @name : String, @args : Array(Expr))
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       expr_str = ""
       if expr?
-        expr_str = "of " + expr.pprint(0) + " "
+        expr_str = "of " + expr.pprint + " "
       end
-      return "#{indent}MethodInvoc #{expr_str}name=#{name.pprint(0)} args=#{args.map &.pprint(0)}"
+      return "#{indent}MethodInvoc #{expr_str}name=#{name} args=#{args.map &.pprint(0)}"
     end
 
     def children
