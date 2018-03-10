@@ -177,7 +177,7 @@ module AST
 
     def name_str
       arr_str = "[]" * cardinality
-      return "#{@name.name}#{arr_str}"
+      return "class:#{@name.name}#{arr_str}"
     end
 
     def pprint(depth : Int32)
@@ -711,8 +711,9 @@ module AST
     end
 
     def resolve_type : Typing::Type
-      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?("bool")}
-        return Typing::Type.new("bool")
+
+      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?("boolean")}
+        return Typing::Type.new("boolean")
       end
 
       if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?("num")}
@@ -724,14 +725,26 @@ module AST
       end
 
       if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?("num")}
-        return Typing::Type.new("bool")
+        return Typing::Type.new("boolean")
       end
 
-      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type().is_type?("bool")}
-        return Typing::Type.new("bool")
+      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type().is_type?("boolean")}
+        return Typing::Type.new("boolean")
       end
 
-      raise Exception.new("unhandled operation: #{self.pprint}")
+      if op == "=" && operands.size == 2
+        if operands[0].get_type() == operands[1].get_type()
+          return operands[0].get_type()
+        else
+          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type().to_s} RHS#{operands[1].get_type().to_s}")
+        end
+      end
+
+      types = operands.map {|o| o.get_type().as(Typing::Type)}
+      STDERR.puts("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
+
+      return Typing::Type.new("boolean")
+      # raise Exception.new("unhandled operation: types=#{types} #{self.pprint}")
       # FIXME(joey): Maybe handle !num.
     end
   end
@@ -850,7 +863,15 @@ module AST
 
 
     def resolve_type : Typing::Type
-      raise Exception.new("unimplemented: ExprArrayCreation resolve_type")
+      # Crystal is broken. (type casting thinger)
+      a = arr
+      case a
+      when Name
+        return Typing::Type.new(a.ref.as(TypeDecl).name + "[]") if a.ref?
+        raise Exception.new("bad name: #{a.name}")
+      when PrimitiveTyp then return Typing::Type.new(a.name_str + "[]")
+      else raise Exception.new("unexpected type: #{arr.inspect}")
+      end
     end
   end
 
@@ -903,7 +924,9 @@ module AST
         node = name.ref
         case node
         when AST::ClassDecl then return Typing::Type.new("class:#{node.name}")
-        when AST::InterfaceDecl then return Typing::Type.new("interface:#{node.name}")
+        when AST::InterfaceDecl then return Typing::Type.new("class:#{node.name}")
+        when AST::DeclStmt then return Typing::Type.new(node.typ.name_str)
+        when AST::Param then return Typing::Type.new(node.typ.name_str)
         else raise Exception.new("unhandled case: #{node.inspect}")
         end
       else
@@ -948,7 +971,7 @@ module AST
       # Dependant on resolving this invocation to a signature.
       # 1) Get the expr's class/interface type.
       # 2) Look for a signature that matches this.
-      raise Exception.new("unimplemented: MethodInvoc resolve_type")
+      return Typing::Type.new("method")
     end
   end
 
@@ -995,7 +1018,7 @@ module AST
       # FIXME(joey): We may require more specific number types, or only
       # as a result of computation.
       # I think constants evaluated to the smallest type they can.
-      return Typing::Type.new("bool")
+      return Typing::Type.new("boolean")
     end
   end
 
@@ -1050,7 +1073,8 @@ module AST
     def resolve_type : Typing::Type
       # FIXME(joey): We have to use this to resolve to an arbitrary
       # class/interface type.
-      raise Exception.new("unimplemented: ConstNull, not sure what type this can be.")
+      return Typing::Type.new("null")
+      # raise TypeCheckStageError.new("unimplemented: ConstNull, not sure what type this can be.")
     end
   end
 
@@ -1230,7 +1254,8 @@ module AST
     end
 
     def resolve_type : Typing::Type
-      raise Exception.new("unimplemented CastExpr resolve_type")
+      return Typing::Type.new("cast")
+      # raise Exception.new("unimplemented CastExpr resolve_type")
       # TODO(joey): Take into account is_arr.
       # if typ?
       #   # TODO(joey): Resolve to proper type based on the PrimativeTyp.
@@ -1299,7 +1324,12 @@ module AST
 
     def resolve_type : Typing::Type
       if name?
-        raise Exception.new("unimplemented: Variable.name resolve_type")
+        node = name.ref
+        case node
+        when DeclStmt then return Typing::Type.new(node.typ.name_str)
+        when Param then Typing::Type.new(node.typ.name_str)
+        else raise Exception.new("unhandled: #{node.inspect}")
+        end
       elsif array_access?
         return array_access.get_type()
       elsif field_access?

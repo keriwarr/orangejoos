@@ -1,5 +1,7 @@
 module Typing
   class Type
+    property name : String
+
     def initialize(@name : String)
     end
 
@@ -8,11 +10,16 @@ module Typing
     end
 
     def is_type?(s : String)
-      if s == "num"
-        # TODO(joey): Check all types of integers.
-        return ["num"].includes?(@name)
+      return self == Typing::Type.new(s)
+    end
+
+    def ==(other)
+      if other.is_a?(Type)
+        return true if other.name == self.name
+        numbers = ["int", "num", "byte", "short"]
+        return true if numbers.includes?(other.name) && numbers.includes?(self.name)
       end
-      return s == @name
+      return false
     end
 
     def to_s : String
@@ -43,8 +50,8 @@ class TypeCheck
   end
 
   def check
-    @file.ast = @file.ast.accept(TypeResolutionVisitor.new)
-    @file.ast = @file.ast.accept(StmtTypeCheckVisitor.new)
+    @file.ast.accept(TypeResolutionVisitor.new)
+    @file.ast.accept(StmtTypeCheckVisitor.new)
   end
 end
 
@@ -54,14 +61,14 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
   def initialize
   end
 
-  def visit(node : AST::ConstInteger | AST::ConstBool | AST::ConstChar | AST::ConstString) : AST::Node
+  def visit(node : AST::ConstInteger | AST::ConstBool | AST::ConstChar | AST::ConstString) : Nil
     node.get_type()
-    return super
+    super
   end
 
-  def visit(node : AST::ConstNull) : AST::Node
+  def visit(node : AST::ConstNull) : Nil
     node.get_type()
-    return super
+    super
   end
 
   # abstract def visit(node : AST::PrimativeTyp) : AST::Node
@@ -114,18 +121,25 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   def initialize
   end
 
-  def visit(node : AST::ForStmt) : AST::Node
-    if node.expr? && node.expr.get_type().is_type?("bool")
+  def visit(node : AST::ForStmt) : Nil
+    if node.expr? && node.expr.get_type().is_type?("boolean")
       raise TypeCheckStageError.new("for-loop comparison clause is not a bool, instead got: #{node.expr.get_type()}")
     end
-    return super
+    super
   end
 
-  def visit(node : AST::WhileStmt) : AST::Node
-    if !node.expr.get_type().is_type?("bool")
+  def visit(node : AST::WhileStmt) : Nil
+    if !node.expr.get_type().is_type?("boolean")
       raise TypeCheckStageError.new("while-loop comparison clause is not a bool, instead got: #{node.expr.get_type().to_s}")
     end
-    return super
+    super
+  end
+
+  def visit(node : AST::DeclStmt) : Nil
+    if node.var.init.get_type() != Typing::Type.new(node.typ.name_str)
+      raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected #{node.typ.name_str} got #{node.var.init.get_type().to_s}")
+    end
+    super
   end
 
 end

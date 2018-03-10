@@ -86,16 +86,16 @@ class NameResolution
     # Import java.lang.*, which is by default always imported at a
     # lower priority.
     import = AST::ImportDecl.new(AST::QualifiedName.new(["java", "lang"]), true)
-    # import_tree = exported_items.get(import.path.parts)
-    # prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
-    # prefix += "." if prefix.size > 0
-    # if import_tree.is_a?(TypeNode)
-    #   raise NameResolutionStageError.new("error importing java.lang.* stdlib")
-    # elsif import_tree.is_a?(PackageNode) && import.on_demand
-    #   system_imports += import_tree.enumerate(prefix)
-    # else
-    #   raise NameResolutionStageError.new("error importing java.lang.* stdlib")
-    # end
+    import_tree = exported_items.get(import.path.parts)
+    prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+    prefix += "." if prefix.size > 0
+    if import_tree.is_a?(TypeNode)
+      raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+    elsif import_tree.is_a?(PackageNode) && import.on_demand
+      system_imports += import_tree.enumerate(prefix)
+    else
+      raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+    end
 
     # Import all objects that exist in the internal package.
     if file.ast.package?
@@ -508,13 +508,18 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @class_static_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
   end
 
-  def addToNamespace(decl : (AST::Param | AST::VariableDecl))
+  def addToNamespace(decl : AST::Param | AST::DeclStmt)
+    if decl.is_a?(AST::Param)
+      name = decl.name
+    else
+      name = decl.var.name
+    end
     @namespace.each do |n|
-      if n[:name] == decl.name
-        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{@current_method_name}")
+      if n[:name] == name
+        raise NameResolutionStageError.new("Duplicate declaration #{name} in method #{@current_method_name}")
       end
     end
-    @namespace.push({name: decl.name, decl: decl})
+    @namespace.push({name: name, decl: decl})
   end
 
   def get_class_instance_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
@@ -575,7 +580,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     stmt = stmts.first
     case stmt
     when AST::DeclStmt
-      addToNamespace(stmt.var)
+      addToNamespace(stmt)
       stmt.var.accept(self)
       visitStmts(stmts[1..-1])
       @namespace.pop
@@ -655,6 +660,23 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
     node.name.ref = typ
 
     super
+  end
+
+  def visit(node : AST::CastExpr) : Nil
+    if node.name?
+      typ = @namespace.fetch(node.name)
+      if typ.nil?
+        raise NameResolutionStageError.new("#{node.name.name} type was not found")
+      end
+      node.name.ref = typ
+    elsif node.expr?
+      a = node.expr.as(AST::Name)
+      typ = @namespace.fetch(a.name)
+      if typ.nil?
+        raise NameResolutionStageError.new("#{node.name.name} type was not found")
+      end
+      node.name.ref = typ
+    end
   end
 end
 
