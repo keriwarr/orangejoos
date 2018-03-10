@@ -21,7 +21,7 @@ class Weeding
 end
 
 class InterfaceDeclVisitor < Visitor::GenericVisitor
-  def visit(node : AST::InterfaceDecl) : AST::Node
+  def visit(node : AST::InterfaceDecl)
     node.body.each do |b|
       if b.is_a?(AST::MethodDecl) && (b.has_mod?("static") || b.has_mod?("final") || b.has_mod?("native"))
         # An interface method cannot be static, final, or native.
@@ -29,12 +29,12 @@ class InterfaceDeclVisitor < Visitor::GenericVisitor
       end
     end
 
-    return super
+    super
   end
 end
 
 class ClassDeclVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ClassDecl) : AST::Node
+  def visit(node : AST::ClassDecl)
     found_constructor = false
 
     # A class annot be final and abstract.
@@ -57,7 +57,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
       raise WeedingStageError.new("class #{node.name} has no constructors")
     end
 
-    return super
+    super
   end
 
   def handleConstructorDecl(node : AST::ClassDecl, cd : AST::ConstructorDecl)
@@ -114,9 +114,8 @@ end
 class PublicDeclVisitor < Visitor::GenericVisitor
   @public_classes = [] of String
 
-  def visit(node : AST::TypeDecl) : AST::Node
+  def visit(node : AST::TypeDecl)
     @public_classes.push(node.name) if node.has_mod?("public")
-    return node
   end
 
   def on_completion
@@ -130,34 +129,30 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
   def initialize(@public_class_name : String)
   end
 
-  def visit(node : AST::TypeDecl) : AST::Node
+  def visit(node : AST::TypeDecl)
     # TODO(keri): implement .is_public? ??
     if node.has_mod?("public") && node.name != @public_class_name
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
     end
-    return node
   end
 end
 
 class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ConstInteger) : AST::Node
+  def visit(node : AST::ConstInteger)
     begin
       node.val.to_i32
     rescue ArgumentError
       raise WeedingStageError.new("Integer out of bounds")
     end
-    return node
   end
 end
 
 class InvalidCastExpressionVisitor < Visitor::GenericVisitor
-  def visit(node : AST::CastExpr) : AST::Node
+  def visit(node : AST::CastExpr)
     return node unless node.expr?
 
     unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
       raise WeedingStageError.new("Cannot cast value #{node.rhs.pprint(0)} to #{node.expr.pprint(0)}")
     end
-
-    return node
   end
 end
