@@ -15,7 +15,6 @@ class Weeding
     @root.accept(ClassDeclVisitor.new)
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
-    @root.accept(NegativeIntegerVisitor.new)
     @root.accept(LiteralRangeCheckerVisitor.new)
     @root.accept(InvalidCastExpressionVisitor.new)
   end
@@ -137,22 +136,6 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
     end
     return node
-  end
-end
-
-class NegativeIntegerVisitor < Visitor::GenericVisitor
-  # Note that we only perform this simplification if the ConstInteger is the direct child of the ExprOp
-  # When a ConstInteger is the direct child of a unary negation operator, JLS expects us to treat this
-  # as an individual ConstInteger
-  # "-n" is represented as a ConstInteger which is a child of an ExprOp in the AST, but "-(n)" is
-  # represented as a ConstInteger which is the child of a ParenExpr, which is the child of an ExprOp
-  def visit(node : AST::ExprOp) : AST::Node
-    if node.op == "-" && node.operands.size == 1 && node.operands[0].is_a?(AST::ConstInteger)
-      constInteger = node.operands[0].as(AST::ConstInteger)
-      constInteger.val = "-" + constInteger.val
-      return constInteger
-    end
-    return super
   end
 end
 
