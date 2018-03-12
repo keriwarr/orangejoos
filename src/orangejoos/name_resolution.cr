@@ -139,8 +139,8 @@ class NameResolution
     # FIXME(joey): Maybe it would be great to replace Name instances
     # with QualifiedNameResolution for doing better static assertion of
     # resolution?
-    file.ast = file.ast.accept(InterfaceResolutionVisitor.new(namespace))
-    file.ast = file.ast.accept(ClassResolutionVisitor.new(namespace))
+    file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     # Check for clashes of the namespace with any classes defined in the
     # file.
@@ -148,13 +148,13 @@ class NameResolution
     # anything in namespace (excluding the single exported type that
     # comes from this file).
 
-    file.ast = file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
+    file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
 
     return file
   end
 
   def check_correctness(file)
-      file.ast = file.ast.accept(DuplicateFieldVisitor.new)
+      file.ast.accept(DuplicateFieldVisitor.new)
   end
 
 
@@ -172,7 +172,7 @@ class NameResolution
     files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
 
     files.each do |f, _|
-      f.ast = f.ast.accept(MethodEnvironmentVisitor.new)
+      f.ast.accept(MethodEnvironmentVisitor.new)
     end
 
     # Populate the inheritance information for the interfaces and
@@ -284,7 +284,7 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace)
   end
 
-  def visit(node : AST::InterfaceDecl) : AST::Node
+  def visit(node : AST::InterfaceDecl) : Nil
     # Populate each interface name reference.
     node.extensions.each do |interface|
       typ = @namespace.fetch(interface)
@@ -306,7 +306,7 @@ class InterfaceResolutionVisitor < Visitor::GenericVisitor
       interfaces.add(interface.ref.as(AST::InterfaceDecl).qualified_name)
     end
 
-    return super
+    super
   end
 end
 
@@ -318,7 +318,7 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace)
   end
 
-  def visit(node : AST::ClassDecl) : AST::Node
+  def visit(node : AST::ClassDecl) : Nil
     if node.super_class?
       typ = @namespace.fetch(node.super_class)
       if typ.nil?
@@ -353,7 +353,7 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
       interfaces.add(interface.ref.as(AST::InterfaceDecl).qualified_name)
     end
 
-    return super
+    super
   end
 end
 
@@ -427,20 +427,22 @@ class CycleVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace, @cycle_tracker : CycleTracker)
   end
 
-  def visit(node : AST::InterfaceDecl) : AST::Node
+  def visit(node : AST::InterfaceDecl) : Nil
     node.extensions.each do |interface_name|
       interface = interface_name.ref.as(AST::InterfaceDecl)
       @cycle_tracker.add_edge(node.qualified_name, interface.qualified_name)
     end
-    return super
+
+    super
   end
 
-  def visit(node : AST::ClassDecl) : AST::Node
+  def visit(node : AST::ClassDecl) : Nil
     if node.super_class?
       soup_class = node.super_class.ref.as(AST::ClassDecl)
       @cycle_tracker.add_edge(node.qualified_name, soup_class.qualified_name)
     end
-    return super
+
+    super
   end
 end
 
@@ -494,7 +496,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @namespace.push({name: decl.name, decl: decl})
   end
 
-  def visit(node : AST::MethodDecl) : AST::Node
+  def visit(node : AST::MethodDecl) : Nil
     @methodName = node.name
 
     node.params.each do |p|
@@ -504,8 +506,6 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     visitStmts(node.body) if node.body?
 
     @namespace = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
-
-    return node
   end
 
   def visitStmts(stmts : Array(AST::Stmt))
@@ -515,33 +515,30 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     case stmt
     when AST::DeclStmt
       addToNamespace(stmt.var)
-      stmt.var = stmt.var.accept(self)
+      stmt.var.accept(self)
       visitStmts(stmts[1..-1])
       @namespace.pop
     else
-      stmt = stmt.accept(self)
+      stmt.accept(self)
       visitStmts(stmts[1..-1])
     end
   end
 
-  def visit(node : AST::Block) : AST::Node
+  def visit(node : AST::Block) : Nil
     visitStmts(node.children)
-    return node
   end
 
-  def visit(node : AST::ForStmt) : AST::Node
+  def visit(node : AST::ForStmt) : Nil
     visitStmts(node.children)
-    return node
   end
 
-  def visit(node : AST::SimpleName) : AST::Node
+  def visit(node : AST::SimpleName) : Nil
     return node if node.ref?
     @namespace.each do |n|
       if n[:name] == node.name
         node.ref = n[:decl]
       end
     end
-    return node
   end
 end
 
@@ -551,7 +548,7 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
   def initialize
   end
 
-  def visit(node : AST::ClassDecl) : AST::Node
+  def visit(node : AST::ClassDecl) : Nil
     field_set = Set(String).new
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
@@ -560,7 +557,7 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
       field_set.add(field.decl.name)
     end
 
-    return super
+    super
   end
 end
 
@@ -572,12 +569,13 @@ class ReferenceTypResolutionVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace)
   end
 
-  def visit(node : AST::ReferenceTyp) : AST::Node
+  def visit(node : AST::ReferenceTyp) : Nil
     typ = @namespace.fetch(node.name)
     if typ.nil?
       raise NameResolutionStageError.new("#{node.name.name} type was not found")
     end
     node.name.ref = typ
-    return super
+
+    super
   end
 end

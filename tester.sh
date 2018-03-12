@@ -140,14 +140,6 @@ for foldername in `find ${PUB_FOLDER}/assignment_testcases/a3 -type d -depth 1 |
 done
 
 # # TODO:
-# for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -name "*.java" -type f | sort`; do
-#   should_pass=true;
-#   if [[ $(basename $filename) == Je* ]]; then
-#     should_pass=false;
-#   fi
-# done
-
-# # TODO:
 # for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -name "*.java" -type f | sort`; do
 #   should_pass=true;
 #   if [[ $(basename $filename) == Je* ]]; then

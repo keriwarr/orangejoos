@@ -15,14 +15,13 @@ class Weeding
     @root.accept(ClassDeclVisitor.new)
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
-    @root.accept(NegativeIntegerVisitor.new)
     @root.accept(LiteralRangeCheckerVisitor.new)
     @root.accept(InvalidCastExpressionVisitor.new)
   end
 end
 
 class InterfaceDeclVisitor < Visitor::GenericVisitor
-  def visit(node : AST::InterfaceDecl) : AST::Node
+  def visit(node : AST::InterfaceDecl) : Nil
     node.body.each do |b|
       if b.is_a?(AST::MethodDecl) && (b.has_mod?("static") || b.has_mod?("final") || b.has_mod?("native"))
         # An interface method cannot be static, final, or native.
@@ -30,12 +29,12 @@ class InterfaceDeclVisitor < Visitor::GenericVisitor
       end
     end
 
-    return super
+    super
   end
 end
 
 class ClassDeclVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ClassDecl) : AST::Node
+  def visit(node : AST::ClassDecl) : Nil
     found_constructor = false
 
     # A class annot be final and abstract.
@@ -58,7 +57,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
       raise WeedingStageError.new("class #{node.name} has no constructors")
     end
 
-    return super
+    super
   end
 
   def handleConstructorDecl(node : AST::ClassDecl, cd : AST::ConstructorDecl)
@@ -115,9 +114,8 @@ end
 class PublicDeclVisitor < Visitor::GenericVisitor
   @public_classes = [] of String
 
-  def visit(node : AST::TypeDecl) : AST::Node
+  def visit(node : AST::TypeDecl) : Nil
     @public_classes.push(node.name) if node.has_mod?("public")
-    return node
   end
 
   def on_completion
@@ -131,50 +129,30 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
   def initialize(@public_class_name : String)
   end
 
-  def visit(node : AST::TypeDecl) : AST::Node
+  def visit(node : AST::TypeDecl) : Nil
     # TODO(keri): implement .is_public? ??
     if node.has_mod?("public") && node.name != @public_class_name
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
     end
-    return node
-  end
-end
-
-class NegativeIntegerVisitor < Visitor::GenericVisitor
-  # Note that we only perform this simplification if the ConstInteger is the direct child of the ExprOp
-  # When a ConstInteger is the direct child of a unary negation operator, JLS expects us to treat this
-  # as an individual ConstInteger
-  # "-n" is represented as a ConstInteger which is a child of an ExprOp in the AST, but "-(n)" is
-  # represented as a ConstInteger which is the child of a ParenExpr, which is the child of an ExprOp
-  def visit(node : AST::ExprOp) : AST::Node
-    if node.op == "-" && node.operands.size == 1 && node.operands[0].is_a?(AST::ConstInteger)
-      constInteger = node.operands[0].as(AST::ConstInteger)
-      constInteger.val = "-" + constInteger.val
-      return constInteger
-    end
-    return super
   end
 end
 
 class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ConstInteger) : AST::Node
+  def visit(node : AST::ConstInteger) : Nil
     begin
       node.val.to_i32
     rescue ArgumentError
       raise WeedingStageError.new("Integer out of bounds")
     end
-    return node
   end
 end
 
 class InvalidCastExpressionVisitor < Visitor::GenericVisitor
-  def visit(node : AST::CastExpr) : AST::Node
+  def visit(node : AST::CastExpr) : Nil
     return node unless node.expr?
 
     unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
       raise WeedingStageError.new("Cannot cast value #{node.rhs.pprint(0)} to #{node.expr.pprint(0)}")
     end
-
-    return node
   end
 end

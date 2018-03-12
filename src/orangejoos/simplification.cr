@@ -519,6 +519,16 @@ class Simplification
       end
       op = tree.tokens.to_a[0].as(Lexeme).sem
       lhs = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)
+
+      if op == "-" && lhs.is_a?(AST::ConstInteger)
+        constInteger = lhs.as(AST::ConstInteger)
+        if constInteger.val.starts_with?("-")
+          constInteger.val = constInteger.val.strip("-")
+        else
+          constInteger.val = "-" + constInteger.val
+        end
+        return constInteger
+      end
       return AST::ExprOp.new(op, lhs)
 
     when "PostfixExpression"
