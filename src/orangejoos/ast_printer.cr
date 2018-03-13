@@ -124,7 +124,8 @@ module AST
 
     def visit(node : AST::DeclStmt) : Nil
       print "DeclStmt: typ={#{node.typ.name_str}}"
-      super
+      visit([node.var.as(Node)])
+      # no super
     end
 
     def visit(node : AST::ForStmt) : Nil
