@@ -20,7 +20,7 @@ rescue ex : NameResolutionStageError
   STDERR.puts "Name resolution error: #{ex}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
-rescue ex : PipelineError
+rescue ex : CompilerError
   STDERR.puts ex
   exit 42
 rescue ex : Exception

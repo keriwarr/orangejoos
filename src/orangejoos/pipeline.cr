@@ -57,7 +57,7 @@ class Pipeline
     # FIXME(joey): Collect errors.
     tokens.each do |res|
       if res.typ == Type::Bad
-        raise PipelineError.new("tokens=#{tokens}")
+        raise CompilerError.new("tokens=#{tokens}")
       end
     end
 
