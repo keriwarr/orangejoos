@@ -21,6 +21,7 @@ end
 # ArgParser parses options for the joosc compiler.
 class ArgParser
   getter verbose    : Bool   = false
+  getter use_stdlib    : Bool   = true
   getter end_stage  : Stage  = END_STAGE
   getter paths               = [] of String
   getter table_file : String = "grammar/joos1w.lr1"
@@ -29,6 +30,7 @@ class ArgParser
     OptionParser.parse(args) do |parser|
       parser.banner = Bruce::BANNER
       parser.on("-v", "--verbose", "show verbose logs") { @verbose = true }
+      parser.on("", "--no-stdlib", "compile without stdlib") { @use_stdlib = false }
       parser.on("-h", "--help", "show help") { puts parser; exit }
       parser.on("-t TABLE", "--table=TABLE",
         "specifies LALR1 prediction table file (required for parsing stage") do |path|

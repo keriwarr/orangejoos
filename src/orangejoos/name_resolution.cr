@@ -12,7 +12,7 @@ ROOT_PACKAGE = [""]
 # the program. It will modify the AST to populate them where
 # appropriate.
 class NameResolution
-  def initialize(@files : Array(SourceFile), @verbose : Bool)
+  def initialize(@files : Array(SourceFile), @verbose : Bool, @use_stdlib : Bool)
   end
 
   def generate_exported_items(files)
@@ -86,15 +86,19 @@ class NameResolution
     # Import java.lang.*, which is by default always imported at a
     # lower priority.
     import = AST::ImportDecl.new(AST::QualifiedName.new(["java", "lang"]), true)
-    import_tree = exported_items.get(import.path.parts)
-    prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
-    prefix += "." if prefix.size > 0
-    if import_tree.is_a?(TypeNode)
-      raise NameResolutionStageError.new("error importing java.lang.* stdlib")
-    elsif import_tree.is_a?(PackageNode) && import.on_demand
-      system_imports += import_tree.enumerate(prefix)
-    else
-      raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+    # Sources can be compiles without the stdlib, given a "--no-stdlib"
+    # argument.
+    if @use_stdlib
+      import_tree = exported_items.get(import.path.parts)
+      prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+      prefix += "." if prefix.size > 0
+      if import_tree.is_a?(TypeNode)
+        raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+      elsif import_tree.is_a?(PackageNode) && import.on_demand
+        system_imports += import_tree.enumerate(prefix)
+      else
+        raise NameResolutionStageError.new("error importing java.lang.* stdlib")
+      end
     end
 
     # Import all objects that exist in the internal package.

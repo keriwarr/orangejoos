@@ -14,6 +14,7 @@ class Pipeline
   @sources = [] of SourceFile
   @table = uninitialized LALR1Table
   @end_stage = Stage::ALL
+  @use_stdlib = true
   @verbose = false
 
   # initialize creates the pipeline and checks all arguments for validity, raising an ArgumentError
@@ -45,7 +46,7 @@ class Pipeline
   end
 
   # overloaded constructor
-  def initialize(table_file : String, paths : Array(String), @end_stage : Stage, @verbose : Bool)
+  def initialize(table_file : String, paths : Array(String), @end_stage : Stage, @verbose : Bool, @use_stdlib : Bool)
     initialize(table_file, paths) # call main constructor
   end
 
@@ -90,8 +91,8 @@ class Pipeline
   end
 
   # do_name_resolution! resolves names across all abstract syntax trees
-  def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool)
-    NameResolution.new(files, verbose).resolve
+  def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool, use_stdlib : Bool)
+    NameResolution.new(files, verbose, use_stdlib).resolve
   end
 
   # do_type_checking! runs type checks.
@@ -146,7 +147,7 @@ class Pipeline
     #                                                                         #
     # Resolve any names to their referenced nodes.                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    @sources = Pipeline.do_name_resolution!(@sources, @verbose)
+    @sources = Pipeline.do_name_resolution!(@sources, @verbose, @use_stdlib)
     @sources.map &.debug_print(Stage::NAME_RESOLUTION) if @verbose
     return true if @end_stage == Stage::NAME_RESOLUTION
 
