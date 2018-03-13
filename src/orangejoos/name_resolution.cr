@@ -149,10 +149,7 @@ class NameResolution
     # comes from this file).
 
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
-    file.ast.accept(ReferenceTypResolutionVisitor.new(namespace))
-
-    file.ast.accept(ReferenceTypResolutionVisitor.new(namespace))
-
+    file.ast.accept(ClassTypResolutionVisitor.new(namespace))
     return file
   end
 
@@ -564,15 +561,15 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
   end
 end
 
-# `ReferenceTypResolutionVisitor` resolves the types in variable and
+# `ClassTypResolutionVisitor` resolves the types in variable and
 # field declarations.
-class ReferenceTypResolutionVisitor < Visitor::GenericVisitor
+class ClassTypResolutionVisitor < Visitor::GenericVisitor
   @namespace : ImportNamespace
 
   def initialize(@namespace : ImportNamespace)
   end
 
-  def visit(node : AST::ReferenceTyp) : Nil
+  def visit(node : AST::ClassTyp) : Nil
     typ = @namespace.fetch(node.name)
     if typ.nil?
       raise NameResolutionStageError.new("#{node.name.name} type was not found")

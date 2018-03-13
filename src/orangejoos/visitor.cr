@@ -7,7 +7,7 @@ module Visitor
     @depth = 0
 
     abstract def visit(node : AST::PrimativeTyp) : Nil
-    abstract def visit(node : AST::ReferenceTyp) : Nil
+    abstract def visit(node : AST::ClassTyp) : Nil
     abstract def visit(node : AST::Literal) : Nil
     abstract def visit(node : AST::Keyword) : Nil
     abstract def visit(node : AST::PackageDecl) : Nil
@@ -65,7 +65,7 @@ module Visitor
     def visit(node : AST::PrimitiveTyp) : Nil
     end
 
-    def visit(node : AST::ReferenceTyp) : Nil
+    def visit(node : AST::ClassTyp) : Nil
       node.name.accept(self)
     end
 

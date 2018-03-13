@@ -154,9 +154,9 @@ module AST
     end
   end
 
-  # `ReferenceType` represents user-defined Class and Interface types,
+  # `ClassType` represents user-defined Class and Interface types,
   # including the cardinality.
-  class ReferenceTyp < Typ
+  class ClassTyp < Typ
     property name : Name
     property cardinality : Int32
 
