@@ -11,8 +11,6 @@
 require "./visitor"
 require "./typing"
 
-INDENT = ->(depth : Int32) { "  " * depth }
-
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
 # categories of nodes:
 # - _Statements_, which are all decendants of `Stmt`
@@ -40,22 +38,13 @@ module AST
 
   # `Node` is the root type of all `AST` elements.
   abstract class Node
-
-    # `pprint` returns a pretty string representation of the node, for
-    # debug purposes.
-    def pprint() : String
-      pprint(0)
-    end
-
-    # Internal function: `pprint` with a depth, which represents the
-    # indentation level of depth the node belongs in.
-    abstract def pprint(depth : Int32) : String
-
     def accept(v : Visitor::Visitor) : Nil
       v.descend
       v.visit(self)
       v.ascend
     end
+
+    abstract def ast_children : Array(Node)
   end
 
   # `Stmt` are AST nodes which appear in the body of methods and can be
@@ -102,6 +91,8 @@ module AST
       raise Exception.new("Unimplemented")
       return ExprTyp.new("huzza")
     end
+
+    abstract def to_s : String
   end
 
   # Typ represents all types.
@@ -119,6 +110,10 @@ module AST
 
     def children
       [] of Expr
+    end
+
+    def to_s : String
+      name_str
     end
   end
 
@@ -148,9 +143,8 @@ module AST
       return "#{@name}#{arr_str}"
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{name_str}"
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 
@@ -171,9 +165,8 @@ module AST
       return "#{@name.name}#{arr_str}"
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{name_str}"
+    def ast_children : Array(Node)
+      [name.as(Node)]
     end
   end
 
@@ -185,9 +178,12 @@ module AST
     def initialize(@val : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{val}"
+    def to_s : String
+      return val
+    end
+
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 
@@ -201,9 +197,8 @@ module AST
     def initialize(@val : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{val}"
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 
@@ -222,9 +217,8 @@ module AST
     def initialize(@path : Name)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}Package #{path.name}"
+    def ast_children : Array(Node)
+      ([path?.as?(Node)] of Node?).compact
     end
   end
 
@@ -260,13 +254,8 @@ module AST
     def initialize(@path : Name, @on_demand : Bool)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      on_demand_str = ""
-      if on_demand
-        on_demand_str = ".*"
-      end
-      return "#{indent}Import #{path.name}#{on_demand_str}"
+    def ast_children : Array(Node)
+      [path.as(Node)]
     end
   end
 
@@ -283,9 +272,8 @@ module AST
     def initialize(@name : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{name}"
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 
@@ -327,24 +315,8 @@ module AST
       fields.select &.has_mod?("static")
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      super_str = ""
-      if super_class?
-        super_str = "#{super_class.name}"
-      end
-      interface_names = ""
-      if interfaces.size > 0
-        interface_names = interfaces.map {|i| i.name }.join(", ")
-      end
-      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
-      return (
-        "#{indent}Class #{name}:\n" \
-        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
-        "#{indent}  Super: #{super_str}\n" \
-        "#{indent}  Interfaces: #{interface_names}\n" \
-        "#{indent}  Decls:\n#{decls}"
-      )
+    def ast_children : Array(Node)
+      [super_class?.as?(Node), interfaces.map &.as(Node), body.map &.as(Node)].flatten.compact
     end
   end
 
@@ -358,19 +330,8 @@ module AST
       self.modifiers = modifiers
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      extensions_str = ""
-      if extensions.size > 0
-        extensions_str = extensions.map {|i| i.name }.join(", ")
-      end
-      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
-      return (
-        "#{indent}Interface #{name}:\n" \
-        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
-        "#{indent}  Extensions: #{extensions_str}\n" \
-        "#{indent}  Decls:\n#{decls}"
-      )
+    def ast_children : Array(Node)
+      [extensions.map &.as(Node), body.map &.as(Node)].flatten
     end
   end
 
@@ -389,6 +350,10 @@ module AST
 
     abstract def name : String
     abstract def parts : Array(String)
+
+    def ast_children : Array(Node)
+      [] of Node
+    end
   end
 
   # `SimpleName` refers to a resolvable entity, such as local
@@ -402,11 +367,6 @@ module AST
     def parts
       [name] of String
     end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{name}"
-    end
   end
 
   # `QualifiedName` is a name which has a qualified namespace, such as a
@@ -419,11 +379,6 @@ module AST
 
     def name
       parts.join(".")
-    end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{name}"
     end
   end
 
@@ -447,9 +402,8 @@ module AST
       self.modifiers = modifiers
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}field #{decl.pprint(0)} type=#{typ.name_str} mods=#{modifiers.join(",")}"
+    def ast_children : Array(Node)
+      [typ.as(Node), decl.as(Node)]
     end
   end
 
@@ -464,19 +418,6 @@ module AST
     def initialize(@package : PackageDecl | Nil, @imports : Array(ImportDecl), @decls : Array(TypeDecl))
     end
 
-    def pprint(depth : Int32)
-      pkg = ""
-      if package?
-        pkg = package.pprint(depth+1) + "\n"
-      end
-      imps = imports.map{ |i |i.pprint(depth+1) }.join("\n")
-      if imports.size > 0
-        imps += "\n"
-      end
-      decs = decls.map {|i| i.pprint(depth+1) }.join("\n")
-      return "File:\n#{pkg}#{imps}#{decs}"
-    end
-
     def decl?(name)
       decls.map(&.name).select(&.==(name)).size > 0
     end
@@ -487,6 +428,10 @@ module AST
         raise Exception.new("more than 1 decl, got: #{results}")
       end
       return results.first
+    end
+
+    def ast_children : Array(Node)
+      [package?.as?(Node), imports.map &.as(Node), decls.map &.as(Node)].flatten.compact
     end
   end
 
@@ -499,9 +444,12 @@ module AST
     def initialize(@name : String, @typ : Typ)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}<Param #{name} #{typ.pprint(0)}>"
+    def to_s : String
+      "#{name} : #{typ.to_s}"
+    end
+
+    def ast_children : Array(Node)
+      [typ.as(Node)]
     end
   end
 
@@ -519,14 +467,12 @@ module AST
     def initialize(@stmts : Array(Stmt))
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      stmts_str = (stmts.map {|s| s.pprint(depth+1)}).join("\n")
-      return "#{indent}Block:\n#{stmts_str}"
-    end
-
     def children
       stmts
+    end
+
+    def ast_children : Array(Node)
+      stmts.map &.as(Node)
     end
   end
 
@@ -547,19 +493,12 @@ module AST
     def initialize(@init : Stmt | Nil, @expr : Expr | Nil, @update : Stmt | Nil, @body : Stmt)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return (
-        "#{indent}For:\n" \
-        "#{indent}  Init: #{@init.try &.pprint}\n" \
-        "#{indent}  Expr: #{@expr.try &.pprint}\n" \
-        "#{indent}  Update: #{@update.try &.pprint}\n" \
-        "#{indent}  Body:\n#{body.pprint(depth+2)}"
-      )
-    end
-
     def children
       ([init?, expr?.as?(Stmt), update?, body] of Stmt | Nil).compact
+    end
+
+    def ast_children : Array(Node)
+      [init?.as?(Node), expr?.as?(Node), update?.as?(Node), body.as(Node)].compact
     end
   end
 
@@ -577,17 +516,12 @@ module AST
     def initialize(@expr : Expr, @body : Stmt)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return (
-        "#{indent}While:\n" \
-        "#{indent}  Expr: #{expr.pprint}\n" \
-        "#{indent}  Body:\n#{body.pprint(depth+2)}"
-      )
-    end
-
     def children
       [init, expr.as(Stmt), update, body] of Stmt
+    end
+
+    def ast_children : Array(Node)
+      [expr.as(Node), body.as(Node)]
     end
   end
 
@@ -610,26 +544,16 @@ module AST
     def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt | Nil)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      main_str = (
-        "#{indent}If:\n" \
-        "#{indent}  Expr: #{expr.pprint}\n" \
-        "#{indent}  IfBody:\n#{if_body.pprint(depth+1)}"
-      )
-      if else_body?
-        return main_str + "\n#{indent}  ElseBody:\n#{@else_body.try &.pprint(depth+1)}"
-      else
-        return main_str
-      end
-    end
-
     def children
       if else_body?
         [expr.as(Stmt), if_body, else_body] of Stmt
       else
         [expr.as(Stmt), if_body] of Stmt
       end
+    end
+
+    def ast_children : Array(Node)
+      [expr.as(Node), if_body.as(Node), else_body?.as?(Node)].compact
     end
   end
 
@@ -652,20 +576,23 @@ module AST
       end
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
+    def to_s : String
       if operands.size == 1
-        first_operand_str = "#{op} #{operands[0].pprint(0)}"
+        first_operand_str = "#{op} #{operands[0].to_s}"
         rest_operands_str = ""
       else
-        first_operand_str = "#{operands[0].pprint(0)} #{op} "
-        rest_operands_str = (operands.skip(1).map {|o| o.pprint(0)}).join(" ")
+        first_operand_str = "#{operands[0].to_s} #{op} "
+        rest_operands_str = (operands.skip(1).map {|o| o.to_s}).join(" ")
       end
-      return "#{indent}(#{first_operand_str}#{rest_operands_str})"
+      return "(#{first_operand_str}#{rest_operands_str})"
     end
 
     def children
       return operands
+    end
+
+    def ast_children : Array(Node)
+      operands.map &.as(Node)
     end
   end
 
@@ -682,13 +609,16 @@ module AST
     def initialize(@name : Name, @args : Array(Expr))
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "ExprClassInit: TODO(keri)"
+    def to_s : String
+      "(new #{name.name} (#{(args.map &.to_s).join(", ")}))"
     end
 
     def children
       return args
+    end
+
+    def ast_children : Array(Node)
+      [name.as(Node), args.map &.as(Node)].flatten
     end
   end
 
@@ -700,13 +630,16 @@ module AST
     def initialize(@obj : Expr, @field : Literal)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "ExprFieldAccess: TODO(keri)"
+    def to_s : String
+      "#{obj.to_s}.#{field.to_s}"
     end
 
     def children
       return [obj]
+    end
+
+    def ast_children : Array(Node)
+      [obj.as(Node), field.as(Node)]
     end
   end
 
@@ -725,9 +658,9 @@ module AST
     def initialize(@arr_name : Name, @index : Expr)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "ExprArrayAccess: TODO(keri)"
+    def to_s : String
+      return "#{arr_expr.to_s}[#{index.to_s}]" if arr_expr?
+      return "#{arr_name.name}[#{index.to_s}]"
     end
 
     def children
@@ -737,11 +670,15 @@ module AST
         return [index]
       end
     end
+
+    def ast_children : Array(Node)
+      [arr_expr?.as?(Node), arr_name?.as?(Node), index.as(Node)].compact
+    end
   end
 
   # `ExprArrayCreation` represents an array creation.
   class ExprArrayCreation < Expr
-    # FIXME(joey): Specialize the node type used here. Maybe if we
+    # FIXME: (joey) Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
     # such as Name (or Class/Interface) and PrimitiveTyp.
     property arr : Node
@@ -750,13 +687,21 @@ module AST
     def initialize(@arr : Node, @dim : Expr)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "ExprArrayCreation: TODO(keri)"
+    def to_s : String
+      "(new array (TYPE: TODO) [])"
+    end
+
+    def ast_children : Array(Node)
+      return
     end
 
     def children
       return [arr, dim]
+    end
+
+    def ast_children : Array(Node)
+      # FIXME: (joey) dim not included due to the type specificity problem.
+      [arr]
     end
   end
 
@@ -766,13 +711,16 @@ module AST
     def initialize
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}this"
+    def to_s : String
+      "this"
     end
 
     def children
       [] of Expr
+    end
+
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 
@@ -789,13 +737,16 @@ module AST
     def initialize(@name : Name)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{name.pprint(0)}"
+    def to_s : String
+      name.name
     end
 
     def children
       [] of Expr
+    end
+
+    def ast_children : Array(Node)
+      [name.as(Node)]
     end
   end
 
@@ -814,13 +765,8 @@ module AST
     def initialize(@expr : Expr | Nil, @name : String, @args : Array(Expr))
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      expr_str = ""
-      if expr?
-        expr_str = "of " + expr.pprint + " "
-      end
-      return "#{indent}MethodInvoc #{expr_str}name=#{name} args=#{args.map &.pprint(0)}"
+    def to_s : String
+      "(MethodInvoc: #{expr? ? expr.to_s : ""}.#{name} (#{(args.map &.to_s).join(", ")}))"
     end
 
     def children
@@ -830,12 +776,20 @@ module AST
         args
       end
     end
+
+    def ast_children : Array(Node)
+      [expr?.as?(Node), args.map &.as(Node)].flatten.compact
+    end
   end
 
   # `Const` are expressions with a constant value.
   abstract class Const < Expr
     def children
       [] of Expr
+    end
+
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 
@@ -846,9 +800,8 @@ module AST
     def initialize(@val : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{val}"
+    def to_s : String
+      val
     end
   end
 
@@ -859,9 +812,8 @@ module AST
     def initialize(@val : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}#{val}"
+    def to_s : String
+      val
     end
   end
 
@@ -872,11 +824,9 @@ module AST
     def initialize(@val : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}'#{val}'"
+    def to_s : String
+      "'#{val}'"
     end
-
   end
 
   class ConstString < Const
@@ -885,9 +835,8 @@ module AST
     def initialize(@val : String)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}\"#{val}\""
+    def to_s : String
+      "\"#{val}\""
     end
   end
 
@@ -895,9 +844,8 @@ module AST
     def initialize
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}null"
+    def to_s : String
+      "null"
     end
   end
 
@@ -912,10 +860,8 @@ module AST
     def initialize(@name : String,@init : Expr | Nil)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      init_str = init? ? init.pprint(0) : "<no init>"
-      return "#{indent}VarDecl: #{name} init={#{init_str}}"
+    def ast_children : Array(Node)
+      ([init?.as?(Node)] of Node?).compact
     end
   end
 
@@ -927,16 +873,10 @@ module AST
   # be squashed into both the `FieldDecl` and `DeclStmt`. The only
   # difference is `FieldDecl` includes modifiers.
   class DeclStmt < Stmt
-    property typ : AST::Typ
-    property var : AST::VariableDecl
+    property typ : Typ
+    property var : VariableDecl
 
-    def initialize(@typ : AST::Typ, @var : AST::VariableDecl)
-    end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      #TODO(joey): make printing better when you do the above squash
-      return "#{indent}#{typ.pprint(0)} #{var.pprint(0)}"
+    def initialize(@typ : Typ, @var : VariableDecl)
     end
 
     def children
@@ -945,6 +885,10 @@ module AST
       else
         return [var.init]
       end
+    end
+
+    def ast_children : Array(Node)
+      [typ.as(Node), var.as(Node)]
     end
   end
 
@@ -1001,15 +945,12 @@ module AST
       return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.name_str))
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      p = params.map {|i| i.pprint(0)}
-      if body?
-        body_str = (body.map {|b| b.pprint(depth+1)}).join("\n")
-      else
-        body_str = "<no body>"
-      end
-      return "#{indent}method #{name} #{typ.pprint(0)} #{modifiers.join(",")} #{p}\n#{body_str}"
+    def ast_children : Array(Node)
+      [
+        typ.as(Node),
+        params.map &.as(Node),
+        body.try {|b| b.map &.as(Node)},
+      ].flatten.compact
     end
   end
 
@@ -1029,10 +970,8 @@ module AST
       self.modifiers = modifiers
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      p = params.map {|i| i.pprint(0)}
-      return "#{indent}constructor #{name.pprint(0)} #{modifiers.to_a} #{p}"
+    def ast_children : Array(Node)
+      [name.as(Node), params.map &.as(Node), body.map &.as(Node)].flatten
     end
   end
 
@@ -1042,21 +981,16 @@ module AST
     def initialize(@expr : Expr | Nil)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      expr_str = ""
-      if expr?
-        expr_str = " #{expr.pprint(0)}"
-      end
-      return "#{indent}return#{expr_str}"
-    end
-
     def children
       if expr.nil?
         return [] of Expr
       else
         return [expr]
       end
+    end
+
+    def ast_children : Array(Node)
+      ([expr?.as?(Node)] of Node?).compact
     end
   end
 
@@ -1078,19 +1012,17 @@ module AST
       @is_arr = true
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
+    def to_s : String
       type_str = (
         if typ?
-          typ.pprint(0)
+          typ.name_str
         elsif expr?
-          expr.pprint(0)
+          expr.to_s
         else
-          name.pprint(0)
+          name.name
         end
       )
-
-      return "#{indent}Cast: type={#{type_str}} value={#{@rhs.pprint(0)}}"
+      return "(Cast: type={#{type_str}} value={#{@rhs.to_s}})"
     end
 
     def children
@@ -1100,6 +1032,10 @@ module AST
         [rhs] of Expr
       end
     end
+
+    def ast_children : Array(Node)
+      [typ?.as?(Node), expr?.as?(Node), name?.as?(Node), rhs.as(Node)].compact
+    end
   end
 
   class ParenExpr < Expr
@@ -1108,13 +1044,16 @@ module AST
     def initialize(@expr : Expr)
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}( #{expr.pprint(0)} )"
-    end
-
     def children
       return [expr]
+    end
+
+    def to_s : String
+      "(#{expr.to_s})"
+    end
+
+    def ast_children : Array(Node)
+      [expr.as(Node)]
     end
   end
 
@@ -1132,15 +1071,13 @@ module AST
     def initialize(@field_access : ExprFieldAccess)
     end
 
-    def pprint(depth : Int32)
+    def to_s : String
       if name?
-        return name.pprint(depth)
+        return name.name
       elsif array_access?
-        return array_access.pprint(depth)
-      elsif field_access?
-        return field_access.pprint(depth)
+        return array_access.to_s
       else
-        raise Exception.new("unhandled case")
+        return field_access.to_s
       end
     end
 
@@ -1154,6 +1091,33 @@ module AST
       else
         raise Exception.new("unhandled case")
       end
+    end
+
+    def ast_children : Array(Node)
+      [name?.as?(Node), array_access?.as?(Node), field_access?.as?(Node)].compact
+    end
+  end
+
+  # TODO(joey): some notes on clean up to be done here:
+  # - Replace tokens.to_a[i] access for children.
+  # - Clean up casting. This is done to consoldiate rules within a few
+  #   functions.
+  # - Change how conditional values are retrieved. e.g. "Modifiers" is a
+  #   common conditional where we want to default an empty array.
+
+  # Intermediate ASTs. These do not appear in the final result but are
+  # used to pass values up while doing simplificaiton.
+
+  # Intermediate AST.
+  class TMPMethodDecl < Node
+    property name : String
+    property params : Array(Param) = [] of Param
+
+    def initialize(@name : String, @params : Array(Param))
+    end
+
+    def ast_children : Array(Node)
+      [] of Node
     end
   end
 end

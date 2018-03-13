@@ -152,7 +152,7 @@ class InvalidCastExpressionVisitor < Visitor::GenericVisitor
     return node unless node.expr?
 
     unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
-      raise WeedingStageError.new("Cannot cast value #{node.rhs.pprint(0)} to #{node.expr.pprint(0)}")
+      raise WeedingStageError.new("Cannot cast value #{node.rhs.to_s} to #{node.expr.to_s}")
     end
   end
 end
