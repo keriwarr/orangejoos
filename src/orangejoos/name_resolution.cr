@@ -149,6 +149,7 @@ class NameResolution
     # comes from this file).
 
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
+    file.ast.accept(ReferenceTypResolutionVisitor.new(namespace))
 
     return file
   end
