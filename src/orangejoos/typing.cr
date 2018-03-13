@@ -1,29 +1,66 @@
 module Typing
+  enum Types
+    CHAR
+    NUM
+    INT
+    SHORT
+    BYTE
+    BOOLEAN
+    NULL
+
+    REFERENCE
+
+    # FIXME(joey): Remove usage.
+    TODO
+  end
+
   class Type
-    property name : String
+    property typ : Types
+    property! reference_name : String
+    property is_array : Bool = false
 
-    def initialize(@name : String)
+    def initialize(@typ : Types)
     end
 
-    def undo_array_type : Type
-      raise Exception.new("undo_array_type not implemented")
+    def initialize(@typ : Types, @is_array : Bool)
     end
 
-    def is_type?(s : String)
+    def initialize(@typ : Types, @reference_name : String)
+    end
+
+    def initialize(@typ : Types, @reference_name : String, @is_array : Bool)
+    end
+
+    def from_array_type : Type
+      raise Exception.new("cannot dereference non-array type") if !is_array
+      return Type.new(typ, reference_name, false) if reference_name?
+      return Type.new(typ, false)
+    end
+
+    def to_array_type : Type
+      raise Exception.new("cannot nest array type") if is_array
+      return Type.new(typ, reference_name, true) if reference_name?
+      return Type.new(typ, true)
+    end
+
+    def is_type?(s : Types)
       return self == Typing::Type.new(s)
     end
 
     def ==(other)
-      if other.is_a?(Type)
-        return true if other.name == self.name
-        numbers = ["int", "num", "byte", "short"]
-        return true if numbers.includes?(other.name) && numbers.includes?(self.name)
-      end
-      return false
+      # When not comparing Types, always false.
+      return false if !other.is_a?(Type)
+      # When both are reference types and the same.
+      return true if other.typ == self.typ && self.typ == Types::REFERENCE && other.reference_name == self.reference_name
+      # When both are the same primative types (i.e. non-reference)
+      return true if other.typ == self.typ
+      # When both are numerical types.
+      numbers = [Types::INT, Types::SHORT, Types::BYTE, Types::NUM]
+      return true if numbers.includes?(other.typ) && numbers.includes?(self.typ)
     end
 
     def to_s : String
-      return "<Type \"#{@name}\">"
+      return "<Type \"#{typ} #{reference_name?} #{is_array} \">"
     end
   end
 
@@ -83,21 +120,21 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ForStmt) : Nil
-    if node.expr? && node.expr.get_type().is_type?("boolean")
+    if node.expr? && node.expr.get_type().is_type?(Typing::Types::BOOLEAN)
       raise TypeCheckStageError.new("for-loop comparison clause is not a bool, instead got: #{node.expr.get_type()}")
     end
     super
   end
 
   def visit(node : AST::WhileStmt) : Nil
-    if !node.expr.get_type().is_type?("boolean")
+    if !node.expr.get_type().is_type?(Typing::Types::BOOLEAN)
       raise TypeCheckStageError.new("while-loop comparison clause is not a bool, instead got: #{node.expr.get_type().to_s}")
     end
     super
   end
 
   def visit(node : AST::DeclStmt) : Nil
-    if node.var.init.get_type() != Typing::Type.new(node.typ.name_str)
+    if node.var.init.get_type() != node.typ.get_type()
       raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected #{node.typ.name_str} got #{node.var.init.get_type().to_s}")
     end
     super
