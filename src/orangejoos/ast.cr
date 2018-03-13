@@ -44,6 +44,8 @@ module AST
       v.ascend
     end
 
+    # Implementations of this method should return all properties of this node which
+    # are themselves Nodes.
     abstract def ast_children : Array(Node)
   end
 

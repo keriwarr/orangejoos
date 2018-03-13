@@ -61,8 +61,14 @@ module Visitor
     end
   end
 
+  # GenericVisitor has some behaviours which were added to facilitate pretty printing
   class GenericVisitor < Visitor
+    # Last child stack represents whether each node which is currently being visited was the last
+    # child of it's parent
+    # In particular, this can be used to decide how to pretty print an AST
+    # i.e. which box drawing characters to use
     @last_child_stack = [] of Bool
+    # Used to to the descend method which value to push onto @last_child_stack
     @is_last_child = false
 
     def descend
