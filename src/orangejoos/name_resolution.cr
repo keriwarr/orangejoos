@@ -186,7 +186,7 @@ class NameResolution
     # in-place by resolving `Name.ref`.
     files.each {|f| f.ast.accept(MethodEnvironmentVisitor.new)}
 
-    return @files
+    return files
   end
 end
 
@@ -480,29 +480,93 @@ class ImportNamespace
   end
 end
 
-class MethodEnvironmentVisitor < Visitor::GenericVisitor
-  @namespace : Array({name: String, decl: AST::Param | AST::VariableDecl}) = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
-  @methodName : String = ""
 
-  def addToNamespace(decl : AST::Param | AST::VariableDecl)
+class MethodEnvironmentVisitor < Visitor::GenericVisitor
+  # Namespace of the scope during AST traversal. It is populated as we
+  # enter a function and encounter any `DeclStmt1.
+  @namespace : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  # Field namespace of the scope during AST traversal. It is
+  # pre-populated when we enter a `MethodDecl`.
+  @field_namespace : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  # Name of the method currently being traversed.
+  @current_method_name : String = ""
+
+  @class_node : AST::ClassDecl?
+
+  # All class instance fields that are accessible. The hash is
+  # class_name -> namespace.
+  @class_instance_fields : Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)}))
+
+  # All static instance fields that are accessible. The hash is
+  # class_name -> namespace.
+  @class_static_fields :  Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)}))
+
+  def initialize
+    @namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    @field_namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    @class_instance_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
+    @class_static_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
+  end
+
+  def addToNamespace(decl : (AST::Param | AST::VariableDecl))
     @namespace.each do |n|
       if n[:name] == decl.name
-        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{@methodName}")
+        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{@current_method_name}")
       end
     end
     @namespace.push({name: decl.name, decl: decl})
   end
 
-  def visit(node : AST::MethodDecl) : Nil
-    @methodName = node.name
+  def get_class_instance_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+    # TODO(joey): This depends on the order of fields matter so that
+    # shadowing fields will be near the front so they resolve instead of
+    # the shadowed fields. See `ClassDecl#fields` to see a TODO for
+    # fixing this.
+    # We use `namespace` to ensure the return value type matches the
+    # function signature.
+    namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    node.non_static_fields.each {|field| namespace.push({name: field.var.name, decl: field.var})}
+    return namespace
+  end
 
+  def get_class_static_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+    # TODO(joey): This depends on the order of fields matter so that
+    # shadowing fields will be near the front so they resolve instead of
+    # the shadowed fields. See `ClassDecl#fields` to see a TODO for
+    # fixing this.
+    # We use `namespace` to ensure the return value type matches the
+    # function signature.
+    namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    node.static_fields.each {|field| namespace.push({name: field.var.name, decl: field.var})}
+    return namespace
+  end
+
+  def visit(node : AST::ClassDecl) : Nil
+    @class_instance_fields[node.name] = get_class_instance_fields(node) if !@class_instance_fields.has_key?(node.name)
+    @class_static_fields[node.name] = get_class_static_fields(node) if !@class_static_fields.has_key?(node.name)
+    @class_node = node
+    methods = node.body.map(&.as?(AST::MethodDecl)).compact
+    methods.each {|m| m.accept(self)}
+  end
+
+  def visit(node : AST::MethodDecl) : Nil
+    @current_method_name = node.name
+    class_node = @class_node.not_nil!
+    # Set up the field namespace.
+    if node.has_mod?("static")
+      @field_namespace = @class_static_fields[class_node.name]
+    else
+      @field_namespace = @class_instance_fields[class_node.name]
+    end
+    # Start with an empty local namespace.
+    @namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+
+    # Add all of the method parameters to the namespace.
     node.params.each do |p|
       addToNamespace(p)
     end
 
     visitStmts(node.body) if node.body?
-
-    @namespace = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
   end
 
   def visitStmts(stmts : Array(AST::Stmt))
@@ -531,11 +595,28 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::SimpleName) : Nil
     return node if node.ref?
+    # The search order is:
+    # 1) Local variables, including parameters.
+    # 2) Fields.
+    # 3) Classes, for resolving any static `FieldAccess`.
     @namespace.each do |n|
       if n[:name] == node.name
         node.ref = n[:decl]
+        return
       end
     end
+    @field_namespace.each do |n|
+      if n[:name] == node.name
+        node.ref = n[:decl]
+        return
+      end
+    end
+
+    # TODO(joey): If the name does not resolve to a local variable or
+    # field in scope, search the import path for a Class. The parent
+    # node must be a FieldAccess in this case.
+    # TODO(joey): The above comment also applies for QualifiedName when
+    # accessing static fields.
   end
 end
 
@@ -550,8 +631,8 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
       # FIXME(joey): A field can be shadowed, so only check non-inherited fields.
-      raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
-      field_set.add(field.decl.name)
+      raise NameResolutionStageError.new("field \"#{field.var.name}\" is redefined") if field_set.includes?(field.var.name)
+      field_set.add(field.var.name)
     end
 
     super

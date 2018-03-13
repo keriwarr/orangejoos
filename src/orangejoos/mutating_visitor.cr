@@ -103,7 +103,7 @@ module Visitor
 
     def visit(node : AST::FieldDecl) : AST::Node
       node.typ = node.typ.accept(self)
-      node.decl = node.decl.accept(self)
+      node.var = node.var.accept(self)
       return node
     end
 

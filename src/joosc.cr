@@ -21,9 +21,9 @@ rescue ex : NameResolutionStageError
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : CompilerError
-  STDERR.puts ex
+  STDERR.puts ex.inspect_with_backtrace
   exit 42
 rescue ex : Exception
-  STDERR.puts ex
+  STDERR.puts ex.inspect_with_backtrace
   exit 42 # TODO(slnt) exit differently if verbose specifed?
 end

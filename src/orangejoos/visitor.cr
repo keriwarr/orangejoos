@@ -107,7 +107,7 @@ module Visitor
 
     def visit(node : AST::FieldDecl) : Nil
       node.typ.accept(self)
-      node.decl.accept(self)
+      node.var.accept(self)
     end
 
     def visit(node : AST::File) : Nil
