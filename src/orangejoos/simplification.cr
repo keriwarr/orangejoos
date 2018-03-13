@@ -483,9 +483,14 @@ class Simplification
          "MultiplicativeExpression"
 
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
-      # else ...
-      lhs_a = simplify(tree.tokens.first.as(ParseTree))
-      lhs = lhs_a.as(AST::Expr)
+
+      if tree.tokens.to_a[1].as(Lexeme).sem == "instanceof"
+        lhs = simplify(tree.tokens.first.as(ParseTree)).as(AST::Expr)
+        typ = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Typ)
+        return AST::ExprInstanceOf.new(lhs, typ)
+      end
+
+      lhs = simplify(tree.tokens.first.as(ParseTree)).as(AST::Expr)
       rhs = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
       op = tree.tokens.to_a[1].as(Lexeme).sem
       return AST::ExprOp.new(op, lhs, rhs)
