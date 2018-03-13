@@ -177,23 +177,34 @@ module AST
       print "Method: #{node.name}"
       print_child "Modifiers: #{node.modifiers.join(", ")}"
       print_child "Returns: #{node.typ.to_s}"
-      print_child "Params: #{(node.params.map {|i| i.to_s}).join(", ")}"
-      print_child("Body:", true)
-      indent
-      visit([node.body.try {|b| b.map &.as(Node)}].flatten.compact)
-      outdent
+      last_child = !node.body?
+      print_child("Params: #{(node.params.map {|i| i.to_s}).join(", ")}", last_child) if !node.params.empty?
+      if node.body?
+        print_child("Body:", true)
+        indent
+        visit([node.body.map &.as(Node)].flatten.compact)
+        outdent
+      end
       # no super
     end
 
     def visit(node : AST::ConstructorDecl) : Nil
-      print "Constructor:"
-      print_child "Modifiers: #{node.modifiers.join(", ")}"
+      if node.body.empty?
+        print "Constructor: <no body>"
+      else
+        print "Constructor:"
+      end
+      last_child = node.body.empty? && node.params.empty?
+      print_child("Modifiers: #{node.modifiers.join(", ")}", last_child)
       # FIXME: params aren't printing
-      print_child("Params: #{(node.params.map {|i| i.to_s}).join(", ")}")
-      print_child("Body:", true)
-      indent
-      visit([node.body.try {|b| b.map &.as(Node)}].flatten.compact)
-      outdent
+      last_child = node.body.empty?
+      print_child("Params: #{(node.params.map {|i| i.to_s}).join(", ")}", last_child) if !node.params.empty?
+      if !node.body.empty?
+        print_child("Body:", true)
+        indent
+        visit([node.body.map &.as(Node)].flatten)
+        outdent
+      end
       # no super
     end
 
