@@ -133,7 +133,7 @@ module AST
   # `PrimitiveTyp` also contains the _cardinality_ of the represented
   # type.
   class PrimitiveTyp < Typ
-    @name : String
+    getter name : String
 
     def initialize(@name : String)
       @cardinality = 0
@@ -1062,44 +1062,21 @@ module AST
 
   class CastExpr < Expr
     property rhs : Expr
-    property! typ : PrimitiveTyp
-    property is_arr : Bool
-    property! expr : Expr
-    property! name : Name
+    property typ : Typ
 
-    def initialize(@rhs : Expr, @typ : PrimitiveTyp, @is_arr : Bool)
-    end
-
-    def initialize(@rhs : Expr, @expr : Expr)
-      @is_arr = false
-    end
-
-    def initialize(@rhs : Expr, @name : Name)
-      @is_arr = true
+    def initialize(@rhs : Expr, @typ : Typ)
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      type_str = (
-        if typ?
-          typ.pprint(0)
-        elsif expr?
-          expr.pprint(0)
-        else
-          name.pprint(0)
-        end
-      )
-
-      return "#{indent}Cast: type={#{type_str}} value={#{@rhs.pprint(0)}}"
+      return "#{indent}Cast: type={#{typ.pprint}} value={#{@rhs.pprint(0)}}"
     end
 
     def children
-      if expr?
-        [rhs, expr] of Expr
-      else
-        [rhs] of Expr
-      end
+      [rhs] of Expr
     end
+
+    # TODO(joey): Add get_type() for new CastExpr.
   end
 
   class ParenExpr < Expr

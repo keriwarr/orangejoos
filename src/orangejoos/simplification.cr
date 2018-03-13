@@ -606,11 +606,27 @@ class Simplification
       if !tree.tokens.get_tree("PrimitiveType").nil?
         typ = simplify(tree.tokens.get_tree!("PrimitiveType")).as(AST::PrimitiveTyp)
         dims = !tree.tokens.get_tree("Dims").nil?
-        return AST::CastExpr.new(rhs, typ, dims)
+        if dims
+          typ = AST::PrimitiveTyp.new(typ.name, 1)
+        end
+        return AST::CastExpr.new(rhs, typ)
       else
-        typ = simplify(tree.tokens.to_a[1].as(ParseTree))
-        return AST::CastExpr.new(rhs, typ.as(AST::Name)) if typ.is_a?(AST::Name)
-        return AST::CastExpr.new(rhs, typ.as(AST::Expr))
+        typ_name = simplify(tree.tokens.to_a[1].as(ParseTree))
+        dims = !tree.tokens.get_tree("Dims").nil?
+        cardinality = dims ? 1 : 0
+        # We have to handle both Name and ExprRef because:
+        # - We get Name if Dims is also present, i.e. only when it is
+        #   casting to an array.
+        # - We get ExprRef if Dims is not present, i.e. casting to a
+        #   plain type).
+        if typ_name.is_a?(AST::Name)
+          typ = AST::ReferenceTyp.new(typ_name, cardinality)
+        elsif typ_name.is_a?(AST::ExprRef)
+          typ = AST::ReferenceTyp.new(typ_name.name, cardinality)
+        else
+          raise WeedingStageError.new("CastExpr expected a Name or Primative type to cast to, but got: #{typ_name.inspect}")
+        end
+        return AST::CastExpr.new(rhs, typ)
       end
 
     when "ArrayCreationExpression"

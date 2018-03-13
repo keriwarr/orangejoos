@@ -151,11 +151,13 @@ class NameResolution
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
     file.ast.accept(ReferenceTypResolutionVisitor.new(namespace))
 
+    file.ast.accept(ReferenceTypResolutionVisitor.new(namespace))
+
     return file
   end
 
   def check_correctness(file)
-      file.ast.accept(DuplicateFieldVisitor.new)
+    file.ast.accept(DuplicateFieldVisitor.new)
   end
 
 
