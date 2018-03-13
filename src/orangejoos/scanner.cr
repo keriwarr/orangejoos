@@ -1,6 +1,7 @@
-require "./lexeme.cr"
-require "./compiler_errors.cr"
-require "./util.cr"
+
+require "./lexeme"
+require "./compiler_errors"
+require "./util"
 
 NEWLINES = Set{'\n', '\r'}
 
