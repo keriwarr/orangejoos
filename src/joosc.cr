@@ -12,13 +12,18 @@ begin
 rescue ex : ArgumentError
   STDERR.puts ex
   exit 42
+rescue ex : WeedingStageError
+  STDERR.puts "Weeding Stage Error: #{ex}"
+  STDERR.puts "#{ex.inspect_with_backtrace}"
+  exit 42
 rescue ex : NameResolutionStageError
   STDERR.puts "Name resolution error: #{ex}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
+  exit 42
 rescue ex : PipelineError
   STDERR.puts ex
   exit 42
 rescue ex : Exception
   STDERR.puts ex
-  exit 42
+  exit 42 # TODO(slnt) exit differently if verbose specifed?
 end
