@@ -49,7 +49,7 @@ module AST
 
     def visit(node : AST::ReferenceTyp) : Nil
       print "ReferenceTyp: #{node.name_str}"
-      super
+      # no super
     end
 
     def visit(node : AST::Literal) : Nil
@@ -69,7 +69,7 @@ module AST
 
     def visit(node : AST::ImportDecl) : Nil
       print "Import:  #{node.path.name}#{node.on_demand ? ".*" : ""}"
-      super
+      # no super
     end
 
     def visit(node : AST::ClassDecl) : Nil
@@ -176,10 +176,11 @@ module AST
     def visit(node : AST::MethodDecl) : Nil
       print "Method: #{node.name}"
       print_child "Modifiers: #{node.modifiers.join(", ")}"
-      print_child "Returns: #{node.typ.to_s}"
-      last_child = !node.body?
+      last_child = node.params.empty? && (!node.body? || node.body.empty?)
+      print_child("Returns: #{node.typ.to_s}", last_child)
+      last_child = !node.body? || node.body.empty?
       print_child("Params: #{(node.params.map {|i| i.to_s}).join(", ")}", last_child) if !node.params.empty?
-      if node.body?
+      if node.body? && !node.body.empty?
         print_child("Body:", true)
         indent
         visit([node.body.map &.as(Node)].flatten.compact)

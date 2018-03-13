@@ -949,7 +949,7 @@ module AST
       [
         typ.as(Node),
         params.map &.as(Node),
-        body.try {|b| b.map &.as(Node)},
+        body?.try {|b| b.map &.as(Node)},
       ].flatten.compact
     end
   end
