@@ -7,7 +7,7 @@ module Visitor
     @depth = 0
 
     abstract def visit(node : AST::PrimativeTyp) : Nil
-    abstract def visit(node : AST::ReferenceTyp) : Nil
+    abstract def visit(node : AST::ClassTyp) : Nil
     abstract def visit(node : AST::Literal) : Nil
     abstract def visit(node : AST::Keyword) : Nil
     abstract def visit(node : AST::PackageDecl) : Nil
@@ -22,6 +22,7 @@ module Visitor
     abstract def visit(node : AST::Param) : Nil
     abstract def visit(node : AST::Block) : Nil
     abstract def visit(node : AST::ExprOp) : Nil
+    abstract def visit(node : AST::ExprInstanceOf) : Nil
     abstract def visit(node : AST::ExprClassInit) : Nil
     abstract def visit(node : AST::ExprThis) : Nil
     abstract def visit(node : AST::ExprRef) : Nil
@@ -65,7 +66,7 @@ module Visitor
     def visit(node : AST::PrimitiveTyp) : Nil
     end
 
-    def visit(node : AST::ReferenceTyp) : Nil
+    def visit(node : AST::ClassTyp) : Nil
       node.name.accept(self)
     end
 
@@ -125,6 +126,11 @@ module Visitor
 
     def visit(node : AST::ExprOp) : Nil
       node.operands.each { |o| o.accept(self) }
+    end
+
+    def visit(node : AST::ExprInstanceOf) : Nil
+      node.lhs.accept(self)
+      node.typ.accept(self)
     end
 
     def visit(node : AST::ExprClassInit) : Nil

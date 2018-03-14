@@ -16,6 +16,7 @@ class Weeding
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
     @root.accept(LiteralRangeCheckerVisitor.new)
+    @root.accept(InvalidInstanceOfExpressionVisitor.new)
   end
 end
 
@@ -142,6 +143,15 @@ class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
       node.val.to_i32
     rescue ArgumentError
       raise WeedingStageError.new("Integer out of bounds")
+    end
+  end
+end
+
+class InvalidInstanceOfExpressionVisitor < Visitor::GenericVisitor
+  def visit(node : AST::ExprInstanceOf) : Nil
+    typ_node = node.typ
+    if typ_node.is_a?(AST::PrimitiveTyp) && typ_node.cardinality == 0
+      raise WeedingStageError.new("Primitive types cannot be used in instanceof, node is: #{node.pprint}")
     end
   end
 end

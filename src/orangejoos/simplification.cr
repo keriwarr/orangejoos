@@ -292,7 +292,7 @@ class Simplification
       class_tree = tree.tokens.get_tree("ClassOrInterfaceType")
       if !class_tree.nil?
         class_name = simplify(class_tree).as(AST::Name)
-        return AST::ReferenceTyp.new(class_name)
+        return AST::ClassTyp.new(class_name)
       else
         # ArrayType or array reference type.
         return simplify(tree.tokens.first.as(ParseTree))
@@ -303,7 +303,7 @@ class Simplification
       case t.name
       when "Name"
         name = simplify(t).as(AST::Name)
-        return AST::ReferenceTyp.new(name, 1)
+        return AST::ClassTyp.new(name, 1)
       when "ArrayType", "PrimitiveType"
         typ = simplify(t).as(AST::Typ)
         typ.cardinality = typ.cardinality + 1
@@ -483,9 +483,14 @@ class Simplification
          "MultiplicativeExpression"
 
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
-      # else ...
-      lhs_a = simplify(tree.tokens.first.as(ParseTree))
-      lhs = lhs_a.as(AST::Expr)
+
+      if tree.tokens.to_a[1].as(Lexeme).sem == "instanceof"
+        lhs = simplify(tree.tokens.first.as(ParseTree)).as(AST::Expr)
+        typ = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Typ)
+        return AST::ExprInstanceOf.new(lhs, typ)
+      end
+
+      lhs = simplify(tree.tokens.first.as(ParseTree)).as(AST::Expr)
       rhs = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
       op = tree.tokens.to_a[1].as(Lexeme).sem
       return AST::ExprOp.new(op, lhs, rhs)
@@ -620,9 +625,9 @@ class Simplification
         # - We get ExprRef if Dims is not present, i.e. casting to a
         #   plain type).
         if typ_name.is_a?(AST::Name)
-          typ = AST::ReferenceTyp.new(typ_name, cardinality)
+          typ = AST::ClassTyp.new(typ_name, cardinality)
         elsif typ_name.is_a?(AST::ExprRef)
-          typ = AST::ReferenceTyp.new(typ_name.name, cardinality)
+          typ = AST::ClassTyp.new(typ_name.name, cardinality)
         else
           raise WeedingStageError.new("CastExpr expected a Name or Primative type to cast to, but got: #{typ_name.inspect}")
         end

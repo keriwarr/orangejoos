@@ -105,7 +105,7 @@ module AST
   end
 
   # Typ represents all types.
-  abstract class Typ < Expr
+  abstract class Typ < Node
     # The _cardinality_ array of the type. If the _cardinality_ is `0`, the
     # type is not an array. For example, the following type has a
     # cardinality of 2:
@@ -116,10 +116,6 @@ module AST
 
     # The _name_ of the type being represented by the AST node.
     abstract def name_str : String
-
-    def children
-      [] of Expr
-    end
   end
 
   # `PrimitiveTyp` represents built-in types. This includes the types:
@@ -154,9 +150,9 @@ module AST
     end
   end
 
-  # `ReferenceType` represents user-defined Class and Interface types,
+  # `ClassType` represents user-defined Class and Interface types,
   # including the cardinality.
-  class ReferenceTyp < Typ
+  class ClassTyp < Typ
     property name : Name
     property cardinality : Int32
 
@@ -630,6 +626,30 @@ module AST
       else
         [expr.as(Stmt), if_body] of Stmt
       end
+    end
+  end
+
+  # `ExprInstanceOf` is the instanceof expression. The LHS is an
+  #  expression and the RHS is a type.
+  class ExprInstanceOf < Expr
+    property lhs : Expr
+    property typ : Typ
+
+    def initialize(@lhs : Expr, @typ : Typ)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "#{indent}(#{lhs.pprint} instanceof #{typ.pprint})"
+    end
+
+    def children
+      return [lhs] of Expr
+    end
+
+    def resolve_type
+      # TODO(joey): Change this to an ENUM when the typing PR merges.
+      return Typing::Type.new("boolean")
     end
   end
 
