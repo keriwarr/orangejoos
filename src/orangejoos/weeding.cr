@@ -16,7 +16,6 @@ class Weeding
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
     @root.accept(LiteralRangeCheckerVisitor.new)
-    @root.accept(InvalidCastExpressionVisitor.new)
   end
 end
 
@@ -143,16 +142,6 @@ class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
       node.val.to_i32
     rescue ArgumentError
       raise WeedingStageError.new("Integer out of bounds")
-    end
-  end
-end
-
-class InvalidCastExpressionVisitor < Visitor::GenericVisitor
-  def visit(node : AST::CastExpr) : Nil
-    return node unless node.expr?
-
-    unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
-      raise WeedingStageError.new("Cannot cast value #{node.rhs.pprint(0)} to #{node.expr.pprint(0)}")
     end
   end
 end

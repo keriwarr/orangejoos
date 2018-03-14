@@ -219,6 +219,7 @@ module Visitor
 
     def visit(node : AST::CastExpr) : Nil
       node.rhs.accept(self)
+      node.typ.accept(self)
     end
 
     def visit(node : AST::ParenExpr) : Nil
