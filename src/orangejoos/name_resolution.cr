@@ -145,6 +145,7 @@ class NameResolution
     # with QualifiedNameResolution for doing better static assertion of
     # resolution?
     file.ast.accept(InterfaceResolutionVisitor.new(namespace))
+    file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     # Check for clashes of the namespace with any classes defined in the
     # file.
