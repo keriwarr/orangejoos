@@ -13,18 +13,19 @@ rescue ex : ArgumentError
   STDERR.puts ex
   exit 42
 rescue ex : WeedingStageError
-  STDERR.puts "Weeding Stage Error: #{ex}"
+  STDERR.puts "weeding error: file=#{ex.file?} #{ex}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : NameResolutionStageError
-  STDERR.puts "Name resolution error: #{ex}"
+  STDERR.puts "name resolution error: file=#{ex.file?} #{ex}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : TypeCheckStageError
-  STDERR.puts "Found type check error: #{ex}"
+  STDERR.puts "type check error: file=#{ex.file?} #{ex}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : CompilerError
+  STDERR.puts "compiler error: file=#{ex.file?}"
   STDERR.puts ex.inspect_with_backtrace
   exit 42
 rescue ex : Exception

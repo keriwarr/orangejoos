@@ -65,6 +65,9 @@ class Pipeline
 
     file.tokens = tokens
     return tokens
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_parse! takes the tokens from a scanned source file and creates a parse tree from it, modifying
@@ -74,6 +77,9 @@ class Pipeline
     parse_tree = Parser.new(table, file.tokens).parse
     file.parse_tree = parse_tree
     return parse_tree
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_simplify! simpifies the parse_tree into an abstract syntax tree.
@@ -82,12 +88,18 @@ class Pipeline
     ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     file.ast = ast
     return ast
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_weed! weeds the abstract suntax tree of errors.
   # May raise a WeedingStageError.
   def do_weed!(file : SourceFile)
     Weeding.new(file.ast, file.class_name).weed
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_name_resolution! resolves names across all abstract syntax trees
@@ -98,6 +110,9 @@ class Pipeline
   # do_type_checking! runs type checks.
   def self.do_type_checking!(file : SourceFile, verbose : Bool)
     TypeCheck.new(file, verbose).check
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # exec executes the compiler pipeline up to the specified ending stage.

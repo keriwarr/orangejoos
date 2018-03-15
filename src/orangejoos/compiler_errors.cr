@@ -5,6 +5,8 @@ end
 
 # Superclass tings
 class CompilerError < Exception
+  property! file : String
+
 end
 
 # A ScanningStageError is an error encountered during the scan stage.
@@ -34,5 +36,5 @@ end
 
 # A TypeCheckStageError is an error encountered during the type check
 # stage.
-class TypeCheckStageError < Exception
+class TypeCheckStageError < CompilerError
 end
