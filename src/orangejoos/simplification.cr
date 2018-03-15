@@ -605,7 +605,7 @@ class Simplification
       if arr.is_a?(AST::Expr)
         return AST::ExprArrayAccess.new(arr, index_expr)
       elsif arr.is_a?(AST::Name)
-        return AST::ExprArrayAccess.new(arr, index_expr)
+        return AST::ExprArrayAccess.new(AST::ExprRef.new(arr), index_expr)
       else
         raise Exception.new("unexpected case")
       end

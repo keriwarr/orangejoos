@@ -870,17 +870,10 @@ module AST
 
   # `ExprArrayAccess` represents an array access.
   class ExprArrayAccess < Expr
-    # FIXME(joey): Rather hacky way to support these two ways to write
-    # an array access, an expr that returns an array or by directly
-    # using an identifier name.
-    property! arr_expr : Expr
-    property! arr_name : Name
+    property expr : Expr
     property index : Expr
 
-    def initialize(@arr_expr : Expr, @index : Expr)
-    end
-
-    def initialize(@arr_name : Name, @index : Expr)
+    def initialize(@expr : Expr, @index : Expr)
     end
 
     def pprint(depth : Int32)
@@ -888,23 +881,13 @@ module AST
       return "ExprArrayAccess: TODO(keri)"
     end
 
-    def children
-      if arr_expr?
-        return [arr_expr, index]
-      else
-        return [index]
-      end
+    def children : Array(Expr)
+      [expr, index]
     end
 
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      if arr_expr?
-        arr_expr.get_type(namespace).from_array_type
-      elsif arr_name?
-        arr_name.ref.as(Expr).get_type(namespace).from_array_type
-      else
-        raise Exception.new("unexpected case")
-      end
+      expr.get_type(namespace).from_array_type
     end
   end
 

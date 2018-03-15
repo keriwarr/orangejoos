@@ -197,7 +197,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprArrayAccess) : Nil
-      node.arr_expr.accept(self) if node.arr_expr?
+      node.expr.accept(self)
       node.index.accept(self)
     end
 
