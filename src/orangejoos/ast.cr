@@ -926,16 +926,22 @@ module AST
           raise TypeCheckStageError.new("array is not a field, can only access 'length'")
         end
         return Typing::Type.new(Typing::Types::INT)
-      else
+      elsif typ.is_type?(Typing::Types::STATIC)
         class_node = typ.ref.as(ClassDecl)
-        # FIXME(joey): Handle static fields. A flag will need to be added
-        # to `Typing::Type`.
+        field = class_node.static_fields.find {|f| f.var.name == @field_name.val}
+        if field.nil?
+          raise TypeCheckStageError.new("class #{class_node.name} has no static field #{@field_name.val}")
+        end
+        return field.not_nil!.typ.to_type
+      elsif typ.is_type?(Typing::Types::REFERENCE)
+        class_node = typ.ref.as(ClassDecl)
         field = class_node.non_static_fields.find {|f| f.var.name == @field_name.val}
         if field.nil?
-          raise TypeCheckStageError.new("class #{class_node.name} has no field #{@field_name.val}")
+          raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name.val}")
         end
-
         return field.not_nil!.typ.to_type
+      else
+        raise Exception.new("unhandled case: #{typ.to_s}")
       end
     end
   end
