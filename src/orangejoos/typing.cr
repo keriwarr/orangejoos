@@ -141,6 +141,10 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace)
   end
 
+  def visit(node : AST::ClassDecl)
+    @namespace.current_class = node
+  end
+
   def visit(node : AST::ConstInteger | AST::ConstBool | AST::ConstChar | AST::ConstString) : Nil
     node.get_type(@namespace)
     super
@@ -160,6 +164,10 @@ end
 # ...
 class StmtTypeCheckVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace)
+  end
+
+  def visit(node : AST::ClassDecl)
+    @namespace.current_class = node
   end
 
   def visit(node : AST::ForStmt) : Nil

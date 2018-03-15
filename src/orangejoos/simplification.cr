@@ -590,7 +590,7 @@ class Simplification
       # return a class or interface type.
       if !tree.tokens.get_tree("Name").nil?
         name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
-        return AST::MethodInvoc.new(nil, name.name, args)
+        return AST::MethodInvoc.new(AST::ExprThis.new, name.name, args)
       else
         expr = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
         ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)

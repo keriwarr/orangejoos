@@ -453,6 +453,9 @@ class ImportNamespace
   property simple_names : Hash(String, AST::TypeDecl)
   property qualified_names : Hash(String, AST::TypeDecl)
 
+  property! current_class : AST::ClassDecl
+  property! current_method : AST::MethodDecl
+
   def initialize(
     same_file : Array(Tuple(String, AST::TypeDecl)),
     single_type : Array(Tuple(String, AST::TypeDecl)),

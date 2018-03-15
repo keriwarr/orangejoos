@@ -208,7 +208,7 @@ module Visitor
     end
 
     def visit(node : AST::MethodInvoc) : AST::Node
-      node.expr = node.expr.accept(self) if node.expr?
+      node.expr = node.expr.accept(self)
       node.args.map!      { |b| b.accept(self) }
       return node
     end

@@ -192,7 +192,7 @@ module Visitor
     end
 
     def visit(node : AST::MethodInvoc) : Nil
-      node.expr.accept(self) if node.expr?
+      node.expr.accept(self)
       node.args.each      { |b| b.accept(self) }
     end
 

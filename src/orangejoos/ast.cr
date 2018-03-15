@@ -32,6 +32,35 @@ NUM_CMP_OPS = [">", "<", "<=", ">=", "!=", "=="]
 # `Const`.
 module AST
 
+  class MethodSignature
+    getter name : String
+    getter params : Array(Typing::Type)
+
+    def initialize(@name : String, @params : Array(Typing::Type))
+    end
+
+    def initialize(method : MethodDecl)
+      @name = method.name
+      @params = method.params.map {|p| p.typ.to_type}
+    end
+
+    # Similar checks if the method signature is similar, i.e. it has
+    # the same name.
+    def similar(other : MethodSignature)
+      self.name == other.name
+    end
+
+    # Equiv checks if the function signature is equivilant, i.e. the
+    # name and formal parameters are equal.
+    def equiv(other : MethodSignature)
+      similar(other) && params_equiv(other)
+    end
+
+    def params_equiv(other : MethodSignature)
+      params.size == other.params.size && params.zip(other.params).all? {|a, b| a == b}
+    end
+  end
+
   module Modifiers
     getter modifiers : Set(String) = Set(String).new
 
@@ -323,6 +352,14 @@ module AST
 
     property! name : String
     property! qualified_name : String
+
+    abstract def methods : Array(MethodDecl)
+
+    def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
+      signature = MethodSignature.new(name, args)
+      result = methods.find {|m| MethodSignature.new(m).equiv(signature) }
+      return result
+    end
   end
 
   # `ClassDecl` is a top-level declaration for classes. Classes contain
@@ -338,12 +375,13 @@ module AST
     end
 
     def fields : Array(FieldDecl)
-      visible_fields = body.select(&.is_a?(FieldDecl))
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_fields = body.map(&.as?(FieldDecl)).compact
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
       visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
-      return visible_fields.map(&.as(FieldDecl))
+      return visible_fields
     end
 
     def non_static_fields : Array(FieldDecl)
@@ -352,6 +390,20 @@ module AST
 
     def static_fields : Array(FieldDecl)
       fields.select &.has_mod?("static")
+    end
+
+    def methods : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = body.map(&.as?(MethodDecl)).compact
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
+      visible_methods += super_class.ref.as(ClassDecl).methods if super_class?
+      interfaces.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        visible_methods += interface.methods
+      end
+      return visible_methods
     end
 
     def extends?(node : ClassDecl) : Bool
@@ -403,6 +455,19 @@ module AST
 
     def initialize(@name : String, modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
+    end
+
+    def methods : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = body.map(&.as?(MethodDecl)).compact
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
+      extensions.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        visible_methods += interface.methods
+      end
+      return visible_methods
     end
 
     def extends?(node : InterfaceDecl) : Bool
@@ -790,10 +855,10 @@ module AST
       end
 
       types = operands.map {|o| o.get_type(namespace).as(Typing::Type)}
-      STDERR.puts("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
+      # STDERR.puts("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
 
-      return Typing::Type.new(Typing::Types::BOOLEAN)
-      # raise Exception.new("unhandled operation: types=#{types} #{self.pprint}")
+      # return Typing::Type.new(Typing::Types::BOOLEAN)
+      raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
       # FIXME(joey): Maybe handle !num.
     end
   end
@@ -943,9 +1008,7 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # This one will have to resolve to a type based on a pass earlier
-      # disambigiating any this nodes.
-      raise Exception.new("unimplemented: ExprThis resolve_type")
+      return Typing::Type.new(Typing::Types::REFERENCE, namespace.current_class)
     end
   end
 
@@ -996,7 +1059,7 @@ module AST
   # ```
   #
   class MethodInvoc < Expr
-    property! expr : Expr
+    property expr : Expr
     property name : String
     property args : Array(Expr)
 
@@ -1006,25 +1069,35 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       expr_str = ""
-      if expr?
-        expr_str = "of " + expr.pprint + " "
-      end
+      expr_str = "of " + expr.pprint + " "
       return "#{indent}MethodInvoc #{expr_str}name=#{name} args=#{args.map &.pprint(0)}"
     end
 
     def children
-      if expr?
-        [expr] of Expr + args
-      else
-        args
-      end
+      [expr] of Expr + args
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # Dependant on resolving this invocation to a signature.
-      # 1) Get the expr's class/interface type.
-      # 2) Look for a signature that matches this.
-      return Typing::Type.new(Typing::Types::TODO)
+      instance_type = expr.get_type(namespace)
+      arg_types = args.map &.get_type(namespace).as(Typing::Type)
+
+      raise TypeCheckStageError.new("attempted method call #{name} on #{instance_type.to_s}") if !instance_type.is_object?
+
+      typ = instance_type.ref.as(AST::TypeDecl)
+      method = typ.method?(name, arg_types)
+
+      raise TypeCheckStageError.new("no method #{name} on #{typ.to_s}") if method.nil?
+
+      method = method.not_nil!
+
+      # TODO(joey): Annotate `Typing::Type` with a special reference
+      # type for the package name in order to distinguish when static
+      # methods or fields used.
+      raise TypeCheckStageError.new("attempted to call") if method.has_mod?("static")
+
+      STDERR.puts "modifiers=#{method.modifiers}"
+
+      return method.not_nil!.typ.to_type
     end
   end
 
@@ -1188,32 +1261,6 @@ module AST
 
     def initialize(@name : String, @typ : Typ, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
-    end
-
-    class MethodSignature
-      getter name : String
-      getter typ : String
-      getter modifiers : Set(String)
-      getter params : Array(String)
-
-      def initialize(@name : String, @typ : String, @modifiers : Set(String), @params : Array(String))
-      end
-
-      # Similar checks if the method signature is similar, i.e. it has
-      # the same name.
-      def similar(other : MethodSignature)
-        self.name == other.name
-      end
-
-      # Equiv checks if the function signature is equivilant, i.e. the
-      # name and formal parameters are equal.
-      def equiv(other : MethodSignature)
-        similar(other) && params_equiv(other)
-      end
-
-      def params_equiv(other : MethodSignature)
-        params.size == other.params.size && params.zip(other.params).all? {|a, b| a == b}
-      end
     end
 
     def signature : MethodSignature
