@@ -89,6 +89,7 @@ module Visitor
     end
 
     def visit(node : AST::ClassDecl) : Nil
+      # STDERR.puts "class_name=#{node.name}"
       node.interfaces.each { |i| i.accept(self) }
       node.body.each       { |b| b.accept(self) }
       node.super_class.accept(self) if node.super_class?
@@ -216,6 +217,7 @@ module Visitor
     end
 
     def visit(node : AST::MethodDecl) : Nil
+      # STDERR.puts "method=#{node.name}"
       node.typ.accept(self) if node.typ?
       node.params.each    { |p| p.accept(self) }
       node.body.each      { |b| b.accept(self) } if node.body?

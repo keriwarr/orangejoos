@@ -190,7 +190,7 @@ class NameResolution
 
     # Resolve all variables found in the files. This mutates the AST
     # in-place by resolving `Name.ref`.
-    files.each {|f| f.ast.accept(MethodEnvironmentVisitor.new)}
+    files.each {|f| f.ast.accept(MethodEnvironmentVisitor.new(f.import_namespace))}
 
     return files
   end
@@ -480,7 +480,7 @@ class ImportNamespace
     end
   end
 
-  def fetch(node : AST::Name)
+  def fetch(node : AST::Name) : AST::Node?
     if node.is_a?(AST::QualifiedName)
       return qualified_names.fetch(node.name, nil)
     else
@@ -515,6 +515,8 @@ class DeclWrapper
 end
 
 class MethodEnvironmentVisitor < Visitor::GenericVisitor
+  @import_namespace : ImportNamespace
+
   # Namespace of the scope during AST traversal. It is populated as we
   # enter a function and encounter any `DeclStmt1.
   @namespace : Array({name: String, decl: DeclWrapper})
@@ -534,7 +536,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   # class_name -> namespace.
   @class_static_fields :  Hash(String, Array({name: String, decl: DeclWrapper}))
 
-  def initialize
+  def initialize(@import_namespace : ImportNamespace)
     @namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
     @field_namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
     @class_instance_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
@@ -660,8 +662,14 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # node must be a FieldAccess in this case.
     # TODO(joey): The above comment also applies for QualifiedName when
     # accessing static fields.
+    result = @import_namespace.fetch(node)
+    if !result.nil?
+      node.ref = result
+      return
+    end
 
-    raise NameResolutionStageError.new("could not find variable #{node.name}")
+
+    raise NameResolutionStageError.new("could not find variable {#{node.name}}")
   end
 end
 

@@ -1027,6 +1027,11 @@ module AST
   # ```
   #
   class ExprRef < Expr
+    # The _name_ of an `ExprRef` may hold one of:
+    # - DeclStmt
+    # - FieldDecl
+    # - Param
+    # - TypeDecl (ClassDecl / InterfaceDecl)
     property name : Name
 
     def initialize(@name : Name)
@@ -1046,7 +1051,7 @@ module AST
         node = name.ref
         case node
         when AST::TypeDecl
-          return Typing::Type.new(Typing::Types::REFERENCE, node)
+          return Typing::Type.new(Typing::Types::STATIC, node)
         when AST::DeclStmt then return node.typ.to_type
         when AST::Param then return node.typ.to_type
         when AST::FieldDecl then return node.typ.to_type
@@ -1088,7 +1093,7 @@ module AST
       instance_type = expr.get_type(namespace)
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
 
-      raise TypeCheckStageError.new("attempted method call #{name} on #{instance_type.to_s}") if !instance_type.is_object?
+      raise TypeCheckStageError.new("attempted method call #{name} on #{instance_type.to_s}") unless instance_type.is_object? || instance_type.is_static?
 
       typ = instance_type.ref.as(AST::TypeDecl)
       method = typ.method?(name, arg_types)
@@ -1097,12 +1102,11 @@ module AST
 
       method = method.not_nil!
 
-      # TODO(joey): Annotate `Typing::Type` with a special reference
-      # type for the package name in order to distinguish when static
-      # methods or fields used.
-      raise TypeCheckStageError.new("attempted to call") if method.has_mod?("static")
-
-      STDERR.puts "modifiers=#{method.modifiers}"
+      if instance_type.is_type?(Typing::Types::STATIC)
+        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?("static")
+      else
+        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?("static")
+      end
 
       return method.not_nil!.typ.to_type
     end
