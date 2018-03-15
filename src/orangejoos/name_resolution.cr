@@ -660,6 +660,8 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # node must be a FieldAccess in this case.
     # TODO(joey): The above comment also applies for QualifiedName when
     # accessing static fields.
+
+    raise NameResolutionStageError.new("could not find variable #{node.name}")
   end
 end
 
@@ -725,6 +727,7 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
   # for the `ImportNamespace`.
   def visit(node : AST::PackageDecl | AST::ImportDecl) : AST::Node
     return node
+    # no super
   end
 
   def visit(node : AST::ExprRef) : AST::Node

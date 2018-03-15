@@ -14,18 +14,22 @@ rescue ex : ArgumentError
   exit 42
 rescue ex : WeedingStageError
   STDERR.puts "weeding error: file=#{ex.file?} #{ex}"
+  STDERR.puts "#{ex.metadata}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : NameResolutionStageError
   STDERR.puts "name resolution error: file=#{ex.file?} #{ex}"
+  STDERR.puts "#{ex.metadata}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : TypeCheckStageError
   STDERR.puts "type check error: file=#{ex.file?} #{ex}"
+  STDERR.puts "#{ex.metadata}"
   STDERR.puts "#{ex.inspect_with_backtrace}"
   exit 42
 rescue ex : CompilerError
   STDERR.puts "compiler error: file=#{ex.file?}"
+  STDERR.puts "#{ex.metadata}"
   STDERR.puts ex.inspect_with_backtrace
   exit 42
 rescue ex : Exception

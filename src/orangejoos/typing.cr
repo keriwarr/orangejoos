@@ -168,6 +168,12 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ClassDecl)
     @namespace.current_class = node
+    super
+  end
+
+  def visit(node : AST::MethodDecl) : Nil
+    @namespace.current_method = node
+    super
   end
 
   def visit(node : AST::ForStmt) : Nil
@@ -189,6 +195,17 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     typ = node.typ.to_type
     unless Typing.can_convert_type(init_typ, typ)
       raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected {#{typ.to_s}} got #{node.var.init.get_type(@namespace).to_s}")
+    end
+    super
+  end
+
+  def visit(node : AST::ReturnStmt) : Nil
+    return_typ = node.expr?.try &.get_type(@namespace)
+    method_typ = @namespace.current_method.typ?.try &.to_type
+    if method_typ.nil?
+      raise TypeCheckStageError.new("method #{@namespace.current_method.name} is void but returning #{return_typ.try &.to_s}") if !return_typ.nil?
+    else
+      raise TypeCheckStageError.new("method #{@namespace.current_method.name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}") if return_typ != method_typ
     end
     super
   end

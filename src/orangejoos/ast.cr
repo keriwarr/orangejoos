@@ -1086,7 +1086,7 @@ module AST
       typ = instance_type.ref.as(AST::TypeDecl)
       method = typ.method?(name, arg_types)
 
-      raise TypeCheckStageError.new("no method #{name} on #{typ.to_s}") if method.nil?
+      raise TypeCheckStageError.new("no method {#{name}} on #{typ.qualified_name}") if method.nil?
 
       method = method.not_nil!
 
@@ -1255,11 +1255,12 @@ module AST
     include Modifiers
 
     property name : String
-    property typ : Typ
+    # `typ` is Nil if the method has a void return type.
+    property! typ : Typ
     property params : Array(Param) = [] of Param
     property! body : Array(Stmt) | Nil
 
-    def initialize(@name : String, @typ : Typ, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 
@@ -1279,12 +1280,9 @@ module AST
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       p = params.map {|i| i.pprint(0)}
-      if body?
-        body_str = (body.map {|b| b.pprint(depth+1)}).join("\n")
-      else
-        body_str = "<no body>"
-      end
-      return "#{indent}method #{name} #{typ.pprint(0)} #{modifiers.join(",")} #{p}\n#{body_str}"
+      body_str = "<no body>"
+      body_str = (body.map {|b| b.pprint(depth+1)}).join("\n") if body?
+      return "#{indent}method #{name} #{typ?.try &.pprint} #{modifiers.join(",")} #{p}\n#{body_str}"
     end
   end
 
@@ -1312,9 +1310,9 @@ module AST
   end
 
   class ReturnStmt < Stmt
-    property! expr : Expr | Nil
+    property! expr : Expr
 
-    def initialize(@expr : Expr | Nil)
+    def initialize(@expr : Expr?)
     end
 
     def pprint(depth : Int32)
@@ -1327,11 +1325,7 @@ module AST
     end
 
     def children
-      if expr.nil?
-        return [] of Expr
-      else
-        return [expr]
-      end
+      [expr?].compact
     end
   end
 

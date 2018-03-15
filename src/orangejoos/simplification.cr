@@ -590,7 +590,22 @@ class Simplification
       # return a class or interface type.
       if !tree.tokens.get_tree("Name").nil?
         name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
-        return AST::MethodInvoc.new(AST::ExprThis.new, name.name, args)
+        # `Name()` can furthur be broken down into either a
+        # `SimpleName()` or a `QualifiedName()`, where the qualified
+        # name may look like `foo.bar()` or `foo.bar.hah.z.length()`.
+        # `QualifiedNameDisambiguation` will later pick up the
+        # `ExprRef`.
+        if name.is_a?(AST::SimpleName)
+          return AST::MethodInvoc.new(AST::ExprThis.new, name.name, args)
+        else
+          name = name.as(AST::QualifiedName)
+          if name.parts.size > 2
+            prefix = AST::QualifiedName.new(name.parts[1...-1])
+          else
+            prefix = AST::SimpleName.new(name.parts[0])
+          end
+          return AST::MethodInvoc.new(AST::ExprRef.new(prefix), name.parts[-1], args)
+        end
       else
         expr = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
         ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
@@ -756,11 +771,7 @@ class Simplification
       mods = simplify_tree(t).as(Array(AST::Modifier)) unless t.nil?
 
       typ_tree = tree.tokens.get_tree("Type")
-      if typ_tree.nil?
-        typ = AST::PrimitiveTyp.new("void")
-      else
-        typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
-      end
+      typ = typ_tree.try {|t| simplify(t.as(ParseTree)).as(AST::Typ)}
 
       decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(TMPMethodDecl)
 

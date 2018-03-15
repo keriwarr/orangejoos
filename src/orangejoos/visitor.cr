@@ -92,11 +92,17 @@ module Visitor
       node.interfaces.each { |i| i.accept(self) }
       node.body.each       { |b| b.accept(self) }
       node.super_class.accept(self) if node.super_class?
+    rescue ex : CompilerError
+      ex.register("class_name", node.name)
+      raise ex
     end
 
     def visit(node : AST::InterfaceDecl) : Nil
       node.extensions.each { |i| i.accept(self) }
       node.body.each       { |b| b.accept(self) }
+    rescue ex : CompilerError
+      ex.register("interface_name", node.name)
+      raise ex
     end
 
     def visit(node : AST::SimpleName) : Nil
@@ -108,6 +114,9 @@ module Visitor
     def visit(node : AST::FieldDecl) : Nil
       node.typ.accept(self)
       node.var.accept(self)
+    rescue ex : CompilerError
+      ex.register("field_name", node.var.name)
+      raise ex
     end
 
     def visit(node : AST::File) : Nil
@@ -207,9 +216,12 @@ module Visitor
     end
 
     def visit(node : AST::MethodDecl) : Nil
-      node.typ.accept(self)
+      node.typ.accept(self) if node.typ?
       node.params.each    { |p| p.accept(self) }
       node.body.each      { |b| b.accept(self) } if node.body?
+    rescue ex : CompilerError
+      ex.register("method", node.name)
+      raise ex
     end
 
     def visit(node : AST::ConstructorDecl) : Nil

@@ -227,7 +227,7 @@ module Visitor
     end
 
     def visit(node : AST::MethodDecl) : AST::Node
-      node.typ = node.typ.accept(self)
+      node.typ = node.typ.accept(self) if node.typ?
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) } if node.body?
       return node
