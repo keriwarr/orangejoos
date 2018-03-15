@@ -921,8 +921,12 @@ module AST
       unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array
         raise TypeCheckStageError.new("cannot access field of non-class type or non-array type")
       end
-
-      if typ.ref.is_a?(ClassDecl)
+      if typ.is_array
+        if @field_name.val != "length"
+          raise TypeCheckStageError.new("array is not a field, can only access 'length'")
+        end
+        return Typing::Type.new(Typing::Types::INT)
+      else
         class_node = typ.ref.as(ClassDecl)
         # FIXME(joey): Handle static fields. A flag will need to be added
         # to `Typing::Type`.
@@ -932,11 +936,6 @@ module AST
         end
 
         return field.not_nil!.typ.to_type
-      else
-        if @field_name.val != "length"
-          raise TypeCheckStageError.new("array is not a field, can only access 'length'")
-        end
-        return Typing::Type.new(Typing::Types::INT)
       end
     end
   end
