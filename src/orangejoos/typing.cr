@@ -143,8 +143,8 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   def visit(node : AST::DeclStmt) : Nil
     init_typ = node.var.init.get_type(@namespace)
     typ = node.typ.to_type
-    unless typ == init_typ || (typ.is_object? && init_typ.is_type?(Typing::Types::NULL))
-      raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected #{node.typ.name_str} got #{node.var.init.get_type(@namespace).to_s}")
+    unless typ == init_typ || (typ.is_object? && init_typ.is_type?(Typing::Types::NULL)) || (typ.is_array && init_typ.is_type?(Typing::Types::NULL))
+      raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected {#{typ.to_s}} got #{node.var.init.get_type(@namespace).to_s}")
     end
     super
   end

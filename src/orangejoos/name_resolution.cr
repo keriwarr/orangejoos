@@ -693,7 +693,6 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
       raise NameResolutionStageError.new("#{node.name.name} type was not found")
     end
     node.name.ref = typ
-
     super
   end
 end

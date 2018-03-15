@@ -161,12 +161,13 @@ module AST
     end
 
     def to_type : Typing::Type
+      is_array = @cardinality > 0
       case @name
-      when "byte" then return Typing::Type.new(Typing::Types::BYTE)
-      when "short" then return Typing::Type.new(Typing::Types::SHORT)
-      when "int" then return Typing::Type.new(Typing::Types::INT)
-      when "char" then return Typing::Type.new(Typing::Types::CHAR)
-      when "boolean" then return Typing::Type.new(Typing::Types::BOOLEAN)
+      when "byte" then return Typing::Type.new(Typing::Types::BYTE, is_array)
+      when "short" then return Typing::Type.new(Typing::Types::SHORT, is_array)
+      when "int" then return Typing::Type.new(Typing::Types::INT, is_array)
+      when "char" then return Typing::Type.new(Typing::Types::CHAR, is_array)
+      when "boolean" then return Typing::Type.new(Typing::Types::BOOLEAN, is_array)
       else raise Exception.new("unexpected type: #{@name}")
       end
     end
@@ -195,7 +196,8 @@ module AST
     end
 
     def to_type : Typing::Type
-      return Typing::Type.new(Typing::Types::REFERENCE, name.ref.as(AST::TypeDecl))
+      is_array = @cardinality > 0
+      return Typing::Type.new(Typing::Types::REFERENCE, name.ref.as(AST::TypeDecl), is_array)
     end
   end
 
@@ -810,19 +812,26 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       typ = obj.get_type(namespace)
-      unless typ.is_object? && typ.ref.is_a?(ClassDecl)
-        raise TypeCheckStageError.new("cannot access field of non-class type")
+      unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array
+        raise TypeCheckStageError.new("cannot access field of non-class type or non-array type")
       end
 
-      class_node = typ.ref.as(ClassDecl)
-      # FIXME(joey): Handle static fields. A flag will need to be added
-      # to `Typing::Type`.
-      field = class_node.non_static_fields.find {|f| f.var.name == @field_name.val}
-      if field.nil?
-        raise TypeCheckStageError.new("class #{class_node.name} has no field #{@field_name.val}")
-      end
+      if typ.ref.is_a?(ClassDecl)
+        class_node = typ.ref.as(ClassDecl)
+        # FIXME(joey): Handle static fields. A flag will need to be added
+        # to `Typing::Type`.
+        field = class_node.non_static_fields.find {|f| f.var.name == @field_name.val}
+        if field.nil?
+          raise TypeCheckStageError.new("class #{class_node.name} has no field #{@field_name.val}")
+        end
 
-      return field.not_nil!.typ.to_type
+        return field.not_nil!.typ.to_type
+      else
+        if @field_name.val != "length"
+          raise TypeCheckStageError.new("array is not a field, can only access 'length'")
+        end
+        return Typing::Type.new(Typing::Types::INT)
+      end
     end
   end
 
@@ -871,10 +880,10 @@ module AST
     # FIXME(joey): Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
     # such as Name (or Class/Interface) and PrimitiveTyp.
-    property arr : Node
+    property arr : Typ
     property dim : Expr
 
-    def initialize(@arr : Node, @dim : Expr)
+    def initialize(@arr : Typ, @dim : Expr)
     end
 
     def pprint(depth : Int32)
@@ -888,12 +897,13 @@ module AST
 
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # Crystal is broken. (type casting thinger)
+      # Crystal cannot modify the type from a method, `#arr`.
       node = arr
       case node
-      when Name
-        return Typing::Type.new(Typing::Types::REFERENCE, node.ref.as(TypeDecl), true)
       when PrimitiveTyp
+        typ = node.to_type()
+        return typ.to_array_type()
+      when ClassTyp
         typ = node.to_type()
         return typ.to_array_type()
       else raise Exception.new("unexpected type: #{arr.inspect}")
@@ -951,9 +961,9 @@ module AST
         case node
         when AST::TypeDecl
           return Typing::Type.new(Typing::Types::REFERENCE, node)
-        when AST::DeclStmt then return node.typ.to_type()
-        when AST::Param then return node.typ.to_type()
-        when AST::FieldDecl then return node.typ.to_type()
+        when AST::DeclStmt then return node.typ.to_type
+        when AST::Param then return node.typ.to_type
+        when AST::FieldDecl then return node.typ.to_type
         else raise Exception.new("unhandled case: #{node.inspect}")
         end
       else
