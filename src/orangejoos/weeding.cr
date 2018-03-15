@@ -70,7 +70,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
   def handleFieldDecl(node : AST::ClassDecl, fd : AST::FieldDecl)
     # Do not allow fields to be final.
     if fd.has_mod?("final")
-      raise WeedingStageError.new("field #{node.name}.#{fd.decl.name} is final, but final is not allowed")
+      raise WeedingStageError.new("field #{node.name}.#{fd.var.name} is final, but final is not allowed")
     end
   end
 

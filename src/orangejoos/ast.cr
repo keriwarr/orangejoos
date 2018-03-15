@@ -319,6 +319,9 @@ module AST
 
     def fields : Array(FieldDecl)
       visible_fields = body.select(&.is_a?(FieldDecl))
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
       visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
       return visible_fields.map(&.as(FieldDecl))
     end
@@ -445,15 +448,15 @@ module AST
   # ```
   class FieldDecl < MemberDecl
     property typ : Typ
-    property decl : VariableDecl
+    property var : VariableDecl
 
-    def initialize(modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl)
+    def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      return "#{indent}field #{decl.pprint(0)} type=#{typ.name_str} mods=#{modifiers.join(",")}"
+      return "#{indent}field #{var.pprint(0)} type=#{typ.name_str} mods=#{modifiers.join(",")}"
     end
   end
 
@@ -496,6 +499,8 @@ module AST
 
   # `Param` represents a parameter definition in a method signature. It
   # includes the _name_ and _typ_ of the paramter.
+  # TODO(joey): If the Param wraps a `VariableDecl` or we remove `Param`
+  # outright, this will simplify variable resolution code.
   class Param < Node
     property name : String
     property typ : Typ
