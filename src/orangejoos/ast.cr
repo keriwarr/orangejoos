@@ -354,6 +354,26 @@ module AST
       fields.select &.has_mod?("static")
     end
 
+    def extends?(node : ClassDecl) : Bool
+      return true if super_class? && super_class.ref.as(ClassDecl).qualified_name == node.qualified_name
+      # TODO(joey): This is terribly inefficient lookup which could be
+      # cached or precomputed in name resolution.
+      return true if super_class? && super_class.ref.as(ClassDecl).extends?(node)
+      return false
+    end
+
+    def implements?(node : InterfaceDecl) : Bool
+      # TODO(joey): This function is terribly inefficient lookup which could be
+      # cached or precomputed in name resolution.
+      interfaces.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        return true if interface.qualified_name == node.qualified_name
+        return true if interface.extends?(node)
+      end
+      return true if super_class? && super_class.ref.as(ClassDecl).implements?(node)
+      return false
+    end
+
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       super_str = ""
@@ -383,6 +403,17 @@ module AST
 
     def initialize(@name : String, modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
+    end
+
+    def extends?(node : InterfaceDecl) : Bool
+      # TODO(joey): This function is terribly inefficient lookup which could be
+      # cached or precomputed in name resolution.
+      extensions.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        return true if interface.qualified_name == node.qualified_name
+        return true if interface.extends?(node)
+      end
+      return false
     end
 
     def pprint(depth : Int32)
@@ -749,8 +780,10 @@ module AST
       end
 
       if op == "=" && operands.size == 2
-        if operands[0].get_type(namespace) == operands[1].get_type(namespace)
-          return operands[0].get_type(namespace)
+        lhs = operands[0].get_type(namespace)
+        rhs = operands[1].get_type(namespace)
+        if Typing.can_convert_type(rhs, lhs)
+          return lhs
         else
           raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
         end
@@ -1289,15 +1322,9 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # TODO(joey): Assert the RHS is castable to the LHS, by the following cases:
-      # 1) Expr is a Class that extends the Cast Class.
-      # 1.1) Going the other way, insert a run-time cast check.
-      # 2) Expr is a Class that implements the Cast Interface.
-      # 2.1) Going the other way, insert a run-time cast check.
-      # 3) Expr is an Interface that extends the Cast Interface.
-      # 3.1) Going the other way, insert a run-time cast check.
-      # 4) Primitive types that allow casing. If any?
-      return typ.to_type()
+      expr_type = rhs.get_type(namespace)
+      raise TypeCheckStageError.new("cannot cast from #{expr_type.to_s} to #{typ.to_type.to_s}") if !Typing.can_convert_type(expr_type, typ.to_type)
+      return typ.to_type
     end
   end
 

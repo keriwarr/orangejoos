@@ -14,6 +14,45 @@ module Typing
     TODO
   end
 
+  def self.can_convert_type(from : Type, to : Type) : Bool
+    return true if from == to
+
+    return true if from.is_type?(Types::NUM) && to.is_type?(Types::NUM)
+
+    # 5.1.4 Widening Reference Conversions
+
+    # From null to any class, interface, or array type.
+    return true if from.is_type?(Types::NULL) && (to.is_object? || to.is_array)
+
+    # From array type to Object, Cloneable, or java.io.Serializable.
+    return true if from.is_array && to.is_object? && ["java.lang.Object", "java.io.Serializable", "java.lang.Cloneable"].includes?(to.ref.as(AST::TypeDecl).qualified_name)
+
+    if from.is_object? && from.ref.is_a?(AST::InterfaceDecl) && to.is_object?
+      from_interface = from.ref.as(AST::InterfaceDecl)
+
+      # From any interface type to Object.
+      return true if to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
+
+      # From any interface J to any interface K if J is a subinterface of K.
+      return true if to.ref.is_a?(AST::InterfaceDecl) &&
+                     to.ref.as(AST::InterfaceDecl).extends?(from.ref.as(AST::InterfaceDecl))
+    end
+
+    if from.is_object? && to.is_object?
+      # From any class S to an interface K, if the class S implements the
+      # interface K.
+      return true if from.ref.is_a?(AST::ClassDecl) && to.ref.is_a?(AST::InterfaceDecl) &&
+                     from.ref.as(AST::ClassDecl).implements?(to.ref.as(AST::InterfaceDecl))
+
+      # From any class S to another class T, if S is a subclass of T.
+      # (Special case to Object).
+      return true if from.ref.is_a?(AST::ClassDecl) && to.ref.is_a?(AST::ClassDecl) &&
+                     from.ref.as(AST::ClassDecl).extends?(to.ref.as(AST::ClassDecl))
+    end
+
+    return false
+  end
+
   class Type
     property typ : Types
     property! ref : AST::TypeDecl
@@ -59,7 +98,7 @@ module Typing
       # When both are the same primative types (i.e. non-reference)
       return true if other.typ == self.typ
       # When both are numerical types.
-      numbers = [Types::INT, Types::SHORT, Types::BYTE, Types::NUM]
+      numbers = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
       return true if numbers.includes?(other.typ) && numbers.includes?(self.typ)
     end
 
@@ -91,9 +130,6 @@ class TypeCheck
   end
 
   def check
-    # FIXME(joey): Currently this check is not done, because the stdlib
-    # does a standard type cast.
-    # @file.ast.accept(InvalidCastExpressionVisitor.new)
     @file.ast.accept(TypeResolutionVisitor.new(@file.import_namespace))
     @file.ast.accept(StmtTypeCheckVisitor.new(@file.import_namespace))
   end
@@ -143,23 +179,9 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   def visit(node : AST::DeclStmt) : Nil
     init_typ = node.var.init.get_type(@namespace)
     typ = node.typ.to_type
-    unless typ == init_typ || (typ.is_object? && init_typ.is_type?(Typing::Types::NULL)) || (typ.is_array && init_typ.is_type?(Typing::Types::NULL))
+    unless Typing.can_convert_type(init_typ, typ)
       raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected {#{typ.to_s}} got #{node.var.init.get_type(@namespace).to_s}")
     end
     super
-  end
-
-end
-
-# `InvalidCastExpressionVisitor` checks if any casts are to an invalid
-# type, i.e. not a ClassType.
-class InvalidCastExpressionVisitor < Visitor::GenericVisitor
-  def visit(node : AST::CastExpr) : Nil
-    typ_node = node.typ
-    return if typ_node.is_a?(AST::ClassTyp)
-
-    if typ_node.cardinality == 0
-      raise TypeCheckStageError.new("cannot cast to a #{typ_node.pprint}, not a ReferenceType")
-    end
   end
 end
