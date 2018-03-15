@@ -854,12 +854,20 @@ module AST
         end
       end
 
-      types = operands.map {|o| o.get_type(namespace).as(Typing::Type)}
-      # STDERR.puts("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
+      if op == "==" && operands.size == 2
+        lhs = operands[0].get_type(namespace)
+        rhs = operands[1].get_type(namespace)
+        if Typing.can_convert_type(rhs, lhs)
+          return Typing::Type.new(Typing::Types::BOOLEAN)
+        else
+          raise TypeCheckStageError.new("equality between two different types: LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+        end
+      end
 
-      # return Typing::Type.new(Typing::Types::BOOLEAN)
-      raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
-      # FIXME(joey): Maybe handle !num.
+      # FIXME(joey): Add exhaustive operators.
+
+      types = operands.map {|o| o.get_type(namespace).as(Typing::Type).to_s}
+      raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
     end
   end
 
