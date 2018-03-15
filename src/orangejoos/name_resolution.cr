@@ -641,7 +641,7 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
       field = f.as(AST::FieldDecl)
       # FIXME(joey): A field can be shadowed, so this check is removed. This should only check non-inherited fields.
       # raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
-      field_set.add(field.decl.name)
+      field_set.add(field.var.name)
     end
 
     super
@@ -664,23 +664,6 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
     node.name.ref = typ
 
     super
-  end
-
-  def visit(node : AST::CastExpr) : Nil
-    if node.name?
-      typ = @namespace.fetch(node.name)
-      if typ.nil?
-        raise NameResolutionStageError.new("#{node.name.name} type was not found")
-      end
-      node.name.ref = typ
-    elsif node.expr?
-      a = node.expr.as(AST::Name)
-      typ = @namespace.fetch(a.name)
-      if typ.nil?
-        raise NameResolutionStageError.new("#{node.name.name} type was not found")
-      end
-      node.name.ref = typ
-    end
   end
 end
 
@@ -713,7 +696,7 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
 
   def visit(node : AST::ExprRef) : AST::Node
     # If the qualified name was already resolved, then it (should be)
-    # the child of a ReferenceTyp, which cannot be field accesses.
+    # the child of a ClassTyp, which cannot be field accesses.
     # FIXME(joey): Once we add Parent references, we should assert this.
     name = node.name
     return node if name.ref? || !name.is_a?(AST::QualifiedName)
