@@ -565,12 +565,13 @@ class Simplification
 
     when "ClassInstanceCreationExpression"
       class_name = simplify(tree.tokens.get_tree!("ClassType")).as(AST::Name)
+      class_typ = AST::ClassTyp.new(class_name)
 
       args = [] of AST::Expr
       if (t = tree.tokens.get_tree("ArgumentList")); !t.nil?
         args = simplify_tree(t).as(Array(AST::Expr))
       end
-      return AST::ExprClassInit.new(class_name, args)
+      return AST::ExprClassInit.new(class_typ, args)
 
     when "FieldAccess"
       obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)

@@ -771,10 +771,10 @@ module AST
   # new A()
   # ```
   class ExprClassInit < Expr
-    property name : Name
+    property typ : ClassTyp
     property args : Array(Expr) = [] of Expr
 
-    def initialize(@name : Name, @args : Array(Expr))
+    def initialize(@typ : ClassTyp, @args : Array(Expr))
     end
 
     def pprint(depth : Int32)
@@ -787,7 +787,7 @@ module AST
     end
 
     def resolve_type : Typing::Type
-      qualified_name = name.ref.as(TypeDecl).qualified_name
+      qualified_name = typ.name.ref.as(TypeDecl).qualified_name
       return Typing::Type.new(Typing::Types::REFERENCE, qualified_name)
     end
   end
@@ -945,6 +945,7 @@ module AST
           return Typing::Type.new(Typing::Types::REFERENCE, qualified_name)
         when AST::DeclStmt then return node.typ.get_type()
         when AST::Param then return node.typ.get_type()
+        when AST::FieldDecl then return node.typ.get_type()
         else raise Exception.new("unhandled case: #{node.inspect}")
         end
       else

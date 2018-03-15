@@ -486,13 +486,37 @@ class ImportNamespace
 end
 
 
+class DeclWrapper
+  property! param : AST::Param
+  property! decl_stmt : AST::DeclStmt
+  property! field_decl : AST::FieldDecl
+
+  def initialize(@param : AST::Param)
+  end
+
+  def initialize(@decl_stmt : AST::DeclStmt)
+  end
+
+  def initialize(@field_decl : AST::FieldDecl)
+  end
+
+  def unwrap : AST::Node
+    case
+    when param? then return param
+    when decl_stmt? then return decl_stmt
+    when field_decl? then return field_decl
+    else raise Exception.new("unhandled case")
+    end
+  end
+end
+
 class MethodEnvironmentVisitor < Visitor::GenericVisitor
   # Namespace of the scope during AST traversal. It is populated as we
   # enter a function and encounter any `DeclStmt1.
-  @namespace : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  @namespace : Array({name: String, decl: DeclWrapper})
   # Field namespace of the scope during AST traversal. It is
   # pre-populated when we enter a `MethodDecl`.
-  @field_namespace : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  @field_namespace : Array({name: String, decl: DeclWrapper})
   # Name of the method currently being traversed.
   @current_method_name : String = ""
 
@@ -500,24 +524,29 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
   # All class instance fields that are accessible. The hash is
   # class_name -> namespace.
-  @class_instance_fields : Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)}))
+  @class_instance_fields : Hash(String, Array({name: String, decl: DeclWrapper}))
 
   # All static instance fields that are accessible. The hash is
   # class_name -> namespace.
-  @class_static_fields :  Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)}))
+  @class_static_fields :  Hash(String, Array({name: String, decl: DeclWrapper}))
 
   def initialize
-    @namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
-    @field_namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
-    @class_instance_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
-    @class_static_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
+    @namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
+    @field_namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
+    @class_instance_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
+    @class_static_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
   end
 
-  def addToNamespace(decl : AST::Param | AST::DeclStmt)
-    if decl.is_a?(AST::Param)
-      name = decl.name
+  def addToNamespace(decl : DeclWrapper)
+    node = decl.unwrap
+    if node.is_a?(AST::Param)
+      name = node.name
+    elsif node.is_a?(AST::DeclStmt)
+      name = node.var.name
+    elsif node.is_a?(AST::FieldDecl)
+      name = node.var.name
     else
-      name = decl.var.name
+      raise Exception.new("unhandled case: #{node}")
     end
     @namespace.each do |n|
       if n[:name] == name
@@ -527,27 +556,27 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @namespace.push({name: name, decl: decl})
   end
 
-  def get_class_instance_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  def get_class_instance_fields(node : AST::ClassDecl) : Array({name: String, decl: DeclWrapper})
     # TODO(joey): This depends on the order of fields matter so that
     # shadowing fields will be near the front so they resolve instead of
     # the shadowed fields. See `ClassDecl#fields` to see a TODO for
     # fixing this.
     # We use `namespace` to ensure the return value type matches the
     # function signature.
-    namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
-    node.non_static_fields.each {|field| namespace.push({name: field.var.name, decl: field.var})}
+    namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
+    node.non_static_fields.each {|field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)})}
     return namespace
   end
 
-  def get_class_static_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  def get_class_static_fields(node : AST::ClassDecl) : Array({name: String, decl: DeclWrapper})
     # TODO(joey): This depends on the order of fields matter so that
     # shadowing fields will be near the front so they resolve instead of
     # the shadowed fields. See `ClassDecl#fields` to see a TODO for
     # fixing this.
     # We use `namespace` to ensure the return value type matches the
     # function signature.
-    namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
-    node.static_fields.each {|field| namespace.push({name: field.var.name, decl: field.var})}
+    namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
+    node.static_fields.each {|field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)})}
     return namespace
   end
 
@@ -569,11 +598,11 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
       @field_namespace = @class_instance_fields[class_node.name]
     end
     # Start with an empty local namespace.
-    @namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    @namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
 
     # Add all of the method parameters to the namespace.
     node.params.each do |p|
-      addToNamespace(p)
+      addToNamespace(DeclWrapper.new(p))
     end
 
     visitStmts(node.body) if node.body?
@@ -585,7 +614,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     stmt = stmts.first
     case stmt
     when AST::DeclStmt
-      addToNamespace(stmt)
+      addToNamespace(DeclWrapper.new(stmt))
       stmt.var.accept(self)
       visitStmts(stmts[1..-1])
       @namespace.pop
@@ -611,13 +640,13 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # 3) Classes, for resolving any static `FieldAccess`.
     @namespace.each do |n|
       if n[:name] == node.name
-        node.ref = n[:decl]
+        node.ref = n[:decl].unwrap
         return
       end
     end
     @field_namespace.each do |n|
       if n[:name] == node.name
-        node.ref = n[:decl]
+        node.ref = n[:decl].unwrap
         return
       end
     end

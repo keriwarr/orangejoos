@@ -136,7 +136,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprClassInit) : AST::Node
-      node.name = node.name.accept(self)
+      node.typ = node.typ.accept(self)
       node.args.map! { |a| a.accept(self) }
       return node
     end

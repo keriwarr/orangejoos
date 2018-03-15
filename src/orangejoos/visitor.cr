@@ -134,7 +134,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprClassInit) : Nil
-      node.name.accept(self)
+      node.typ.accept(self)
       node.args.each { |a| a.accept(self) }
     end
 

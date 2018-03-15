@@ -47,6 +47,10 @@ module Typing
       return self == Typing::Type.new(s)
     end
 
+    def is_object?
+      return typ == Types::REFERENCE
+    end
+
     def ==(other)
       # When not comparing Types, always false.
       return false if !other.is_a?(Type)
@@ -137,7 +141,9 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::DeclStmt) : Nil
-    if node.var.init.get_type() != node.typ.get_type()
+    init_typ = node.var.init.get_type()
+    typ = node.typ.get_type()
+    unless typ == init_typ || (typ.is_object? && init_typ.is_type?(Typing::Types::NULL))
       raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected #{node.typ.name_str} got #{node.var.init.get_type().to_s}")
     end
     super
