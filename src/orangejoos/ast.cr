@@ -9,6 +9,7 @@
 
 
 require "./visitor"
+require "./mutating_visitor"
 require "./typing"
 
 INDENT = ->(depth : Int32) { "  " * depth }
@@ -55,6 +56,13 @@ module AST
       v.descend
       v.visit(self)
       v.ascend
+    end
+
+    def accept(v : Visitor::MutatingVisitor) : Node
+      v.descend
+      result = v.visit(self)
+      v.ascend
+      return result
     end
   end
 

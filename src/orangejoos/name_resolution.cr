@@ -1,6 +1,7 @@
 require "./compiler_errors"
 require "./ast"
 require "./visitor"
+require "./mutating_visitor"
 require "./source_file"
 
 # ROOT_PACKAGE is a special sentinel package that undeclared packages
@@ -140,7 +141,6 @@ class NameResolution
     # with QualifiedNameResolution for doing better static assertion of
     # resolution?
     file.ast.accept(InterfaceResolutionVisitor.new(namespace))
-    file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     # Check for clashes of the namespace with any classes defined in the
     # file.
@@ -149,6 +149,7 @@ class NameResolution
     # comes from this file).
 
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
+    file.ast = file.ast.accept(QualifiedNameDisambiguation.new)
     file.ast.accept(ClassTypResolutionVisitor.new(namespace))
     return file
   end
@@ -171,23 +172,19 @@ class NameResolution
     # Populate the imports for each file in-place.
     files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
 
-    files.each do |f, _|
-      f.ast.accept(MethodEnvironmentVisitor.new)
-    end
-
     # Populate the inheritance information for the interfaces and
     # classes in each file.
-    # FIXME(joey): Do we want to modify file.ast in-place? probably ok
     cycle_tracker = CycleTracker.new
     files = files.map {|file, namespace| resolve_inheritance(file, namespace, cycle_tracker)}
     # Check the hierarchy graph for any cycles.
     cycle_tracker.check()
 
     # Check the correctness of classes and interfaces.
-    files = files.map {|file| check_correctness(file)}
+    files.each {|f| check_correctness(f)}
 
-
-
+    # Resolve all variables found in the files. This mutates the AST
+    # in-place by resolving `Name.ref`.
+    files.each {|f| f.ast.accept(MethodEnvironmentVisitor.new)}
 
     return @files
   end
@@ -577,5 +574,59 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
     node.name.ref = typ
 
     super
+  end
+end
+
+
+# `QualifiedNameDisambiguation` finds all amibigious `QualifiedName`
+# which represent field accesses, and converts them to
+# `ExprFieldAccess`. Currently, the only observed case of this is when a
+# field access is only made on names. If any other part of an expression
+# is part of it, it parses as a field access. For example:
+# ```java
+# x = hah.haha.Za.length; // Parses as QualifiedName.
+# x = hah.Method().length; // Parses as FieldAccess.
+# x = hah.Method().length.lala; // Parses as FieldAccess.
+# x = hah.length; // Parses as QualifiedName.
+# x = (new String()).length; // Parses as FieldAccess.
+# ```
+#
+# This visitor must run before `MethodEnvironmentVisitor`, because this
+# visitor may insert new `AST::ExprRef` that need to be resolved.
+class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
+  def initialize
+  end
+
+  # Ignore any `QualifiedName` found in `PackageDecl` or `ImportDecl`.
+  # These remain unresolved, and are handled earlier in name resolution
+  # for the `ImportNamespace`.
+  def visit(node : AST::PackageDecl | AST::ImportDecl) : AST::Node
+    return node
+  end
+
+  def visit(node : AST::ExprRef) : AST::Node
+    # If the qualified name was already resolved, then it (should be)
+    # the child of a ReferenceTyp, which cannot be field accesses.
+    # FIXME(joey): Once we add Parent references, we should assert this.
+    name = node.name
+    return node if name.ref? || !name.is_a?(AST::QualifiedName)
+
+    field_access = nil
+    parts = node.name.parts
+    # Go through the parts from left to right and generate the field
+    # accesses for the inner expression outwards. We do not iterate to
+    # the last part as it is the literal for the outer-most
+    # `ExprFieldAccess`.
+    parts[0...parts.size-1].each_index do |i|
+      field_name = AST::Literal.new(parts[i+1])
+      # If this is the inner field, it begins with a variable access.
+      if field_access.nil?
+        var = AST::ExprRef.new(AST::SimpleName.new(parts[i]))
+        field_access = AST::ExprFieldAccess.new(var, field_name)
+      else
+        field_access = AST::ExprFieldAccess.new(field_access, field_name)
+      end
+    end
+    return field_access.not_nil!
   end
 end
