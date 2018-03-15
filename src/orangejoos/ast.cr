@@ -413,6 +413,12 @@ module AST
   abstract class Name < Node
     property! ref : Node
 
+    # Override the above ref function with a more verbose nil assertion.
+    def ref : Node
+      return @ref.not_nil! if ref?
+      raise Exception.new("nil assertion of Name.ref field. name=#{name}")
+    end
+
     abstract def name : String
     abstract def parts : Array(String)
   end
@@ -1266,13 +1272,15 @@ module AST
     end
 
     def resolve_type : Typing::Type
-      return Typing::Type.new(Typing::Types::TODO)
-      # raise Exception.new("unimplemented CastExpr resolve_type")
-      # TODO(joey): Take into account is_arr.
-      # if typ?
-      #   # TODO(joey): Resolve to proper type based on the PrimativeTyp.
-      #   return Typing::Type.new(typ.name)
-      # elsif name?
+      # TODO(joey): Assert the RHS is castable to the LHS, by the following cases:
+      # 1) Expr is a Class that extends the Cast Class.
+      # 1.1) Going the other way, insert a run-time cast check.
+      # 2) Expr is a Class that implements the Cast Interface.
+      # 2.1) Going the other way, insert a run-time cast check.
+      # 3) Expr is an Interface that extends the Cast Interface.
+      # 3.1) Going the other way, insert a run-time cast check.
+      # 4) Primitive types that allow casing. If any?
+      return typ.get_type()
     end
   end
 

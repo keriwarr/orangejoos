@@ -87,7 +87,9 @@ class TypeCheck
   end
 
   def check
-    @file.ast.accept(InvalidCastExpressionVisitor.new)
+    # FIXME(joey): Currently this check is not done, because the stdlib
+    # does a standard type cast.
+    # @file.ast.accept(InvalidCastExpressionVisitor.new)
     @file.ast.accept(TypeResolutionVisitor.new)
     @file.ast.accept(StmtTypeCheckVisitor.new)
   end
@@ -151,7 +153,7 @@ class InvalidCastExpressionVisitor < Visitor::GenericVisitor
     return if typ_node.is_a?(AST::ClassTyp)
 
     if typ_node.cardinality == 0
-      raise WeedingStageError.new("Cannot cast to a #{typ_node.pprint}, not a ReferenceType")
+      raise TypeCheckStageError.new("cannot cast to a #{typ_node.pprint}, not a ReferenceType")
     end
   end
 end
