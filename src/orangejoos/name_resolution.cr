@@ -454,7 +454,8 @@ class ImportNamespace
   property qualified_names : Hash(String, AST::TypeDecl)
 
   property! current_class : AST::ClassDecl
-  property! current_method : AST::MethodDecl
+  property! current_method_name : String
+  property current_method_typ : Typing::Type?
 
   def initialize(
     same_file : Array(Tuple(String, AST::TypeDecl)),
@@ -586,6 +587,11 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     return namespace
   end
 
+  def visit(node : AST::PackageDecl | AST::ImportDecl) : Nil
+    # Do not go down import or package declarations, as they may contain
+    # a `SimpleName` that we do not resolve.
+  end
+
   def visit(node : AST::ClassDecl) : Nil
     @class_instance_fields[node.name] = get_class_instance_fields(node) if !@class_instance_fields.has_key?(node.name)
     @class_static_fields[node.name] = get_class_static_fields(node) if !@class_static_fields.has_key?(node.name)
@@ -594,7 +600,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     methods.each {|m| m.accept(self)}
   end
 
-  def visit(node : AST::MethodDecl) : Nil
+  def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
     @current_method_name = node.name
     class_node = @class_node.not_nil!
     # Set up the field namespace.
@@ -611,7 +617,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
       addToNamespace(DeclWrapper.new(p))
     end
 
-    visitStmts(node.body) if node.body?
+    visitStmts(node.body) if node.is_a?(AST::ConstructorDecl) || node.body?
   end
 
   def visitStmts(stmts : Array(AST::Stmt))
@@ -763,9 +769,9 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
         field_access = AST::ExprFieldAccess.new(field_access, field_name)
       end
     end
-    # puts "WE DUD parts=#{parts}"
+    puts "WE DUD parts=#{parts}"
     a = field_access.not_nil!
-    # puts "rea dud"
+    puts "rea dud"
     return a
   end
 end

@@ -184,7 +184,14 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::MethodDecl) : Nil
-    @namespace.current_method = node
+    @namespace.current_method_name = node.name
+    @namespace.current_method_typ = node.typ?.try &.to_type
+    super
+  end
+
+  def visit(node : AST::ConstructorDecl) : Nil
+    @namespace.current_method_name = node.name
+    @namespace.current_method_typ = nil
     super
   end
 
@@ -213,12 +220,13 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ReturnStmt) : Nil
     return_typ = node.expr?.try &.get_type(@namespace)
-    method_typ = @namespace.current_method.typ?.try &.to_type
+    method_name = @namespace.current_method_name
+    method_typ = @namespace.current_method_typ
     if method_typ.nil?
-      raise TypeCheckStageError.new("method #{@namespace.current_method.name} is void but returning #{return_typ.try &.to_s}") if !return_typ.nil?
+      raise TypeCheckStageError.new("method #{method_name} is void but returning #{return_typ.try &.to_s}") if !return_typ.nil?
     else
-      raise TypeCheckStageError.new("method #{@namespace.current_method.name} has empty return, expected #{method_typ.try &.to_s}") if return_typ.nil?
-      raise TypeCheckStageError.new("method #{@namespace.current_method.name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}") unless Typing.can_convert_type(return_typ, method_typ)
+      raise TypeCheckStageError.new("method #{method_name} has empty return, expected #{method_typ.try &.to_s}") if return_typ.nil?
+      raise TypeCheckStageError.new("method #{method_name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}") unless Typing.can_convert_type(return_typ, method_typ)
     end
     super
   end

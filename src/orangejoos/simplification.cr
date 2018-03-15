@@ -740,7 +740,7 @@ class Simplification
         params = simplify_tree(params_t).as(Array(AST::Param))
       end
       body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
-      return AST::ConstructorDecl.new(name, mods, params, body)
+      return AST::ConstructorDecl.new(name.name, mods, params, body)
 
     when "ConstructorDeclarator"
       # This `ParseTree` should not be processed, because we never call

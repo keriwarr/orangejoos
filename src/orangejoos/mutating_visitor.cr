@@ -234,7 +234,6 @@ module Visitor
     end
 
     def visit(node : AST::ConstructorDecl) : AST::Node
-      node.name = node.name.accept(self)
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) }
       return node

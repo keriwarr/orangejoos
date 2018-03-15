@@ -227,7 +227,6 @@ module Visitor
     end
 
     def visit(node : AST::ConstructorDecl) : Nil
-      node.name.accept(self)
       node.params.each    { |p| p.accept(self) }
       node.body.each      { |b| b.accept(self) }
     end

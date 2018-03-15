@@ -1321,18 +1321,18 @@ module AST
   class ConstructorDecl < MemberDecl
     include Modifiers
 
-    property name : SimpleName
+    property name : String
     property params : Array(Param) = [] of Param
     property body : Array(Stmt) = [] of Stmt
 
-    def initialize(@name : SimpleName, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
       p = params.map {|i| i.pprint(0)}
-      return "#{indent}constructor #{name.pprint(0)} #{modifiers.to_a} #{p}"
+      return "#{indent}constructor #{name} #{modifiers.to_a} #{p}"
     end
   end
 
