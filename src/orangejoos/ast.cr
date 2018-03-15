@@ -32,6 +32,16 @@ NUM_CMP_OPS = [">", "<", "<=", ">=", "!=", "=="]
 # `Const`.
 module AST
 
+  # FIXME(joey): Move this to a better place. This was done to simplify
+  # the code that refers to the not built-in String types.
+  def self.get_string_type(namespace)
+    string_class = namespace.fetch(QualifiedName.new(["java", "lang", "String"]))
+    if string_class.nil?
+      raise Exception.new("could not find java.lang.String to resolve for String literal")
+    end
+    return Typing::Type.new(Typing::Types::REFERENCE, string_class.not_nil!)
+  end
+
   class MethodSignature
     getter name : String
     getter params : Array(Typing::Type)
@@ -823,6 +833,10 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
+      if op == "+" && operands.size == 2 && operands.all? {|o| o.get_type(namespace) == AST.get_string_type(namespace)}
+        # STDERR.puts "huzza'"
+        return AST.get_string_type(namespace)
+      end
 
       if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
         return Typing::Type.new(Typing::Types::BOOLEAN)
@@ -918,7 +932,7 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       typ = obj.get_type(namespace)
-      unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array
+      unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array || typ.is_type?(Typing::Types::STATIC)
         raise TypeCheckStageError.new("cannot access field of non-class type or non-array type")
       end
       if typ.is_array
@@ -933,7 +947,7 @@ module AST
           raise TypeCheckStageError.new("class #{class_node.name} has no static field #{@field_name.val}")
         end
         return field.not_nil!.typ.to_type
-      elsif typ.is_type?(Typing::Types::REFERENCE)
+      elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
         field = class_node.non_static_fields.find {|f| f.var.name == @field_name.val}
         if field.nil?
@@ -1197,11 +1211,7 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      string_class = namespace.fetch(QualifiedName.new(["java", "lang", "String"]))
-      if string_class.nil?
-        raise Exception.new("could not find java.lang.String to resolve for String literal")
-      end
-      return Typing::Type.new(Typing::Types::REFERENCE, string_class.not_nil!)
+      return AST.get_string_type(namespace)
     end
   end
 

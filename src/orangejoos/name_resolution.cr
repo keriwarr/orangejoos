@@ -739,10 +739,12 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
   end
 
   def visit(node : AST::ExprRef) : AST::Node
+    # STDERR.puts "node=#{node.pprint}"
     # If the qualified name was already resolved, then it (should be)
     # the child of a ClassTyp, which cannot be field accesses.
     # FIXME(joey): Once we add Parent references, we should assert this.
     name = node.name
+    # STDERR.puts "EXPRREF parts=#{node.name.parts}"
     return node if name.ref? || !name.is_a?(AST::QualifiedName)
 
     field_access = nil
@@ -761,6 +763,9 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
         field_access = AST::ExprFieldAccess.new(field_access, field_name)
       end
     end
-    return field_access.not_nil!
+    # puts "WE DUD parts=#{parts}"
+    a = field_access.not_nil!
+    # puts "rea dud"
+    return a
   end
 end
