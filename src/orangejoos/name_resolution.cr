@@ -174,13 +174,14 @@ class NameResolution
       STDERR.puts "#{classes.map(&.first).reject(&.starts_with? "java.").join("\n")}\n\n"
     end
 
+    files = @files
     # Populate the imports for each file in-place.
-    files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
+    files.each {|f| f.import_namespace = populate_imports(f, exported_items) }
 
     # Populate the inheritance information for the interfaces and
     # classes in each file.
     cycle_tracker = CycleTracker.new
-    files = files.map {|file, namespace| resolve_inheritance(file, namespace, cycle_tracker)}
+    files = files.map {|f| resolve_inheritance(f, f.import_namespace, cycle_tracker)}
     # Check the hierarchy graph for any cycles.
     cycle_tracker.check()
 

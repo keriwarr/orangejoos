@@ -126,7 +126,7 @@ module AST
     # The _name_ of the type being represented by the AST node.
     abstract def name_str : String
 
-    abstract def get_type : Typing::Type
+    abstract def to_type : Typing::Type
   end
 
   # `PrimitiveTyp` represents built-in types. This includes the types:
@@ -160,7 +160,7 @@ module AST
       return "#{indent}#{name_str}"
     end
 
-    def get_type : Typing::Type
+    def to_type : Typing::Type
       case @name
       when "byte" then return Typing::Type.new(Typing::Types::BYTE)
       when "short" then return Typing::Type.new(Typing::Types::SHORT)
@@ -194,9 +194,8 @@ module AST
       return "#{indent}#{name_str}"
     end
 
-    def get_type : Typing::Type
-      qualified_name = name.ref.as(TypeDecl).qualified_name
-      return Typing::Type.new(Typing::Types::REFERENCE, qualified_name)
+    def to_type : Typing::Type
+      return Typing::Type.new(Typing::Types::REFERENCE, name.ref.as(AST::TypeDecl))
     end
   end
 
@@ -685,7 +684,7 @@ module AST
       return [lhs] of Expr
     end
 
-    def resolve_type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       return Typing::Type.new(Typing::Types::BOOLEAN)
     end
   end
@@ -725,37 +724,37 @@ module AST
       return operands
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
 
-      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?(Typing::Types::BOOLEAN)}
+      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
-      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?(Typing::Types::NUM)}
+      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
         return Typing::Type.new(Typing::Types::NUM)
       end
 
-      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? {|o| o.get_type().is_type?(Typing::Types::NUM)}
+      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
         return Typing::Type.new(Typing::Types::NUM)
       end
 
-      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type().is_type?(Typing::Types::NUM)}
+      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
-      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type().is_type?(Typing::Types::BOOLEAN)}
+      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
       if op == "=" && operands.size == 2
-        if operands[0].get_type() == operands[1].get_type()
-          return operands[0].get_type()
+        if operands[0].get_type(namespace) == operands[1].get_type(namespace)
+          return operands[0].get_type(namespace)
         else
-          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type().to_s} RHS#{operands[1].get_type().to_s}")
+          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
         end
       end
 
-      types = operands.map {|o| o.get_type().as(Typing::Type)}
+      types = operands.map {|o| o.get_type(namespace).as(Typing::Type)}
       STDERR.puts("unhandled operation: op=\"#{op}\" types=#{types} #{self.pprint}")
 
       return Typing::Type.new(Typing::Types::BOOLEAN)
@@ -786,18 +785,18 @@ module AST
       return args
     end
 
-    def resolve_type : Typing::Type
-      qualified_name = typ.name.ref.as(TypeDecl).qualified_name
-      return Typing::Type.new(Typing::Types::REFERENCE, qualified_name)
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      return Typing::Type.new(Typing::Types::REFERENCE, typ.name.ref.as(TypeDecl))
     end
   end
 
   # `ExprFieldAccess` represents a instance field access.
   class ExprFieldAccess < Expr
     property obj : Expr
-    property field : Literal
+    # FIXME(joey): This should be a string.
+    property field_name : Literal
 
-    def initialize(@obj : Expr, @field : Literal)
+    def initialize(@obj : Expr, @field_name : Literal)
     end
 
     def pprint(depth : Int32)
@@ -809,10 +808,21 @@ module AST
       return [obj]
     end
 
-    def resolve_type : Typing::Type
-      # TODO(joey): Actually resolve type. Look up obj type and check
-      # the field of it, if it is a class type.
-      return Typing::Type.new(Typing::Types::TODO)
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      typ = obj.get_type(namespace)
+      unless typ.is_object? && typ.ref.is_a?(ClassDecl)
+        raise TypeCheckStageError.new("cannot access field of non-class type")
+      end
+
+      class_node = typ.ref.as(ClassDecl)
+      # FIXME(joey): Handle static fields. A flag will need to be added
+      # to `Typing::Type`.
+      field = class_node.non_static_fields.find {|f| f.var.name == @field_name.val}
+      if field.nil?
+        raise TypeCheckStageError.new("class #{class_node.name} has no field #{@field_name.val}")
+      end
+
+      return field.not_nil!.typ.to_type
     end
   end
 
@@ -845,11 +855,11 @@ module AST
     end
 
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       if arr_expr?
-        arr_expr.get_type().from_array_type
+        arr_expr.get_type(namespace).from_array_type
       elsif arr_name?
-        arr_name.ref.as(Expr).get_type().from_array_type
+        arr_name.ref.as(Expr).get_type(namespace).from_array_type
       else
         raise Exception.new("unexpected case")
       end
@@ -877,15 +887,14 @@ module AST
     end
 
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # Crystal is broken. (type casting thinger)
       node = arr
       case node
       when Name
-        qualified_name = node.ref.as(TypeDecl).qualified_name
-        return Typing::Type.new(Typing::Types::REFERENCE, qualified_name, true)
+        return Typing::Type.new(Typing::Types::REFERENCE, node.ref.as(TypeDecl), true)
       when PrimitiveTyp
-        typ = node.get_type()
+        typ = node.to_type()
         return typ.to_array_type()
       else raise Exception.new("unexpected type: #{arr.inspect}")
       end
@@ -907,7 +916,7 @@ module AST
       [] of Expr
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # This one will have to resolve to a type based on a pass earlier
       # disambigiating any this nodes.
       raise Exception.new("unimplemented: ExprThis resolve_type")
@@ -936,16 +945,15 @@ module AST
       [] of Expr
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       if name.ref?
         node = name.ref
         case node
         when AST::TypeDecl
-          qualified_name = node.as(TypeDecl).qualified_name
-          return Typing::Type.new(Typing::Types::REFERENCE, qualified_name)
-        when AST::DeclStmt then return node.typ.get_type()
-        when AST::Param then return node.typ.get_type()
-        when AST::FieldDecl then return node.typ.get_type()
+          return Typing::Type.new(Typing::Types::REFERENCE, node)
+        when AST::DeclStmt then return node.typ.to_type()
+        when AST::Param then return node.typ.to_type()
+        when AST::FieldDecl then return node.typ.to_type()
         else raise Exception.new("unhandled case: #{node.inspect}")
         end
       else
@@ -986,7 +994,7 @@ module AST
       end
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # Dependant on resolving this invocation to a signature.
       # 1) Get the expr's class/interface type.
       # 2) Look for a signature that matches this.
@@ -1013,7 +1021,7 @@ module AST
       return "#{indent}#{val}"
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # FIXME(joey): We may require more specific number types, or only
       # as a result of computation.
       # I think constants evaluated to the smallest type they can.
@@ -1033,7 +1041,7 @@ module AST
       return "#{indent}#{val}"
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # FIXME(joey): We may require more specific number types, or only
       # as a result of computation.
       # I think constants evaluated to the smallest type they can.
@@ -1053,7 +1061,7 @@ module AST
       return "#{indent}'#{val}'"
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # FIXME(joey): We may require more specific number types, or only
       # as a result of computation.
       # I think constants evaluated to the smallest type they can.
@@ -1072,11 +1080,12 @@ module AST
       return "#{indent}\"#{val}\""
     end
 
-    def resolve_type : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation.
-      # I think constants evaluated to the smallest type they can.
-      return Typing::Type.new(Typing::Types::REFERENCE, "String")
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      string_class = namespace.fetch(QualifiedName.new(["java", "lang", "String"]))
+      if string_class.nil?
+        raise Exception.new("could not find java.lang.String to resolve for String literal")
+      end
+      return Typing::Type.new(Typing::Types::REFERENCE, string_class.not_nil!)
     end
   end
 
@@ -1089,11 +1098,8 @@ module AST
       return "#{indent}null"
     end
 
-    def resolve_type : Typing::Type
-      # FIXME(joey): We have to use this to resolve to an arbitrary
-      # class/interface type.
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       return Typing::Type.new(Typing::Types::NULL)
-      # raise TypeCheckStageError.new("unimplemented: ConstNull, not sure what type this can be.")
     end
   end
 
@@ -1272,7 +1278,7 @@ module AST
       [rhs] of Expr
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       # TODO(joey): Assert the RHS is castable to the LHS, by the following cases:
       # 1) Expr is a Class that extends the Cast Class.
       # 1.1) Going the other way, insert a run-time cast check.
@@ -1281,7 +1287,7 @@ module AST
       # 3) Expr is an Interface that extends the Cast Interface.
       # 3.1) Going the other way, insert a run-time cast check.
       # 4) Primitive types that allow casing. If any?
-      return typ.get_type()
+      return typ.to_type()
     end
   end
 
@@ -1300,8 +1306,8 @@ module AST
       return [expr]
     end
 
-    def resolve_type : Typing::Type
-      return expr.get_type()
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      return expr.get_type(namespace)
     end
   end
 
@@ -1343,18 +1349,18 @@ module AST
       end
     end
 
-    def resolve_type : Typing::Type
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
       if name?
         node = name.ref
         case node
-        when DeclStmt then return node.typ.get_type()
-        when Param then node.typ.get_type()
+        when DeclStmt then return node.typ.to_type()
+        when Param then node.typ.to_type()
         else raise Exception.new("unhandled: #{node.inspect}")
         end
       elsif array_access?
-        return array_access.get_type()
+        return array_access.get_type(namespace)
       elsif field_access?
-        return field_access.get_type()
+        return field_access.get_type(namespace)
       else
         raise Exception.new("unhandled case")
       end
