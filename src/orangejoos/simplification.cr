@@ -15,30 +15,6 @@ end
 # `simplify_tree` returns arrays of AST nodes, `simplify` returns
 # individual AST nodes.
 
-
-# TODO(joey): some notes on clean up to be done here:
-# - Replace tokens.to_a[i] access for children.
-# - Clean up casting. This is done to consoldiate rules within a few
-#   functions.
-# - Change how conditional values are retrieved. e.g. "Modifiers" is a
-#   common conditional where we want to default an empty array.
-
-# Intermediate ASTs. These do not appear in the final result but are
-# used to pass values up while doing simplificaiton.
-
-# Intermediate AST.
-class TMPMethodDecl < AST::Node
-  property name : String
-  property params : Array(AST::Param) = [] of AST::Param
-
-  def initialize(@name : String, @params : Array(AST::Param))
-  end
-
-  def pprint(depth : Int32)
-    raise Exception.new("unexpected call")
-  end
-end
-
 # Simplification is a stage that simplifies the initial parse tree.
 # It transforms the parse tree into a proper AST that for use in later
 # compiler stages.
@@ -737,7 +713,7 @@ class Simplification
         params = simplify_tree(t.as(ParseTree)).as(Array(AST::Param))
       end
 
-      return TMPMethodDecl.new(ident.val, params)
+      return AST::TMPMethodDecl.new(ident.val, params)
 
     when "MethodHeader"
       t = tree.tokens.get_tree("Modifiers")
@@ -751,7 +727,7 @@ class Simplification
         typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
       end
 
-      decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(TMPMethodDecl)
+      decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(AST::TMPMethodDecl)
 
       return AST::MethodDecl.new(decl.name, typ, mods, decl.params, [] of AST::Stmt)
 
