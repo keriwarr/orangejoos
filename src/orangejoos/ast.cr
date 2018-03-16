@@ -1021,6 +1021,8 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
+      # FIXME(joey): If the namespace is a static namespace, this should
+      # be different.
       return Typing::Type.new(Typing::Types::REFERENCE, namespace.current_class)
     end
 

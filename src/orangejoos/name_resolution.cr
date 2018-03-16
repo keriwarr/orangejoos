@@ -527,7 +527,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   # Name of the method currently being traversed.
   @current_method_name : String = ""
 
-  @class_node : AST::ClassDecl?
+  property! class_node : AST::ClassDecl
 
   # All class instance fields that are accessible. The hash is
   # class_name -> namespace.
@@ -598,11 +598,12 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @class_node = node
     methods = node.body.map(&.as?(AST::MethodDecl)).compact
     methods.each {|m| m.accept(self)}
+    constructors = node.body.map(&.as?(AST::ConstructorDecl)).compact
+    constructors.each {|m| m.accept(self)}
   end
 
   def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
     @current_method_name = node.name
-    class_node = @class_node.not_nil!
     # Set up the field namespace.
     if node.has_mod?("static")
       @field_namespace = @class_static_fields[class_node.name]
