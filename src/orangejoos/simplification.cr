@@ -553,7 +553,7 @@ class Simplification
       obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
       field = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
 
-      return AST::ExprFieldAccess.new(obj, field)
+      return AST::ExprFieldAccess.new(obj, field.val)
 
     when "MethodInvocation"
       args = [] of AST::Expr

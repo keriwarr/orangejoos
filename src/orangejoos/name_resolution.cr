@@ -760,7 +760,7 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
     # the last part as it is the literal for the outer-most
     # `ExprFieldAccess`.
     parts[0...parts.size-1].each_index do |i|
-      field_name = AST::Literal.new(parts[i+1])
+      field_name = parts[i+1]
       # If this is the inner field, it begins with a variable access.
       if field_access.nil?
         var = AST::ExprRef.new(AST::SimpleName.new(parts[i]))

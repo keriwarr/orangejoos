@@ -888,10 +888,9 @@ module AST
   # `ExprFieldAccess` represents a instance field access.
   class ExprFieldAccess < Expr
     property obj : Expr
-    # FIXME(joey): This should be a string.
-    property field_name : Literal
+    property field_name : String
 
-    def initialize(@obj : Expr, @field_name : Literal)
+    def initialize(@obj : Expr, @field_name : String)
     end
 
     def to_s : String
@@ -908,22 +907,22 @@ module AST
         raise TypeCheckStageError.new("cannot access field of non-class type or non-array type")
       end
       if typ.is_array
-        if @field_name.val != "length"
+        if @field_name != "length"
           raise TypeCheckStageError.new("array is not a field, can only access 'length'")
         end
         return Typing::Type.new(Typing::Types::INT)
       elsif typ.is_type?(Typing::Types::STATIC)
         class_node = typ.ref.as(ClassDecl)
-        field = class_node.static_fields.find {|f| f.var.name == @field_name.val}
+        field = class_node.static_fields.find {|f| f.var.name == @field_name}
         if field.nil?
-          raise TypeCheckStageError.new("class #{class_node.name} has no static field #{@field_name.val}")
+          raise TypeCheckStageError.new("class #{class_node.name} has no static field #{@field_name}")
         end
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
-        field = class_node.non_static_fields.find {|f| f.var.name == @field_name.val}
+        field = class_node.non_static_fields.find {|f| f.var.name == @field_name}
         if field.nil?
-          raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name.val}")
+          raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
         end
         return field.not_nil!.typ.to_type
       else
