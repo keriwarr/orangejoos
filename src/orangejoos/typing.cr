@@ -216,6 +216,11 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     unless Typing.can_convert_type(init_typ, typ)
       raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected {#{typ.to_s}} got #{node.var.init.get_type(@namespace).to_s}")
     end
+    # Special case: char can be added with numeric types, but
+    # cannot be assigned between numeric types.
+    if init_typ.typ == Typing::Types::CHAR && typ.typ != Typing::Types::CHAR
+      raise TypeCheckStageError.new("assignment failure between LHS=#{typ.typ.to_s} RHS=#{init_typ.typ.to_s}")
+    end
     super
   end
 
@@ -228,6 +233,11 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     else
       raise TypeCheckStageError.new("method #{method_name} has empty return, expected #{method_typ.try &.to_s}") if return_typ.nil?
       raise TypeCheckStageError.new("method #{method_name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}") unless Typing.can_convert_type(return_typ, method_typ)
+      # Special case: char can be added with numeric types, but
+      # cannot be assigned between numeric types.
+      if method_typ.typ == Typing::Types::CHAR && return_typ.typ != Typing::Types::CHAR
+        raise TypeCheckStageError.new("cannot return here #{method_typ.to_s} RHS=#{return_typ.to_s}")
+      end
     end
     super
   end

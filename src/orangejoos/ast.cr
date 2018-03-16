@@ -799,14 +799,6 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # When either type is a string during concat (+), then the other
-      # type is casted to a String using `toString()` or converting the
-      # primitive type.
-      if op == "+" && operands.size == 2 &&
-        (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
-        return AST.get_string_type(namespace)
-      end
-
       if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
@@ -831,6 +823,11 @@ module AST
         lhs = operands[0].get_type(namespace)
         rhs = operands[1].get_type(namespace)
         if Typing.can_convert_type(rhs, lhs)
+          # Special case: char can be added with numeric types, but
+          # cannot be assigned between numeric types.
+          if lhs.typ == Typing::Types::CHAR && rhs.typ != Typing::Types::CHAR
+            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+          end
           return lhs
         else
           raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
@@ -845,6 +842,14 @@ module AST
         else
           raise TypeCheckStageError.new("equality between two different types: LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
         end
+      end
+
+      # When either type is a string during concat (+), then the other
+      # type is casted to a String using `toString()` or converting the
+      # primitive type.
+      if op == "+" && operands.size == 2 &&
+        (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
+        return AST.get_string_type(namespace)
       end
 
       # FIXME(joey): Add exhaustive operators.
