@@ -598,13 +598,21 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     methods.each {|m| m.accept(self)}
     constructors = node.body.map(&.as?(AST::ConstructorDecl)).compact
     constructors.each {|m| m.accept(self)}
-    # Reset the namespace for any fields initialized with static fields.
-    @field_namespace = @class_static_fields[class_node.name]
     fields = node.body.map(&.as?(AST::FieldDecl)).compact
     fields.each {|m| m.accept(self)}
   rescue ex : CompilerError
     ex.register("class_name", node.name)
     raise ex
+  end
+
+  def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
+    # Set up the field for evaluating any initialization.
+    if node.has_mod?("static")
+      @field_namespace = @class_static_fields[class_node.name]
+    else
+      @field_namespace = @class_instance_fields[class_node.name]
+    end
+    super
   end
 
   def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
@@ -624,9 +632,6 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     end
 
     visitStmts(node.body) if node.is_a?(AST::ConstructorDecl) || node.body?
-
-    # Reset the namespace for any fields initialized with static fields.
-    @field_namespace = @class_static_fields[class_node.name]
   rescue ex : CompilerError
     ex.register("method", node.name) if node.is_a?(AST::MethodDecl)
     ex.register("constructor", "") if node.is_a?(AST::ConstructorDecl)
@@ -655,6 +660,16 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ForStmt) : Nil
     visitStmts(node.children)
+  end
+
+  def visit(node : AST::QualifiedName) : Nil
+    result = @import_namespace.fetch(node)
+    if !result.nil?
+      node.ref = result
+      return
+    end
+
+    raise NameResolutionStageError.new("could not resolve qualified name {#{node.name}}")
   end
 
   def visit(node : AST::SimpleName) : Nil
@@ -686,7 +701,6 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
       node.ref = result
       return
     end
-
 
     raise NameResolutionStageError.new("could not find variable {#{node.name}}")
   end
@@ -767,7 +781,10 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
   end
 
   def visit(node : AST::Variable) : AST::Node
-    return node if !node.name? || node.name.is_a?(AST::SimpleName)
+    # If the Variable is just a Name, it might disambiguate to a series
+    # of FieldAccess. Otherwise, it may be an array access that is
+    # prefixed with a QualifiedName that needs to be disamguated.
+    return super if !node.name? || node.name.is_a?(AST::SimpleName)
     return disambiguate(node.name)
   end
 
