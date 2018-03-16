@@ -1104,7 +1104,6 @@ module AST
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       instance_type = expr.get_type(namespace)
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
-      STDERR.puts "resolving method #{name}"
       raise TypeCheckStageError.new("attempted method call #{name} on #{instance_type.to_s}") unless instance_type.is_object? || instance_type.is_static?
 
       typ = instance_type.ref.as(AST::TypeDecl)
