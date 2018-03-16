@@ -136,7 +136,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprClassInit) : AST::Node
-      node.name = node.name.accept(self)
+      node.typ = node.typ.accept(self)
       node.args.map! { |a| a.accept(self) }
       return node
     end
@@ -208,13 +208,13 @@ module Visitor
     end
 
     def visit(node : AST::MethodInvoc) : AST::Node
-      node.expr = node.expr.accept(self) if node.expr?
+      node.expr = node.expr.accept(self)
       node.args.map!      { |b| b.accept(self) }
       return node
     end
 
     def visit(node : AST::ExprArrayAccess) : AST::Node
-      node.arr_expr = node.arr_expr.accept(self) if node.arr_expr?
+      node.expr = node.expr.accept(self)
       node.index = node.index.accept(self)
       return node
     end
@@ -227,14 +227,13 @@ module Visitor
     end
 
     def visit(node : AST::MethodDecl) : AST::Node
-      node.typ = node.typ.accept(self)
+      node.typ = node.typ.accept(self) if node.typ?
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) } if node.body?
       return node
     end
 
     def visit(node : AST::ConstructorDecl) : AST::Node
-      node.name = node.name.accept(self)
       node.params.map!    { |p| p.accept(self) }
       node.body.map!      { |b| b.accept(self) }
       return node

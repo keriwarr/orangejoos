@@ -62,8 +62,8 @@ class ClassDeclVisitor < Visitor::GenericVisitor
 
   def handleConstructorDecl(node : AST::ClassDecl, cd : AST::ConstructorDecl)
     # Make sure all constructors have the correct name.
-    if cd.name.name != node.name
-      raise WeedingStageError.new("class #{node.name} has a constructor named #{cd.name.name}")
+    if cd.name != node.name
+      raise WeedingStageError.new("class #{node.name} has a constructor named #{cd.name}")
     end
   end
 

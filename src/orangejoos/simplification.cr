@@ -482,6 +482,10 @@ class Simplification
          "AdditiveExpression",
          "MultiplicativeExpression"
 
+      # TODO(joey): Resolve instanceof to a specific type, to make
+      # expressions easier where they will not contain a name referring
+      # to a class and only names referring to variables.
+
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
 
       if tree.tokens.to_a[1].as(Lexeme).sem == "instanceof"
@@ -561,12 +565,13 @@ class Simplification
 
     when "ClassInstanceCreationExpression"
       class_name = simplify(tree.tokens.get_tree!("ClassType")).as(AST::Name)
+      class_typ = AST::ClassTyp.new(class_name)
 
       args = [] of AST::Expr
       if (t = tree.tokens.get_tree("ArgumentList")); !t.nil?
         args = simplify_tree(t).as(Array(AST::Expr))
       end
-      return AST::ExprClassInit.new(class_name, args)
+      return AST::ExprClassInit.new(class_typ, args)
 
     when "FieldAccess"
       obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
@@ -585,7 +590,22 @@ class Simplification
       # return a class or interface type.
       if !tree.tokens.get_tree("Name").nil?
         name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
-        return AST::MethodInvoc.new(nil, name.name, args)
+        # `Name()` can furthur be broken down into either a
+        # `SimpleName()` or a `QualifiedName()`, where the qualified
+        # name may look like `foo.bar()` or `foo.bar.hah.z.length()`.
+        # `QualifiedNameDisambiguation` will later pick up the
+        # `ExprRef`.
+        if name.is_a?(AST::SimpleName)
+          return AST::MethodInvoc.new(AST::ExprThis.new, name.name, args)
+        else
+          name = name.as(AST::QualifiedName)
+          if name.parts.size > 2
+            prefix = AST::QualifiedName.new(name.parts[1...-1])
+          else
+            prefix = AST::SimpleName.new(name.parts[0])
+          end
+          return AST::MethodInvoc.new(AST::ExprRef.new(prefix), name.parts[-1], args)
+        end
       else
         expr = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
         ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
@@ -600,7 +620,7 @@ class Simplification
       if arr.is_a?(AST::Expr)
         return AST::ExprArrayAccess.new(arr, index_expr)
       elsif arr.is_a?(AST::Name)
-        return AST::ExprArrayAccess.new(arr, index_expr)
+        return AST::ExprArrayAccess.new(AST::ExprRef.new(arr), index_expr)
       else
         raise Exception.new("unexpected case")
       end
@@ -636,9 +656,15 @@ class Simplification
 
     when "ArrayCreationExpression"
       # FIXME(joey): Specialize the node type used here.
-      typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Node)
-      dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-      return AST::ExprArrayCreation.new(typ, dim_expr)
+      if !tree.tokens.get_tree("PrimitiveType").nil?
+        typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::PrimitiveTyp)
+        dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+        return AST::ExprArrayCreation.new(typ, dim_expr)
+      else
+        name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Name)
+        dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+        return AST::ExprArrayCreation.new(AST::ClassTyp.new(name), dim_expr)
+      end
 
     when "LeftHandSide"
       result = simplify(tree.tokens.first.as(ParseTree)).as(AST::Name | AST::ExprArrayAccess | AST::ExprFieldAccess)
@@ -714,7 +740,7 @@ class Simplification
         params = simplify_tree(params_t).as(Array(AST::Param))
       end
       body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
-      return AST::ConstructorDecl.new(name, mods, params, body)
+      return AST::ConstructorDecl.new(name.name, mods, params, body)
 
     when "ConstructorDeclarator"
       # This `ParseTree` should not be processed, because we never call
@@ -745,11 +771,7 @@ class Simplification
       mods = simplify_tree(t).as(Array(AST::Modifier)) unless t.nil?
 
       typ_tree = tree.tokens.get_tree("Type")
-      if typ_tree.nil?
-        typ = AST::PrimitiveTyp.new("void")
-      else
-        typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
-      end
+      typ = typ_tree.try {|t| simplify(t.as(ParseTree)).as(AST::Typ)}
 
       decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(TMPMethodDecl)
 

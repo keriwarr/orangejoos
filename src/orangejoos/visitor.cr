@@ -89,14 +89,21 @@ module Visitor
     end
 
     def visit(node : AST::ClassDecl) : Nil
+      # STDERR.puts "class_name=#{node.name}"
       node.interfaces.each { |i| i.accept(self) }
       node.body.each       { |b| b.accept(self) }
       node.super_class.accept(self) if node.super_class?
+    rescue ex : CompilerError
+      ex.register("class_name", node.name)
+      raise ex
     end
 
     def visit(node : AST::InterfaceDecl) : Nil
       node.extensions.each { |i| i.accept(self) }
       node.body.each       { |b| b.accept(self) }
+    rescue ex : CompilerError
+      ex.register("interface_name", node.name)
+      raise ex
     end
 
     def visit(node : AST::SimpleName) : Nil
@@ -108,6 +115,9 @@ module Visitor
     def visit(node : AST::FieldDecl) : Nil
       node.typ.accept(self)
       node.var.accept(self)
+    rescue ex : CompilerError
+      ex.register("field_name", node.var.name)
+      raise ex
     end
 
     def visit(node : AST::File) : Nil
@@ -134,7 +144,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprClassInit) : Nil
-      node.name.accept(self)
+      node.typ.accept(self)
       node.args.each { |a| a.accept(self) }
     end
 
@@ -192,29 +202,31 @@ module Visitor
     end
 
     def visit(node : AST::MethodInvoc) : Nil
-      node.expr.accept(self) if node.expr?
+      node.expr.accept(self)
       node.args.each      { |b| b.accept(self) }
     end
 
     def visit(node : AST::ExprArrayAccess) : Nil
-      node.arr_expr.accept(self) if node.arr_expr?
+      node.expr.accept(self)
       node.index.accept(self)
     end
 
     def visit(node : AST::ExprArrayCreation) : Nil
-      # FIXME(joey): Not added due to the type specificity problem.
-      # node.arr.accept(self)
+      node.arr.accept(self)
       node.dim.accept(self)
     end
 
     def visit(node : AST::MethodDecl) : Nil
-      node.typ.accept(self)
+      # STDERR.puts "method=#{node.name}"
+      node.typ.accept(self) if node.typ?
       node.params.each    { |p| p.accept(self) }
       node.body.each      { |b| b.accept(self) } if node.body?
+    rescue ex : CompilerError
+      ex.register("method", node.name)
+      raise ex
     end
 
     def visit(node : AST::ConstructorDecl) : Nil
-      node.name.accept(self)
       node.params.each    { |p| p.accept(self) }
       node.body.each      { |b| b.accept(self) }
     end
