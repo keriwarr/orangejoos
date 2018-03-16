@@ -975,7 +975,7 @@ module AST
     end
 
     def to_s : String
-      "(new array (TYPE: TODO) [])"
+      "(new array #{arr.to_s} [])"
     end
 
     def ast_children : Array(Node)
@@ -1104,7 +1104,7 @@ module AST
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       instance_type = expr.get_type(namespace)
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
-
+      STDERR.puts "resolving method #{name}"
       raise TypeCheckStageError.new("attempted method call #{name} on #{instance_type.to_s}") unless instance_type.is_object? || instance_type.is_static?
 
       typ = instance_type.ref.as(AST::TypeDecl)
@@ -1120,7 +1120,11 @@ module AST
         raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?("static")
       end
 
-      return method.not_nil!.typ.to_type
+      if method.typ?
+        return method.typ.to_type
+      else
+        return Typing::Type.new(Typing::Types::VOID)
+      end
     end
 
     def ast_children : Array(Node)
@@ -1445,6 +1449,7 @@ module AST
         case node
         when DeclStmt then return node.typ.to_type()
         when Param then node.typ.to_type()
+        when FieldDecl then node.typ.to_type()
         else raise Exception.new("unhandled: #{node.inspect}")
         end
       elsif array_access?

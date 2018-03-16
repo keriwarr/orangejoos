@@ -8,6 +8,8 @@ module Typing
     BOOLEAN
     NULL
 
+    VOID
+
     REFERENCE
     STATIC
 
@@ -158,19 +160,10 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ClassDecl)
     @namespace.current_class = node
-  end
-
-  def visit(node : AST::ConstInteger | AST::ConstBool | AST::ConstChar | AST::ConstString) : Nil
-    node.get_type(@namespace)
     super
   end
 
   def visit(node : AST::Expr) : Nil
-    node.get_type(@namespace)
-    super
-  end
-
-  def visit(node : AST::ConstNull) : Nil
     node.get_type(@namespace)
     super
   end
