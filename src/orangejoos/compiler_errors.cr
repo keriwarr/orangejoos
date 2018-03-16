@@ -5,6 +5,17 @@ end
 
 # Superclass tings
 class CompilerError < Exception
+  property! file : String
+
+  @metadata : Array(Tuple(String, String)) = Array(Tuple(String, String)).new
+
+  def register(key : String, val : String) : Nil
+    @metadata.push(Tuple.new(key, val))
+  end
+
+  def metadata : String
+    return @metadata.map {|k, v| "#{k}={#{v}}"}.join(" ")
+  end
 end
 
 # A ScanningStageError is an error encountered during the scan stage.
@@ -29,4 +40,10 @@ end
 # A NameResolutionStageError is an error encountered during the name
 # resolution stage.
 class NameResolutionStageError < CompilerError
+end
+
+
+# A TypeCheckStageError is an error encountered during the type check
+# stage.
+class TypeCheckStageError < CompilerError
 end

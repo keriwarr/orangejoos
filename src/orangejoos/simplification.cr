@@ -125,7 +125,7 @@ class Simplification
       params = simplify_tree(params_t).as(Array(AST::Param)) unless params_t.nil?
 
       param = simplify(tree.tokens.get_tree!("FormalParameter"))
-      params.push(param.as(AST::Param)) unless param.nil?
+      params.push(param.as(AST::Param))
       return params
 
     when "ArgumentList"
@@ -229,7 +229,7 @@ class Simplification
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
       end
-      literal = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal)
+      literal = simplify(tree.tokens.first.as(ParseTree)).as(AST::Identifier)
       return AST::SimpleName.new(literal.val)
 
     when "QualifiedName"
@@ -238,7 +238,7 @@ class Simplification
       end
 
       start = simplify(tree.tokens.to_a.first.as(ParseTree))
-      suffix = simplify(tree.tokens.to_a.last.as(ParseTree)).as(AST::Literal)
+      suffix = simplify(tree.tokens.to_a.last.as(ParseTree)).as(AST::Identifier)
 
       case start
       when AST::SimpleName then return AST::QualifiedName.new([start.name, suffix.val])
@@ -253,7 +253,7 @@ class Simplification
       end
       # FIXME(joey): This should not be a Literal but instead be an
       # Identifier maybe?
-      return AST::Literal.new(tree.tokens.first.as(Lexeme).sem)
+      return AST::Identifier.new(tree.tokens.first.as(Lexeme).sem)
 
     when "Keyword"
       if tree.tokens.size != 1
@@ -400,7 +400,7 @@ class Simplification
       end
 
       expr = nil
-      if (expr_tree = tree.tokens.get_tree("ForExpr")); !expr_tree.nil?
+      if (expr_tree = tree.tokens.get_tree("Expression")); !expr_tree.nil?
         expr = simplify(expr_tree).as(AST::Expr)
       end
 
@@ -457,6 +457,10 @@ class Simplification
          "RelationalExpression",
          "AdditiveExpression",
          "MultiplicativeExpression"
+
+      # TODO(joey): Resolve instanceof to a specific type, to make
+      # expressions easier where they will not contain a name referring
+      # to a class and only names referring to variables.
 
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
 
@@ -537,18 +541,19 @@ class Simplification
 
     when "ClassInstanceCreationExpression"
       class_name = simplify(tree.tokens.get_tree!("ClassType")).as(AST::Name)
+      class_typ = AST::ClassTyp.new(class_name)
 
       args = [] of AST::Expr
       if (t = tree.tokens.get_tree("ArgumentList")); !t.nil?
         args = simplify_tree(t).as(Array(AST::Expr))
       end
-      return AST::ExprClassInit.new(class_name, args)
+      return AST::ExprClassInit.new(class_typ, args)
 
     when "FieldAccess"
       obj = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
-      field = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+      field = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
-      return AST::ExprFieldAccess.new(obj, field)
+      return AST::ExprFieldAccess.new(obj, field.val)
 
     when "MethodInvocation"
       args = [] of AST::Expr
@@ -561,10 +566,25 @@ class Simplification
       # return a class or interface type.
       if !tree.tokens.get_tree("Name").nil?
         name = simplify(tree.tokens.get_tree!("Name")).as(AST::Name)
-        return AST::MethodInvoc.new(nil, name.name, args)
+        # `Name()` can furthur be broken down into either a
+        # `SimpleName()` or a `QualifiedName()`, where the qualified
+        # name may look like `foo.bar()` or `foo.bar.hah.z.length()`.
+        # `QualifiedNameDisambiguation` will later pick up the
+        # `ExprRef`.
+        if name.is_a?(AST::SimpleName)
+          return AST::MethodInvoc.new(AST::ExprThis.new, name.name, args)
+        else
+          name = name.as(AST::QualifiedName)
+          if name.parts.size > 2
+            prefix = AST::QualifiedName.new(name.parts[0...-1])
+          else
+            prefix = AST::SimpleName.new(name.parts[0])
+          end
+          return AST::MethodInvoc.new(AST::ExprRef.new(prefix), name.parts[-1], args)
+        end
       else
         expr = simplify(tree.tokens.get_tree!("Primary")).as(AST::Expr)
-        ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+        ident = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
         return AST::MethodInvoc.new(expr, ident.val, args)
       end
 
@@ -576,7 +596,7 @@ class Simplification
       if arr.is_a?(AST::Expr)
         return AST::ExprArrayAccess.new(arr, index_expr)
       elsif arr.is_a?(AST::Name)
-        return AST::ExprArrayAccess.new(arr, index_expr)
+        return AST::ExprArrayAccess.new(AST::ExprRef.new(arr), index_expr)
       else
         raise Exception.new("unexpected case")
       end
@@ -612,9 +632,15 @@ class Simplification
 
     when "ArrayCreationExpression"
       # FIXME(joey): Specialize the node type used here.
-      typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Node)
-      dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-      return AST::ExprArrayCreation.new(typ, dim_expr)
+      if !tree.tokens.get_tree("PrimitiveType").nil?
+        typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::PrimitiveTyp)
+        dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+        return AST::ExprArrayCreation.new(typ, dim_expr)
+      else
+        name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Name)
+        dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
+        return AST::ExprArrayCreation.new(AST::ClassTyp.new(name), dim_expr)
+      end
 
     when "LeftHandSide"
       result = simplify(tree.tokens.first.as(ParseTree)).as(AST::Name | AST::ExprArrayAccess | AST::ExprFieldAccess)
@@ -669,7 +695,7 @@ class Simplification
 
     when "FormalParameter"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
-      var_name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Literal).val
+      var_name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Identifier).val
       return AST::Param.new(var_name, typ)
 
     when "MethodDeclaration"
@@ -681,16 +707,16 @@ class Simplification
     when "ConstructorDeclaration"
       mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Modifier))
       name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
-      params = [] of AST::Param
 
+      params = [] of AST::Param
       # Note: We peer into the ConstructorDeclarator here, so we should
       # never call `simplify_tree` on a ConstructorDeclarator parse
       # node, hence the empty implementation below.
-      if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormatParameterList")); !params_t.nil?
+      if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormalParameterList")); !params_t.nil?
         params = simplify_tree(params_t).as(Array(AST::Param))
       end
       body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
-      return AST::ConstructorDecl.new(name, mods, params, body)
+      return AST::ConstructorDecl.new(name.name, mods, params, body)
 
     when "ConstructorDeclarator"
       # This `ParseTree` should not be processed, because we never call
@@ -703,39 +729,36 @@ class Simplification
       raise Exception.new("unexpected ParseNode \"ConstructorImplementation\". See the comment in the code for why.")
 
     when "MethodDeclarator"
-      if (decl = tree.tokens.get_tree("MethodDeclarator")); !decl.nil?
-        return simplify(decl.as(ParseTree))
-      end
-      ident = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal)
-
-      params = [] of AST::Param
-      if (t = tree.tokens.get_tree("FormalParameterList")); !t.nil?
-        params = simplify_tree(t.as(ParseTree)).as(Array(AST::Param))
-      end
-
-      return AST::TMPMethodDecl.new(ident.val, params)
-
+      # This `ParseTree` should not be processed, because we never call
+      # `simplify_tree` on it. Instead, the parent `ParseTree` peers
+      # into the contents of this `ParseTree`, immediately below.
+      #
+      # This implementation is meant to fulfill the simplification_spec
+      # test, which checks for exhaustive rule implementations.
+      raise Exception.new("unexpected ParseNode \"MethodDeclarator\". See the comment above for why.")
     when "MethodHeader"
       t = tree.tokens.get_tree("Modifiers")
       mods = [] of AST::Modifier
       mods = simplify_tree(t).as(Array(AST::Modifier)) unless t.nil?
 
       typ_tree = tree.tokens.get_tree("Type")
-      if typ_tree.nil?
-        typ = AST::PrimitiveTyp.new("void")
-      else
-        typ = simplify(typ_tree.as(ParseTree)).as(AST::Typ)
+      typ = typ_tree.try {|t| simplify(t.as(ParseTree)).as(AST::Typ)}
+
+      method_decl_tree = tree.tokens.get_tree!("MethodDeclarator").as(ParseTree)
+      method_ident = simplify(method_decl_tree.tokens.first.as(ParseTree)).as(AST::Identifier)
+
+      params = [] of AST::Param
+      if (t = method_decl_tree.tokens.get_tree("FormalParameterList")); !t.nil?
+        params = simplify_tree(t.as(ParseTree)).as(Array(AST::Param))
       end
 
-      decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(AST::TMPMethodDecl)
-
-      return AST::MethodDecl.new(decl.name, typ, mods, decl.params, [] of AST::Stmt)
+      return AST::MethodDecl.new(method_ident.val, typ, mods, params, [] of AST::Stmt)
 
     when "VariableDeclaratorId"
       return simplify(tree.tokens.first.as(ParseTree))
 
     when "VariableDeclarator", "InitializedVariableDeclarator"
-      var_name = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal).val
+      var_name = simplify(tree.tokens.first.as(ParseTree)).as(AST::Identifier).val
 
       init = nil
       if (t = tree.tokens.get_tree("VariableInitializer")); !t.nil?
@@ -760,7 +783,7 @@ class Simplification
       return AST::FieldDecl.new(modifiers, typ, decl)
 
     when "ClassDeclaration"
-      name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+      name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
       modifiers = [] of AST::Modifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers")); !modifiers_tree.nil?
@@ -786,7 +809,7 @@ class Simplification
       return class_decl
 
     when "InterfaceDeclaration"
-      name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Literal)
+      name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
       modifiers = [] of AST::Modifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers")); !modifiers_tree.nil?

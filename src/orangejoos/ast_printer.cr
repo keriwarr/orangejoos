@@ -74,17 +74,17 @@ module AST
     end
 
     def visit(node : AST::PrimitiveTyp) : Nil
-      print "PrimitiveTyp: #{node.name_str}"
+      print "PrimitiveTyp: #{node.to_s}"
       super
     end
 
     def visit(node : AST::ClassTyp) : Nil
-      print "ClassTyp: #{node.name_str}"
+      print "ClassTyp: #{node.to_s}"
       # no super
     end
 
-    def visit(node : AST::Literal) : Nil
-      print "Literal: #{node.val}"
+    def visit(node : AST::Identifier) : Nil
+      print "Identifier: #{node.val}"
       super
     end
 
@@ -154,22 +154,26 @@ module AST
     end
 
     def visit(node : AST::DeclStmt) : Nil
-      print "DeclStmt: typ={#{node.typ.name_str}}"
+      print "DeclStmt: typ={#{node.typ.to_s}}"
       visit([node.var.as(Node)])
       # no super
     end
 
     def visit(node : AST::ForStmt) : Nil
       print "ForStmt:"
-      print_child("Init:")
-      indent(false)
-      visit([node.init.as(Node)])
-      outdent
+      if node.init?
+        print_child("Init:")
+        indent(false)
+        visit([node.init.as(Node)])
+        outdent
+      end
       print_child "Test: #{node.expr.to_s}" if node.expr?
-      print_child("Update:")
-      indent(false)
-      visit([node.update.as(Node)])
-      outdent
+      if node.update?
+        print_child("Update:")
+        indent(false)
+        visit([node.update.as(Node)])
+        outdent
+      end
       print_child("Body:", true)
       indent
       visit([node.body.as(Node)])

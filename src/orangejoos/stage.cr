@@ -5,6 +5,7 @@ enum Stage
   SIMPLIFY
   WEED
   NAME_RESOLUTION
+  TYPE_CHECK
   ALL
 
   # takes a string and gets the corresponding enum token, or else raises an exception
@@ -15,6 +16,7 @@ enum Stage
     when "simplify" then return Stage::SIMPLIFY
     when "weed"     then return Stage::WEED
     when "nameresolution"     then return Stage::NAME_RESOLUTION
+    when "typecheck"     then return Stage::TYPE_CHECK
     when "all"      then return Stage::ALL
     else raise Exception.new("got unexpected stage: \"#{stage}\"")
     end

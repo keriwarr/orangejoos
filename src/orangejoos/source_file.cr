@@ -17,6 +17,8 @@ class SourceFile
   property! on_demand_imports : Array(String)
   property! system_imports : Array(String)
 
+  property! import_namespace : ImportNamespace
+
   def initialize(@path : String)
   end
 

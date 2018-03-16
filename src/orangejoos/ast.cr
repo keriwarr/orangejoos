@@ -12,6 +12,15 @@ require "./visitor"
 require "./mutating_visitor"
 require "./typing"
 
+INDENT = ->(depth : Int32) { "  " * depth }
+
+# Type checking constants.
+# FIXME(joey): Change these to sets.
+BOOLEAN_OPS = ["==", "!=", "&", "|", "^", "&&", "||"]
+BINARY_NUM_OPS = ["+", "-", "/", "*", "%"]
+UNARY_NUM_OPS = ["+", "-"]
+NUM_CMP_OPS = [">", "<", "<=", ">=", "!=", "=="]
+
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
 # categories of nodes:
 # - _Statements_, which are all decendants of `Stmt`
@@ -22,6 +31,45 @@ require "./typing"
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
+
+  # FIXME(joey): Move this to a better place. This was done to simplify
+  # the code that refers to the not built-in String types.
+  def self.get_string_type(namespace)
+    string_class = namespace.fetch(QualifiedName.new(["java", "lang", "String"]))
+    if string_class.nil?
+      raise Exception.new("could not find java.lang.String to resolve for String literal")
+    end
+    return Typing::Type.new(Typing::Types::REFERENCE, string_class.not_nil!)
+  end
+
+  class MethodSignature
+    getter name : String
+    getter params : Array(Typing::Type)
+
+    def initialize(@name : String, @params : Array(Typing::Type))
+    end
+
+    def initialize(method : MethodDecl)
+      @name = method.name
+      @params = method.params.map {|p| p.typ.to_type}
+    end
+
+    # Similar checks if the method signature is similar, i.e. it has
+    # the same name.
+    def similar(other : MethodSignature)
+      self.name == other.name
+    end
+
+    # Equiv checks if the function signature is equivilant, i.e. the
+    # name and formal parameters are equal.
+    def equiv(other : MethodSignature)
+      similar(other) && params_equiv(other)
+    end
+
+    def params_equiv(other : MethodSignature)
+      params.size == other.params.size && params.zip(other.params).all? {|a, b| a == b}
+    end
+  end
 
   module Modifiers
     getter modifiers : Set(String) = Set(String).new
@@ -51,7 +99,8 @@ module AST
       return result
     end
 
-    # are themselves Nodes.
+    # Implementations of this method should return all properties of
+    # this node which are themselves Nodes.
     abstract def ast_children : Array(Node)
   end
 
@@ -88,15 +137,9 @@ module AST
   # of `Stmt`, meaning they are also traversable and are only
   # distinguished by the property of returning values.
   abstract class Expr < Stmt
-    include Typing
+    include Typing::Typed
 
     def initialize
-    end
-
-    # TODO(joey): Implement for each type and remove this stubbed method.
-    private def resolve_type
-      raise Exception.new("Unimplemented")
-      return ExprTyp.new("huzza")
     end
 
     abstract def to_s : String
@@ -112,16 +155,9 @@ module AST
     # ```
     property cardinality : Int32 = 0
 
-    # The _name_ of the type being represented by the AST node.
-    abstract def name_str : String
+    abstract def to_type : Typing::Type
 
-    def children
-      [] of Expr
-    end
-
-    def to_s : String
-      name_str
-    end
+    abstract def to_s : String
   end
 
   # `PrimitiveTyp` represents built-in types. This includes the types:
@@ -145,13 +181,25 @@ module AST
     end
 
     # The _name_ of the type represented by the AST node.
-    def name_str
+    def to_s
       arr_str = "[]" * cardinality
       return "#{@name}#{arr_str}"
     end
 
     def ast_children : Array(Node)
       [] of Node
+    end
+
+    def to_type : Typing::Type
+      is_array = @cardinality > 0
+      case @name
+      when "byte" then return Typing::Type.new(Typing::Types::BYTE, is_array)
+      when "short" then return Typing::Type.new(Typing::Types::SHORT, is_array)
+      when "int" then return Typing::Type.new(Typing::Types::INT, is_array)
+      when "char" then return Typing::Type.new(Typing::Types::CHAR, is_array)
+      when "boolean" then return Typing::Type.new(Typing::Types::BOOLEAN, is_array)
+      else raise Exception.new("unexpected type: #{@name}")
+      end
     end
   end
 
@@ -167,19 +215,24 @@ module AST
     def initialize(@name : Name, @cardinality : Int32)
     end
 
-    def name_str
+    def to_s
       arr_str = "[]" * cardinality
-      return "#{@name.name}#{arr_str}"
+      return "class:#{@name.name}#{arr_str}"
     end
 
     def ast_children : Array(Node)
       [name.as(Node)]
     end
+
+    def to_type : Typing::Type
+      is_array = @cardinality > 0
+      return Typing::Type.new(Typing::Types::REFERENCE, name.ref.as(AST::TypeDecl), is_array)
+    end
   end
 
-  # FIXME(joey): The literal is instead used for identifiers, such as class
-  # names, method names, and argument names. This should be refactored.
-  class Literal < Node
+  # `Identifier` is for identifiers, such as class names, method names,
+  # and argument names.
+  class Identifier < Node
     getter val : String
 
     def initialize(@val : String)
@@ -294,6 +347,14 @@ module AST
 
     property! name : String
     property! qualified_name : String
+
+    abstract def methods : Array(MethodDecl)
+
+    def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
+      signature = MethodSignature.new(name, args)
+      result = methods.find {|m| MethodSignature.new(m).equiv(signature) }
+      return result
+    end
   end
 
   # `ClassDecl` is a top-level declaration for classes. Classes contain
@@ -309,12 +370,13 @@ module AST
     end
 
     def fields : Array(FieldDecl)
-      visible_fields = body.select(&.is_a?(FieldDecl))
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_fields = body.map(&.as?(FieldDecl)).compact
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
       visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
-      return visible_fields.map(&.as(FieldDecl))
+      return visible_fields
     end
 
     def non_static_fields : Array(FieldDecl)
@@ -323,6 +385,60 @@ module AST
 
     def static_fields : Array(FieldDecl)
       fields.select &.has_mod?("static")
+    end
+
+    def methods : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = body.map(&.as?(MethodDecl)).compact
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
+      visible_methods += super_class.ref.as(ClassDecl).methods if super_class?
+      interfaces.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        visible_methods += interface.methods
+      end
+      return visible_methods
+    end
+
+    def extends?(node : ClassDecl) : Bool
+      return true if super_class? && super_class.ref.as(ClassDecl).qualified_name == node.qualified_name
+      # TODO(joey): This is terribly inefficient lookup which could be
+      # cached or precomputed in name resolution.
+      return true if super_class? && super_class.ref.as(ClassDecl).extends?(node)
+      return false
+    end
+
+    def implements?(node : InterfaceDecl) : Bool
+      # TODO(joey): This function is terribly inefficient lookup which could be
+      # cached or precomputed in name resolution.
+      interfaces.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        return true if interface.qualified_name == node.qualified_name
+        return true if interface.extends?(node)
+      end
+      return true if super_class? && super_class.ref.as(ClassDecl).implements?(node)
+      return false
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      super_str = ""
+      if super_class?
+        super_str = "#{super_class.name}"
+      end
+      interface_names = ""
+      if interfaces.size > 0
+        interface_names = interfaces.map {|i| i.name }.join(", ")
+      end
+      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
+      return (
+        "#{indent}Class #{name}:\n" \
+        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
+        "#{indent}  Super: #{super_str}\n" \
+        "#{indent}  Interfaces: #{interface_names}\n" \
+        "#{indent}  Decls:\n#{decls}"
+      )
     end
 
     def ast_children : Array(Node)
@@ -338,6 +454,45 @@ module AST
 
     def initialize(@name : String, modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
+    end
+
+    def methods : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = body.map(&.as?(MethodDecl)).compact
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
+      extensions.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        visible_methods += interface.methods
+      end
+      return visible_methods
+    end
+
+    def extends?(node : InterfaceDecl) : Bool
+      # TODO(joey): This function is terribly inefficient lookup which could be
+      # cached or precomputed in name resolution.
+      extensions.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        return true if interface.qualified_name == node.qualified_name
+        return true if interface.extends?(node)
+      end
+      return false
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      extensions_str = ""
+      if extensions.size > 0
+        extensions_str = extensions.map {|i| i.name }.join(", ")
+      end
+      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
+      return (
+        "#{indent}Interface #{name}:\n" \
+        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
+        "#{indent}  Extensions: #{extensions_str}\n" \
+        "#{indent}  Decls:\n#{decls}"
+      )
     end
 
     def ast_children : Array(Node)
@@ -357,6 +512,12 @@ module AST
   # ```
   abstract class Name < Node
     property! ref : Node
+
+    # Override the above ref function with a more verbose nil assertion.
+    def ref : Node
+      return @ref.not_nil! if ref?
+      raise Exception.new("nil assertion of Name.ref field. name=#{name}")
+    end
 
     abstract def name : String
     abstract def parts : Array(String)
@@ -411,6 +572,11 @@ module AST
     def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
     end
+
+    # def pprint(depth : Int32)
+    #   indent = INDENT.call(depth)
+    #   return "#{indent}field #{var.pprint(0)} type=#{typ.to_s} mods=#{modifiers.join(",")}"
+    # end
 
     def ast_children : Array(Node)
       [typ.as(Node), var.as(Node)]
@@ -502,11 +668,11 @@ module AST
     property! update : Stmt
     property body : Stmt
 
-    def initialize(@init : Stmt | Nil, @expr : Expr | Nil, @update : Stmt | Nil, @body : Stmt)
+    def initialize(@init : Stmt?, @expr : Expr?, @update : Stmt?, @body : Stmt)
     end
 
     def children
-      ([init?, expr?.as?(Stmt), update?, body] of Stmt | Nil).compact
+      ([init?, expr?.as?(Stmt), update?, body] of Stmt?).compact
     end
 
     def ast_children : Array(Node)
@@ -587,9 +753,14 @@ module AST
       return [lhs] of Expr
     end
 
-    def resolve_type
-      # TODO(joey): Change this to an ENUM when the typing PR merges.
-      return Typing::Type.new("boolean")
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      lhs_type = lhs.get_type(namespace)
+      raise TypeCheckStageError.new("instanceof LHS must be reference type, got: #{lhs_type.to_s}") unless lhs_type.is_object? || lhs_type.is_array
+      return Typing::Type.new(Typing::Types::BOOLEAN)
+    end
+
+    def ast_children : Array(Node)
+      [lhs.as(Node), typ.as(Node)]
     end
 
     def ast_children : Array(Node)
@@ -631,6 +802,65 @@ module AST
       return operands
     end
 
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
+        return Typing::Type.new(Typing::Types::BOOLEAN)
+      end
+
+      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
+        return Typing::Type.new(Typing::Types::NUM)
+      end
+
+      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
+        return Typing::Type.new(Typing::Types::NUM)
+      end
+
+      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
+        return Typing::Type.new(Typing::Types::BOOLEAN)
+      end
+
+      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
+        return Typing::Type.new(Typing::Types::BOOLEAN)
+      end
+
+      if op == "=" && operands.size == 2
+        lhs = operands[0].get_type(namespace)
+        rhs = operands[1].get_type(namespace)
+        if Typing.can_convert_type(rhs, lhs)
+          # Special case: char can be added with numeric types, but
+          # cannot be assigned between numeric types.
+          if lhs.typ == Typing::Types::CHAR && rhs.typ != Typing::Types::CHAR
+            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+          end
+          return lhs
+        else
+          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+        end
+      end
+
+      if op == "==" && operands.size == 2
+        lhs = operands[0].get_type(namespace)
+        rhs = operands[1].get_type(namespace)
+        if Typing.can_convert_type(rhs, lhs)
+          return Typing::Type.new(Typing::Types::BOOLEAN)
+        else
+          raise TypeCheckStageError.new("equality between two different types: LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+        end
+      end
+
+      # When either type is a string during concat (+), then the other
+      # type is casted to a String using `toString()` or converting the
+      # primitive type.
+      if op == "+" && operands.size == 2 &&
+        (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
+        return AST.get_string_type(namespace)
+      end
+
+      # FIXME(joey): Add exhaustive operators.
+      types = operands.map {|o| o.get_type(namespace).as(Typing::Type).to_s}
+      raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
+    end
+
     def ast_children : Array(Node)
       operands.map &.as(Node)
     end
@@ -643,76 +873,102 @@ module AST
   # new A()
   # ```
   class ExprClassInit < Expr
-    property name : Name
+    property typ : ClassTyp
     property args : Array(Expr) = [] of Expr
 
-    def initialize(@name : Name, @args : Array(Expr))
+    def initialize(@typ : ClassTyp, @args : Array(Expr))
     end
 
     def to_s : String
-      "(new #{name.name} (#{(args.map &.to_s).join(", ")}))"
+      "(new #{typ.to_s} (#{(args.map &.to_s).join(", ")}))"
     end
 
     def children
       return args
     end
 
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      return Typing::Type.new(Typing::Types::REFERENCE, typ.name.ref.as(TypeDecl))
+    end
+
     def ast_children : Array(Node)
-      [name.as(Node), args.map &.as(Node)].flatten
+      [typ.as(Node), args.map &.as(Node)].flatten
     end
   end
 
   # `ExprFieldAccess` represents a instance field access.
   class ExprFieldAccess < Expr
     property obj : Expr
-    property field : Literal
+    property field_name : String
 
-    def initialize(@obj : Expr, @field : Literal)
+    def initialize(@obj : Expr, @field_name : String)
     end
 
     def to_s : String
-      "#{obj.to_s}.#{field.to_s}"
+      "#{obj.to_s}.#{field_name.to_s}"
     end
 
     def children
       return [obj]
     end
 
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      typ = obj.get_type(namespace)
+      unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array || typ.is_type?(Typing::Types::STATIC)
+        raise TypeCheckStageError.new("cannot access field of non-class type or non-array type")
+      end
+      if typ.is_array
+        if @field_name != "length"
+          raise TypeCheckStageError.new("array is not a field, can only access 'length'")
+        end
+        return Typing::Type.new(Typing::Types::INT)
+      elsif typ.is_type?(Typing::Types::STATIC)
+        class_node = typ.ref.as(ClassDecl)
+        field = class_node.static_fields.find {|f| f.var.name == @field_name}
+        if field.nil?
+          raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
+        end
+        return field.not_nil!.typ.to_type
+      elsif typ.is_object?
+        class_node = typ.ref.as(ClassDecl)
+        field = class_node.non_static_fields.find {|f| f.var.name == @field_name}
+        if field.nil?
+          raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
+        end
+        return field.not_nil!.typ.to_type
+      else
+        raise Exception.new("unhandled case: #{typ.to_s}")
+      end
+    end
+
     def ast_children : Array(Node)
-      [obj.as(Node), field.as(Node)]
+      [obj.as(Node)]
     end
   end
 
   # `ExprArrayAccess` represents an array access.
   class ExprArrayAccess < Expr
-    # FIXME(joey): Rather hacky way to support these two ways to write
-    # an array access, an expr that returns an array or by directly
-    # using an identifier name.
-    property! arr_expr : Expr
-    property! arr_name : Name
+    property expr : Expr
     property index : Expr
 
-    def initialize(@arr_expr : Expr, @index : Expr)
-    end
-
-    def initialize(@arr_name : Name, @index : Expr)
+    def initialize(@expr : Expr, @index : Expr)
     end
 
     def to_s : String
-      return "#{arr_expr.to_s}[#{index.to_s}]" if arr_expr?
-      return "#{arr_name.name}[#{index.to_s}]"
+      return "#{expr.to_s}[#{index.to_s}]"
     end
 
-    def children
-      if arr_expr?
-        return [arr_expr, index]
-      else
-        return [index]
-      end
+    def children : Array(Expr)
+      [expr, index]
+    end
+
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      expr.get_type(namespace).from_array_type
     end
 
     def ast_children : Array(Node)
-      [arr_expr?.as?(Node), arr_name?.as?(Node), index.as(Node)].compact
+      [expr.as(Node), index.as(Node)].compact
     end
   end
 
@@ -721,14 +977,14 @@ module AST
     # FIXME: (joey) Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
     # such as Name (or Class/Interface) and PrimitiveTyp.
-    property arr : Node
+    property arr : Typ
     property dim : Expr
 
-    def initialize(@arr : Node, @dim : Expr)
+    def initialize(@arr : Typ, @dim : Expr)
     end
 
     def to_s : String
-      "(new array (TYPE: TODO) [])"
+      "(new array #{arr.to_s} [])"
     end
 
     def ast_children : Array(Node)
@@ -739,9 +995,23 @@ module AST
       return [arr, dim]
     end
 
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      # Crystal cannot modify the type from a method, `#arr`.
+      node = arr
+      case node
+      when PrimitiveTyp
+        typ = node.to_type()
+        return typ.to_array_type()
+      when ClassTyp
+        typ = node.to_type()
+        return typ.to_array_type()
+      else raise Exception.new("unexpected type: #{arr.inspect}")
+      end
+    end
+
     def ast_children : Array(Node)
-      # FIXME: (joey) dim not included due to the type specificity problem.
-      [arr]
+      [arr.as(Node), dim.as(Node)]
     end
   end
 
@@ -759,6 +1029,12 @@ module AST
       [] of Expr
     end
 
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      # FIXME(joey): If the namespace is a static namespace, this should
+      # be different.
+      return Typing::Type.new(Typing::Types::REFERENCE, namespace.current_class)
+    end
+
     def ast_children : Array(Node)
       [] of Node
     end
@@ -772,6 +1048,11 @@ module AST
   # ```
   #
   class ExprRef < Expr
+    # The _name_ of an `ExprRef` may hold one of:
+    # - DeclStmt
+    # - FieldDecl
+    # - Param
+    # - TypeDecl (ClassDecl / InterfaceDecl)
     property name : Name
 
     def initialize(@name : Name)
@@ -783,6 +1064,22 @@ module AST
 
     def children
       [] of Expr
+    end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      if name.ref?
+        node = name.ref
+        case node
+        when AST::TypeDecl
+          return Typing::Type.new(Typing::Types::STATIC, node)
+        when AST::DeclStmt then return node.typ.to_type
+        when AST::Param then return node.typ.to_type
+        when AST::FieldDecl then return node.typ.to_type
+        else raise Exception.new("unhandled case: #{node.inspect}")
+        end
+      else
+        raise TypeCheckStageError.new("ExprRef was not resolved: #{self.inspect}")
+      end
     end
 
     def ast_children : Array(Node)
@@ -798,7 +1095,7 @@ module AST
   # ```
   #
   class MethodInvoc < Expr
-    property! expr : Expr
+    property expr : Expr
     property name : String
     property args : Array(Expr)
 
@@ -806,19 +1103,40 @@ module AST
     end
 
     def to_s : String
-      "(MethodInvoc: #{expr? ? expr.to_s : ""}.#{name} (#{(args.map &.to_s).join(", ")}))"
+      "(MethodInvoc: (#{expr.to_s}).#{name} (#{(args.map &.to_s).join(", ")}))"
     end
 
     def children
-      if expr?
-        [expr] of Expr + args
+      [expr] of Expr + args
+    end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      instance_type = expr.get_type(namespace)
+      arg_types = args.map &.get_type(namespace).as(Typing::Type)
+      raise TypeCheckStageError.new("attempted method call #{name} on #{instance_type.to_s}") unless instance_type.is_object? || instance_type.is_static?
+
+      typ = instance_type.ref.as(AST::TypeDecl)
+      method = typ.method?(name, arg_types)
+
+      raise TypeCheckStageError.new("no method {#{name}} on #{typ.qualified_name}") if method.nil?
+
+      method = method.not_nil!
+
+      if instance_type.is_type?(Typing::Types::STATIC)
+        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?("static")
       else
-        args
+        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?("static")
+      end
+
+      if method.typ?
+        return method.typ.to_type
+      else
+        return Typing::Type.new(Typing::Types::VOID)
       end
     end
 
     def ast_children : Array(Node)
-      [expr?.as?(Node), args.map &.as(Node)].flatten.compact
+      [expr.as(Node), args.map &.as(Node)].flatten.compact
     end
   end
 
@@ -843,6 +1161,13 @@ module AST
     def to_s : String
       val
     end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new(Typing::Types::NUM)
+    end
   end
 
   class ConstBool < Const
@@ -854,6 +1179,13 @@ module AST
 
     def to_s : String
       val
+    end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new(Typing::Types::BOOLEAN)
     end
   end
 
@@ -867,6 +1199,13 @@ module AST
     def to_s : String
       "'#{val}'"
     end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      # FIXME(joey): We may require more specific number types, or only
+      # as a result of computation.
+      # I think constants evaluated to the smallest type they can.
+      return Typing::Type.new(Typing::Types::CHAR)
+    end
   end
 
   class ConstString < Const
@@ -878,6 +1217,10 @@ module AST
     def to_s : String
       "\"#{val}\""
     end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      return AST.get_string_type(namespace)
+    end
   end
 
   class ConstNull < Const
@@ -886,6 +1229,10 @@ module AST
 
     def to_s : String
       "null"
+    end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      return Typing::Type.new(Typing::Types::NULL)
     end
   end
 
@@ -938,38 +1285,13 @@ module AST
     include Modifiers
 
     property name : String
-    property typ : Typ
+    # `typ` is Nil if the method has a void return type.
+    property! typ : Typ
     property params : Array(Param) = [] of Param
     property! body : Array(Stmt) | Nil
 
-    def initialize(@name : String, @typ : Typ, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
-    end
-
-    class MethodSignature
-      getter name : String
-      getter typ : String
-      getter modifiers : Set(String)
-      getter params : Array(String)
-
-      def initialize(@name : String, @typ : String, @modifiers : Set(String), @params : Array(String))
-      end
-
-      # Similar checks if the method signature is similar, i.e. it has
-      # the same name.
-      def similar(other : MethodSignature)
-        self.name == other.name
-      end
-
-      # Equiv checks if the function signature is equivilant, i.e. the
-      # name and formal parameters are equal.
-      def equiv(other : MethodSignature)
-        similar(other) && params_equiv(other)
-      end
-
-      def params_equiv(other : MethodSignature)
-        params.size == other.params.size && params.zip(other.params).all? {|a, b| a == b}
-      end
     end
 
     def signature : MethodSignature
@@ -982,12 +1304,20 @@ module AST
       # foo(a java.lang.Object);
       # foo(a Object)
       # ```
-      return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.name_str))
+      return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.to_s))
     end
+
+    # def pprint(depth : Int32)
+    #   indent = INDENT.call(depth)
+    #   p = params.map {|i| i.pprint(0)}
+    #   body_str = "<no body>"
+    #   body_str = (body.map {|b| b.pprint(depth+1)}).join("\n") if body?
+    #   return "#{indent}method #{name} #{typ?.try &.pprint} #{modifiers.join(",")} #{p}\n#{body_str}"
+    # end
 
     def ast_children : Array(Node)
       [
-        typ.as(Node),
+        typ?.as?(Node),
         params.map &.as(Node),
         body?.try {|b| b.map &.as(Node)},
       ].flatten.compact
@@ -995,38 +1325,40 @@ module AST
   end
 
 
-  # `ConstructorDecl` is a specia lmethod declaration. It includes
+  # `ConstructorDecl` is a special method declaration. It includes
   # `name`, `modifiers`, `params` for the method signature, and the
   # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
   # with a flag denoting it's a constructor with no type.
   class ConstructorDecl < MemberDecl
     include Modifiers
 
-    property name : SimpleName
-    property params : Array(Param) = [] of Param
+    property name : String
+    property params : Array(Param)
     property body : Array(Stmt) = [] of Stmt
 
-    def initialize(@name : SimpleName, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      p = params.map {|i| i.pprint(0)}
+      return "#{indent}constructor #{name} #{modifiers.to_a} #{p}"
+    end
+
     def ast_children : Array(Node)
-      [name.as(Node), params.map &.as(Node), body.map &.as(Node)].flatten
+      [params.map &.as(Node), body.map &.as(Node)].flatten
     end
   end
 
   class ReturnStmt < Stmt
-    property! expr : Expr | Nil
+    property! expr : Expr
 
-    def initialize(@expr : Expr | Nil)
+    def initialize(@expr : Expr?)
     end
 
     def children
-      if expr.nil?
-        return [] of Expr
-      else
-        return [expr]
-      end
+      [expr?].compact
     end
 
     def ast_children : Array(Node)
@@ -1049,10 +1381,15 @@ module AST
       [rhs] of Expr
     end
 
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      expr_type = rhs.get_type(namespace)
+      raise TypeCheckStageError.new("cannot cast from #{expr_type.to_s} to #{typ.to_type.to_s}") if !Typing.can_convert_type(expr_type, typ.to_type)
+      return typ.to_type
+    end
+
     def ast_children : Array(Node)
       [typ, rhs]
     end
-    # TODO(joey): Add get_type() for new CastExpr.
   end
 
   class ParenExpr < Expr
@@ -1063,6 +1400,10 @@ module AST
 
     def children
       return [expr]
+    end
+
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      return expr.get_type(namespace)
     end
 
     def to_s : String
@@ -1110,31 +1451,26 @@ module AST
       end
     end
 
+    def resolve_type(namespace : ImportNamespace) : Typing::Type
+      if name?
+        node = name.ref
+        case node
+        when DeclStmt then return node.typ.to_type()
+        when Param then node.typ.to_type()
+        when FieldDecl then node.typ.to_type()
+        else raise Exception.new("unhandled: #{node.inspect}")
+        end
+      elsif array_access?
+        return array_access.get_type(namespace)
+      elsif field_access?
+        return field_access.get_type(namespace)
+      else
+        raise Exception.new("unhandled case")
+      end
+    end
+
     def ast_children : Array(Node)
       [name?.as?(Node), array_access?.as?(Node), field_access?.as?(Node)].compact
-    end
-  end
-
-  # TODO(joey): some notes on clean up to be done here:
-  # - Replace tokens.to_a[i] access for children.
-  # - Clean up casting. This is done to consoldiate rules within a few
-  #   functions.
-  # - Change how conditional values are retrieved. e.g. "Modifiers" is a
-  #   common conditional where we want to default an empty array.
-
-  # Intermediate ASTs. These do not appear in the final result but are
-  # used to pass values up while doing simplificaiton.
-
-  # Intermediate AST.
-  class TMPMethodDecl < Node
-    property name : String
-    property params : Array(Param) = [] of Param
-
-    def initialize(@name : String, @params : Array(Param))
-    end
-
-    def ast_children : Array(Node)
-      [] of Node
     end
   end
 end

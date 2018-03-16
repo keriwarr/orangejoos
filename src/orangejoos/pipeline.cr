@@ -7,12 +7,14 @@ require "./name_resolution"
 require "./compiler_errors"
 require "./stage"
 require "./source_file"
+require "./typing"
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
   @sources = [] of SourceFile
   @table = uninitialized LALR1Table
   @end_stage = Stage::ALL
+  @use_stdlib = true
   @verbose = false
 
   # initialize creates the pipeline and checks all arguments for validity, raising an ArgumentError
@@ -44,7 +46,7 @@ class Pipeline
   end
 
   # overloaded constructor
-  def initialize(table_file : String, paths : Array(String), @end_stage : Stage, @verbose : Bool)
+  def initialize(table_file : String, paths : Array(String), @end_stage : Stage, @verbose : Bool, @use_stdlib : Bool)
     initialize(table_file, paths) # call main constructor
   end
 
@@ -63,6 +65,9 @@ class Pipeline
 
     file.tokens = tokens
     return tokens
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_parse! takes the tokens from a scanned source file and creates a parse tree from it, modifying
@@ -72,6 +77,9 @@ class Pipeline
     parse_tree = Parser.new(table, file.tokens).parse
     file.parse_tree = parse_tree
     return parse_tree
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_simplify! simpifies the parse_tree into an abstract syntax tree.
@@ -80,23 +88,31 @@ class Pipeline
     ast = Simplification.new.simplify(file.parse_tree).as(AST::File)
     file.ast = ast
     return ast
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_weed! weeds the abstract suntax tree of errors.
   # May raise a WeedingStageError.
   def do_weed!(file : SourceFile)
     Weeding.new(file.ast, file.class_name).weed
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # do_name_resolution! resolves names across all abstract syntax trees
-  def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool)
-    begin
-      NameResolution.new(files, verbose).resolve
-    rescue ex : NameResolutionStageError
-      STDERR.puts "Found name resolution error: #{ex}"
-      STDERR.puts "#{ex.inspect_with_backtrace}"
-      exit 42
-    end
+  def self.do_name_resolution!(files : Array(SourceFile), verbose : Bool, use_stdlib : Bool)
+    NameResolution.new(files, verbose, use_stdlib).resolve
+  end
+
+  # do_type_checking! runs type checks.
+  def self.do_type_checking!(file : SourceFile, verbose : Bool)
+    TypeCheck.new(file, verbose).check
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
   end
 
   # exec executes the compiler pipeline up to the specified ending stage.
@@ -146,9 +162,18 @@ class Pipeline
     #                                                                         #
     # Resolve any names to their referenced nodes.                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    @sources = Pipeline.do_name_resolution!(@sources, @verbose)
+    @sources = Pipeline.do_name_resolution!(@sources, @verbose, @use_stdlib)
     @sources.map &.debug_print(Stage::NAME_RESOLUTION) if @verbose
     return true if @end_stage == Stage::NAME_RESOLUTION
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                                 TYPE CHECKING                           #
+    #                                                                         #
+    #                                                                         #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    @sources.each { |file| Pipeline.do_type_checking!(file, @verbose) }
+    @sources.map &.debug_print(Stage::TYPE_CHECK) if @verbose
+    return true if @end_stage == Stage::TYPE_CHECK
 
     # Stage:ALL
     return true

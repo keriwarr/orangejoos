@@ -8,7 +8,7 @@ module Visitor
 
     abstract def visit(node : AST::PrimativeTyp) : Nil
     abstract def visit(node : AST::ClassTyp) : Nil
-    abstract def visit(node : AST::Literal) : Nil
+    abstract def visit(node : AST::Identifier) : Nil
     abstract def visit(node : AST::Keyword) : Nil
     abstract def visit(node : AST::PackageDecl) : Nil
     abstract def visit(node : AST::ImportDecl) : Nil
@@ -101,7 +101,7 @@ module Visitor
       visit(node.ast_children)
     end
 
-    def visit(node : AST::Literal) : Nil
+    def visit(node : AST::Identifier) : Nil
       visit(node.ast_children)
     end
 
@@ -123,10 +123,16 @@ module Visitor
 
     def visit(node : AST::ClassDecl) : Nil
       visit(node.ast_children)
+    rescue ex : CompilerError
+      ex.register("class_name", node.name)
+      raise ex
     end
 
     def visit(node : AST::InterfaceDecl) : Nil
       visit(node.ast_children)
+    rescue ex : CompilerError
+      ex.register("interface_name", node.name)
+      raise ex
     end
 
     def visit(node : AST::SimpleName) : Nil
@@ -158,8 +164,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprInstanceOf) : Nil
-      node.lhs.accept(self)
-      node.typ.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprClassInit) : Nil
@@ -232,10 +237,16 @@ module Visitor
 
     def visit(node : AST::MethodDecl) : Nil
       visit(node.ast_children)
+    rescue ex : CompilerError
+      ex.register("method", node.name)
+      raise ex
     end
 
     def visit(node : AST::ConstructorDecl) : Nil
       visit(node.ast_children)
+    rescue ex : CompilerError
+      ex.register("constructor", "")
+      raise ex
     end
 
     def visit(node : AST::ReturnStmt) : Nil
@@ -255,10 +266,6 @@ module Visitor
     end
 
     def visit(node : AST::Modifier) : Nil
-      raise Exception.new("should not be executed")
-    end
-
-    def visit(node : AST::TMPMethodDecl) : Nil
       raise Exception.new("should not be executed")
     end
   end
