@@ -799,8 +799,11 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      if op == "+" && operands.size == 2 && operands.all? {|o| o.get_type(namespace) == AST.get_string_type(namespace)}
-        # STDERR.puts "huzza'"
+      # When either type is a string during concat (+), then the other
+      # type is casted to a String using `toString()` or converting the
+      # primitive type.
+      if op == "+" && operands.size == 2 &&
+        (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
         return AST.get_string_type(namespace)
       end
 
@@ -845,7 +848,6 @@ module AST
       end
 
       # FIXME(joey): Add exhaustive operators.
-
       types = operands.map {|o| o.get_type(namespace).as(Typing::Type).to_s}
       raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
     end

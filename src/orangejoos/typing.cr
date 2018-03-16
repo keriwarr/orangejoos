@@ -15,6 +15,8 @@ module Typing
     TODO
   end
 
+  PRIMITIVES = [Types::CHAR, Types::NUM, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
+
   def self.can_convert_type(from : Type, to : Type) : Bool
     return true if from == to
 
@@ -83,22 +85,26 @@ module Typing
       return Type.new(typ, true)
     end
 
-    def is_type?(s : Types)
+    def is_type?(s : Types) : Bool
       # This is because of the comparisons below in `#==` use
       # `other.ref`, which will be nil and hit a nil assertion.
       raise Exception.new("you cannot do this. use is_object? instead") if s == Types::REFERENCE
       return self == Typing::Type.new(s)
     end
 
-    def is_object?
+    def is_primitive? : Bool
+      return PRIMITIVES.includes?(typ)
+    end
+
+    def is_object? : Bool
       return typ == Types::REFERENCE
     end
 
-    def is_static?
+    def is_static? : Bool
       return typ == Types::STATIC
     end
 
-    def ==(other)
+    def ==(other) : Bool
       # When not comparing Types, always false.
       return false if !other.is_a?(Type)
       # When both are reference types and the same.
@@ -112,6 +118,7 @@ module Typing
       # When both are numerical types.
       numbers = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
       return true if numbers.includes?(other.typ) && numbers.includes?(self.typ)
+      return false
     end
 
     def to_s : String
