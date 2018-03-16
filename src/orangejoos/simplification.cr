@@ -125,7 +125,7 @@ class Simplification
       params = simplify_tree(params_t).as(Array(AST::Param)) unless params_t.nil?
 
       param = simplify(tree.tokens.get_tree!("FormalParameter"))
-      params.push(param.as(AST::Param)) unless param.nil?
+      params.push(param.as(AST::Param))
       return params
 
     when "ArgumentList"
@@ -707,12 +707,12 @@ class Simplification
     when "ConstructorDeclaration"
       mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Modifier))
       name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
-      params = [] of AST::Param
 
+      params = [] of AST::Param
       # Note: We peer into the ConstructorDeclarator here, so we should
       # never call `simplify_tree` on a ConstructorDeclarator parse
       # node, hence the empty implementation below.
-      if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormatParameterList")); !params_t.nil?
+      if (params_t = tree.tokens.to_a[1].as(ParseTree).tokens.get_tree("FormalParameterList")); !params_t.nil?
         params = simplify_tree(params_t).as(Array(AST::Param))
       end
       body = simplify_tree(tree.tokens.to_a[2].as(ParseTree)).as(Array(AST::Stmt))
@@ -744,7 +744,7 @@ class Simplification
       typ_tree = tree.tokens.get_tree("Type")
       typ = typ_tree.try {|t| simplify(t.as(ParseTree)).as(AST::Typ)}
 
-      method_decl_tree = tree.tokens.get_tree("MethodDeclarator").as(ParseTree)
+      method_decl_tree = tree.tokens.get_tree!("MethodDeclarator").as(ParseTree)
       method_ident = simplify(method_decl_tree.tokens.first.as(ParseTree)).as(AST::Identifier)
 
       params = [] of AST::Param

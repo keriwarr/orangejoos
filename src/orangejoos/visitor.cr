@@ -164,8 +164,7 @@ module Visitor
     end
 
     def visit(node : AST::ExprInstanceOf) : Nil
-      node.lhs.accept(self)
-      node.typ.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprClassInit) : Nil

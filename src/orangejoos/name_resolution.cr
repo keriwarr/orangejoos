@@ -350,8 +350,6 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
     node.interfaces.each do |interface|
       if interfaces.includes?(interface.ref.as(AST::InterfaceDecl).qualified_name)
         raise NameResolutionStageError.new("class #{node.name} implements #{interface.name} multiple times")
-      else
-        STDERR.puts("class #{node.name} implements #{interface.name} for first time")
       end
       interfaces.add(interface.ref.as(AST::InterfaceDecl).qualified_name)
     end
@@ -600,6 +598,9 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     methods.each {|m| m.accept(self)}
     constructors = node.body.map(&.as?(AST::ConstructorDecl)).compact
     constructors.each {|m| m.accept(self)}
+  rescue ex : CompilerError
+    ex.register("class_name", node.name)
+    raise ex
   end
 
   def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
@@ -619,6 +620,10 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     end
 
     visitStmts(node.body) if node.is_a?(AST::ConstructorDecl) || node.body?
+  rescue ex : CompilerError
+    ex.register("method", node.name) if node.is_a?(AST::MethodDecl)
+    ex.register("constructor", "") if node.is_a?(AST::ConstructorDecl)
+    raise ex
   end
 
   def visitStmts(stmts : Array(AST::Stmt))

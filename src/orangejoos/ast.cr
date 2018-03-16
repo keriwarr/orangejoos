@@ -1313,7 +1313,7 @@ module AST
   end
 
 
-  # `ConstructorDecl` is a specia lmethod declaration. It includes
+  # `ConstructorDecl` is a special method declaration. It includes
   # `name`, `modifiers`, `params` for the method signature, and the
   # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
   # with a flag denoting it's a constructor with no type.
@@ -1321,7 +1321,7 @@ module AST
     include Modifiers
 
     property name : String
-    property params : Array(Param) = [] of Param
+    property params : Array(Param)
     property body : Array(Stmt) = [] of Stmt
 
     def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))

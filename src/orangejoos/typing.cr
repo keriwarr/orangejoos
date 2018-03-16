@@ -108,11 +108,7 @@ module Typing
       # When not comparing Types, always false.
       return false if !other.is_a?(Type)
       # When both are reference types and the same.
-      # STDERR.puts "we enter boys"
-      # STDERR.puts "LHS: #{self.to_s}\nRHS: #{other.to_s}"
-      # STDERR.puts "LHS qual: #{self.ref.qualified_name}\nRHS qual: #{other.ref.qualified_name}" if other.typ == self.typ && self.typ == Types::REFERENCE
       return true if other.typ == self.typ && self.typ == Types::REFERENCE && other.ref.qualified_name == self.ref.qualified_name
-      # STDERR.puts "we past boys"
       # When both are the same primative types (i.e. non-reference)
       return true if other.typ == self.typ
       # When both are numerical types.
