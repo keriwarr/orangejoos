@@ -756,6 +756,8 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
+      lhs_type = lhs.get_type(namespace)
+      raise TypeCheckStageError.new("instanceof LHS must be reference type, got: #{lhs_type.to_s}") unless lhs_type.is_object? || lhs_type.is_array
       return Typing::Type.new(Typing::Types::BOOLEAN)
     end
 

@@ -54,6 +54,9 @@ module Typing
       # (Special case to Object).
       return true if from.ref.is_a?(AST::ClassDecl) && to.ref.is_a?(AST::ClassDecl) &&
                      from.ref.as(AST::ClassDecl).extends?(to.ref.as(AST::ClassDecl))
+
+      # Special case: conversion from Object to Object[].
+      return true if from.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object" && to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
     end
 
     return false
@@ -92,7 +95,7 @@ module Typing
       # This is because of the comparisons below in `#==` use
       # `other.ref`, which will be nil and hit a nil assertion.
       raise Exception.new("you cannot do this. use is_object? instead") if s == Types::REFERENCE
-      return self == Typing::Type.new(s)
+      return self == (Typing::Type.new(s))
     end
 
     def is_primitive? : Bool
@@ -107,9 +110,9 @@ module Typing
       return typ == Types::STATIC
     end
 
-    def ==(other) : Bool
-      # When not comparing Types, always false.
-      return false if !other.is_a?(Type)
+    def ==(other : Type) : Bool
+      # When both are not arrays, instatly false.
+      return false unless other.is_array == self.is_array
       # When both are reference types and the same.
       return true if other.typ == self.typ && self.typ == Types::REFERENCE && other.ref.qualified_name == self.ref.qualified_name
       # When both are the same primative types (i.e. non-reference)
