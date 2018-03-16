@@ -268,7 +268,7 @@ class Simplification
       class_tree = tree.tokens.get_tree("ClassOrInterfaceType")
       if !class_tree.nil?
         class_name = simplify(class_tree).as(AST::Name)
-        return AST::ReferenceTyp.new(class_name)
+        return AST::ClassTyp.new(class_name)
       else
         # ArrayType or array reference type.
         return simplify(tree.tokens.first.as(ParseTree))
@@ -279,7 +279,7 @@ class Simplification
       case t.name
       when "Name"
         name = simplify(t).as(AST::Name)
-        return AST::ReferenceTyp.new(name, 1)
+        return AST::ClassTyp.new(name, 1)
       when "ArrayType", "PrimitiveType"
         typ = simplify(t).as(AST::Typ)
         typ.cardinality = typ.cardinality + 1
@@ -459,9 +459,14 @@ class Simplification
          "MultiplicativeExpression"
 
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
-      # else ...
-      lhs_a = simplify(tree.tokens.first.as(ParseTree))
-      lhs = lhs_a.as(AST::Expr)
+
+      if tree.tokens.to_a[1].as(Lexeme).sem == "instanceof"
+        lhs = simplify(tree.tokens.first.as(ParseTree)).as(AST::Expr)
+        typ = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Typ)
+        return AST::ExprInstanceOf.new(lhs, typ)
+      end
+
+      lhs = simplify(tree.tokens.first.as(ParseTree)).as(AST::Expr)
       rhs = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
       op = tree.tokens.to_a[1].as(Lexeme).sem
       return AST::ExprOp.new(op, lhs, rhs)
@@ -582,11 +587,27 @@ class Simplification
       if !tree.tokens.get_tree("PrimitiveType").nil?
         typ = simplify(tree.tokens.get_tree!("PrimitiveType")).as(AST::PrimitiveTyp)
         dims = !tree.tokens.get_tree("Dims").nil?
-        return AST::CastExpr.new(rhs, typ, dims)
+        if dims
+          typ = AST::PrimitiveTyp.new(typ.name, 1)
+        end
+        return AST::CastExpr.new(rhs, typ)
       else
-        typ = simplify(tree.tokens.to_a[1].as(ParseTree))
-        return AST::CastExpr.new(rhs, typ.as(AST::Name)) if typ.is_a?(AST::Name)
-        return AST::CastExpr.new(rhs, typ.as(AST::Expr))
+        typ_name = simplify(tree.tokens.to_a[1].as(ParseTree))
+        dims = !tree.tokens.get_tree("Dims").nil?
+        cardinality = dims ? 1 : 0
+        # We have to handle both Name and ExprRef because:
+        # - We get Name if Dims is also present, i.e. only when it is
+        #   casting to an array.
+        # - We get ExprRef if Dims is not present, i.e. casting to a
+        #   plain type).
+        if typ_name.is_a?(AST::Name)
+          typ = AST::ClassTyp.new(typ_name, cardinality)
+        elsif typ_name.is_a?(AST::ExprRef)
+          typ = AST::ClassTyp.new(typ_name.name, cardinality)
+        else
+          raise WeedingStageError.new("CastExpr expected a Name or Primative type to cast to, but got: #{typ_name.inspect}")
+        end
+        return AST::CastExpr.new(rhs, typ)
       end
 
     when "ArrayCreationExpression"

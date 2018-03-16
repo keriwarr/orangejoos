@@ -16,7 +16,7 @@ class Weeding
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
     @root.accept(LiteralRangeCheckerVisitor.new)
-    @root.accept(InvalidCastExpressionVisitor.new)
+    @root.accept(InvalidInstanceOfExpressionVisitor.new)
   end
 end
 
@@ -70,7 +70,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
   def handleFieldDecl(node : AST::ClassDecl, fd : AST::FieldDecl)
     # Do not allow fields to be final.
     if fd.has_mod?("final")
-      raise WeedingStageError.new("field #{node.name}.#{fd.decl.name} is final, but final is not allowed")
+      raise WeedingStageError.new("field #{node.name}.#{fd.var.name} is final, but final is not allowed")
     end
   end
 
@@ -147,12 +147,11 @@ class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
   end
 end
 
-class InvalidCastExpressionVisitor < Visitor::GenericVisitor
-  def visit(node : AST::CastExpr) : Nil
-    return node unless node.expr?
-
-    unless node.expr.is_a?(AST::Typ) || node.expr.is_a?(AST::ExprRef)
-      raise WeedingStageError.new("Cannot cast value #{node.rhs.to_s} to #{node.expr.to_s}")
+class InvalidInstanceOfExpressionVisitor < Visitor::GenericVisitor
+  def visit(node : AST::ExprInstanceOf) : Nil
+    typ_node = node.typ
+    if typ_node.is_a?(AST::PrimitiveTyp) && typ_node.cardinality == 0
+      raise WeedingStageError.new("Primitive types cannot be used in instanceof, node is: #{node.to_s}")
     end
   end
 end

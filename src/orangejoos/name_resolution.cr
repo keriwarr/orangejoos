@@ -1,6 +1,7 @@
 require "./compiler_errors"
 require "./ast"
 require "./visitor"
+require "./mutating_visitor"
 require "./source_file"
 
 # ROOT_PACKAGE is a special sentinel package that undeclared packages
@@ -140,7 +141,6 @@ class NameResolution
     # with QualifiedNameResolution for doing better static assertion of
     # resolution?
     file.ast.accept(InterfaceResolutionVisitor.new(namespace))
-    file.ast.accept(ClassResolutionVisitor.new(namespace))
 
     # Check for clashes of the namespace with any classes defined in the
     # file.
@@ -149,12 +149,13 @@ class NameResolution
     # comes from this file).
 
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
-
+    file.ast = file.ast.accept(QualifiedNameDisambiguation.new)
+    file.ast.accept(ClassTypResolutionVisitor.new(namespace))
     return file
   end
 
   def check_correctness(file)
-      file.ast.accept(DuplicateFieldVisitor.new)
+    file.ast.accept(DuplicateFieldVisitor.new)
   end
 
 
@@ -171,25 +172,21 @@ class NameResolution
     # Populate the imports for each file in-place.
     files = @files.map {|file| Tuple.new(file, populate_imports(file, exported_items)) }
 
-    files.each do |f, _|
-      f.ast.accept(MethodEnvironmentVisitor.new)
-    end
-
     # Populate the inheritance information for the interfaces and
     # classes in each file.
-    # FIXME(joey): Do we want to modify file.ast in-place? probably ok
     cycle_tracker = CycleTracker.new
     files = files.map {|file, namespace| resolve_inheritance(file, namespace, cycle_tracker)}
     # Check the hierarchy graph for any cycles.
     cycle_tracker.check()
 
     # Check the correctness of classes and interfaces.
-    files = files.map {|file| check_correctness(file)}
+    files.each {|f| check_correctness(f)}
 
+    # Resolve all variables found in the files. This mutates the AST
+    # in-place by resolving `Name.ref`.
+    files.each {|f| f.ast.accept(MethodEnvironmentVisitor.new)}
 
-
-
-    return @files
+    return files
   end
 end
 
@@ -483,29 +480,93 @@ class ImportNamespace
   end
 end
 
-class MethodEnvironmentVisitor < Visitor::GenericVisitor
-  @namespace : Array({name: String, decl: AST::Param | AST::VariableDecl}) = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
-  @methodName : String = ""
 
-  def addToNamespace(decl : AST::Param | AST::VariableDecl)
+class MethodEnvironmentVisitor < Visitor::GenericVisitor
+  # Namespace of the scope during AST traversal. It is populated as we
+  # enter a function and encounter any `DeclStmt1.
+  @namespace : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  # Field namespace of the scope during AST traversal. It is
+  # pre-populated when we enter a `MethodDecl`.
+  @field_namespace : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+  # Name of the method currently being traversed.
+  @current_method_name : String = ""
+
+  @class_node : AST::ClassDecl?
+
+  # All class instance fields that are accessible. The hash is
+  # class_name -> namespace.
+  @class_instance_fields : Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)}))
+
+  # All static instance fields that are accessible. The hash is
+  # class_name -> namespace.
+  @class_static_fields :  Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)}))
+
+  def initialize
+    @namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    @field_namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    @class_instance_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
+    @class_static_fields = Hash(String, Array({name: String, decl: (AST::Param | AST::VariableDecl)})).new
+  end
+
+  def addToNamespace(decl : (AST::Param | AST::VariableDecl))
     @namespace.each do |n|
       if n[:name] == decl.name
-        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{@methodName}")
+        raise NameResolutionStageError.new("Duplicate declaration #{decl.name} in method #{@current_method_name}")
       end
     end
     @namespace.push({name: decl.name, decl: decl})
   end
 
-  def visit(node : AST::MethodDecl) : Nil
-    @methodName = node.name
+  def get_class_instance_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+    # TODO(joey): This depends on the order of fields matter so that
+    # shadowing fields will be near the front so they resolve instead of
+    # the shadowed fields. See `ClassDecl#fields` to see a TODO for
+    # fixing this.
+    # We use `namespace` to ensure the return value type matches the
+    # function signature.
+    namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    node.non_static_fields.each {|field| namespace.push({name: field.var.name, decl: field.var})}
+    return namespace
+  end
 
+  def get_class_static_fields(node : AST::ClassDecl) : Array({name: String, decl: (AST::Param | AST::VariableDecl)})
+    # TODO(joey): This depends on the order of fields matter so that
+    # shadowing fields will be near the front so they resolve instead of
+    # the shadowed fields. See `ClassDecl#fields` to see a TODO for
+    # fixing this.
+    # We use `namespace` to ensure the return value type matches the
+    # function signature.
+    namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+    node.static_fields.each {|field| namespace.push({name: field.var.name, decl: field.var})}
+    return namespace
+  end
+
+  def visit(node : AST::ClassDecl) : Nil
+    @class_instance_fields[node.name] = get_class_instance_fields(node) if !@class_instance_fields.has_key?(node.name)
+    @class_static_fields[node.name] = get_class_static_fields(node) if !@class_static_fields.has_key?(node.name)
+    @class_node = node
+    methods = node.body.map(&.as?(AST::MethodDecl)).compact
+    methods.each {|m| m.accept(self)}
+  end
+
+  def visit(node : AST::MethodDecl) : Nil
+    @current_method_name = node.name
+    class_node = @class_node.not_nil!
+    # Set up the field namespace.
+    if node.has_mod?("static")
+      @field_namespace = @class_static_fields[class_node.name]
+    else
+      @field_namespace = @class_instance_fields[class_node.name]
+    end
+    # Start with an empty local namespace.
+    @namespace = [] of NamedTuple(name: String, decl: (AST::Param | AST::VariableDecl))
+
+    # Add all of the method parameters to the namespace.
     node.params.each do |p|
       addToNamespace(p)
     end
 
     visitStmts(node.body) if node.body?
-
-    @namespace = [] of NamedTuple(name: String, decl: AST::Param | AST::VariableDecl)
   end
 
   def visitStmts(stmts : Array(AST::Stmt))
@@ -534,11 +595,28 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::SimpleName) : Nil
     return node if node.ref?
+    # The search order is:
+    # 1) Local variables, including parameters.
+    # 2) Fields.
+    # 3) Classes, for resolving any static `FieldAccess`.
     @namespace.each do |n|
       if n[:name] == node.name
         node.ref = n[:decl]
+        return
       end
     end
+    @field_namespace.each do |n|
+      if n[:name] == node.name
+        node.ref = n[:decl]
+        return
+      end
+    end
+
+    # TODO(joey): If the name does not resolve to a local variable or
+    # field in scope, search the import path for a Class. The parent
+    # node must be a FieldAccess in this case.
+    # TODO(joey): The above comment also applies for QualifiedName when
+    # accessing static fields.
   end
 end
 
@@ -553,23 +631,23 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
       # FIXME(joey): A field can be shadowed, so only check non-inherited fields.
-      raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
-      field_set.add(field.decl.name)
+      raise NameResolutionStageError.new("field \"#{field.var.name}\" is redefined") if field_set.includes?(field.var.name)
+      field_set.add(field.var.name)
     end
 
     super
   end
 end
 
-# `ReferenceTypResolutionVisitor` resolves the types in variable and
+# `ClassTypResolutionVisitor` resolves the types in variable and
 # field declarations.
-class ReferenceTypResolutionVisitor < Visitor::GenericVisitor
+class ClassTypResolutionVisitor < Visitor::GenericVisitor
   @namespace : ImportNamespace
 
   def initialize(@namespace : ImportNamespace)
   end
 
-  def visit(node : AST::ReferenceTyp) : Nil
+  def visit(node : AST::ClassTyp) : Nil
     typ = @namespace.fetch(node.name)
     if typ.nil?
       raise NameResolutionStageError.new("#{node.name.name} type was not found")
@@ -577,5 +655,59 @@ class ReferenceTypResolutionVisitor < Visitor::GenericVisitor
     node.name.ref = typ
 
     super
+  end
+end
+
+
+# `QualifiedNameDisambiguation` finds all amibigious `QualifiedName`
+# which represent field accesses, and converts them to
+# `ExprFieldAccess`. Currently, the only observed case of this is when a
+# field access is only made on names. If any other part of an expression
+# is part of it, it parses as a field access. For example:
+# ```java
+# x = hah.haha.Za.length; // Parses as QualifiedName.
+# x = hah.Method().length; // Parses as FieldAccess.
+# x = hah.Method().length.lala; // Parses as FieldAccess.
+# x = hah.length; // Parses as QualifiedName.
+# x = (new String()).length; // Parses as FieldAccess.
+# ```
+#
+# This visitor must run before `MethodEnvironmentVisitor`, because this
+# visitor may insert new `AST::ExprRef` that need to be resolved.
+class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
+  def initialize
+  end
+
+  # Ignore any `QualifiedName` found in `PackageDecl` or `ImportDecl`.
+  # These remain unresolved, and are handled earlier in name resolution
+  # for the `ImportNamespace`.
+  def visit(node : AST::PackageDecl | AST::ImportDecl) : AST::Node
+    return node
+  end
+
+  def visit(node : AST::ExprRef) : AST::Node
+    # If the qualified name was already resolved, then it (should be)
+    # the child of a ReferenceTyp, which cannot be field accesses.
+    # FIXME(joey): Once we add Parent references, we should assert this.
+    name = node.name
+    return node if name.ref? || !name.is_a?(AST::QualifiedName)
+
+    field_access = nil
+    parts = node.name.parts
+    # Go through the parts from left to right and generate the field
+    # accesses for the inner expression outwards. We do not iterate to
+    # the last part as it is the literal for the outer-most
+    # `ExprFieldAccess`.
+    parts[0...parts.size-1].each_index do |i|
+      field_name = AST::Literal.new(parts[i+1])
+      # If this is the inner field, it begins with a variable access.
+      if field_access.nil?
+        var = AST::ExprRef.new(AST::SimpleName.new(parts[i]))
+        field_access = AST::ExprFieldAccess.new(var, field_name)
+      else
+        field_access = AST::ExprFieldAccess.new(field_access, field_name)
+      end
+    end
+    return field_access.not_nil!
   end
 end

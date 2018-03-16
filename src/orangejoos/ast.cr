@@ -9,6 +9,7 @@
 
 
 require "./visitor"
+require "./mutating_visitor"
 require "./typing"
 
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
@@ -44,12 +45,16 @@ module AST
       v.ascend
     end
 
-    # Implementations of this method should return all properties of this node which
+    def accept(v : Visitor::MutatingVisitor) : Node
+      result = v.visit(self)
+      v.ascend
+      return result
+    end
+
     # are themselves Nodes.
     abstract def ast_children : Array(Node)
   end
 
-  # `Stmt` are AST nodes which appear in the body of methods and can be
   # executed. Not all `Stmt` return values.
   abstract class Stmt < Node
 
@@ -98,7 +103,7 @@ module AST
   end
 
   # Typ represents all types.
-  abstract class Typ < Expr
+  abstract class Typ < Node
     # The _cardinality_ array of the type. If the _cardinality_ is `0`, the
     # type is not an array. For example, the following type has a
     # cardinality of 2:
@@ -130,7 +135,7 @@ module AST
   # `PrimitiveTyp` also contains the _cardinality_ of the represented
   # type.
   class PrimitiveTyp < Typ
-    @name : String
+    getter name : String
 
     def initialize(@name : String)
       @cardinality = 0
@@ -150,9 +155,9 @@ module AST
     end
   end
 
-  # `ReferenceType` represents user-defined Class and Interface types,
+  # `ClassType` represents user-defined Class and Interface types,
   # including the cardinality.
-  class ReferenceTyp < Typ
+  class ClassTyp < Typ
     property name : Name
     property cardinality : Int32
 
@@ -305,6 +310,9 @@ module AST
 
     def fields : Array(FieldDecl)
       visible_fields = body.select(&.is_a?(FieldDecl))
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
       visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
       return visible_fields.map(&.as(FieldDecl))
     end
@@ -398,14 +406,14 @@ module AST
   # ```
   class FieldDecl < MemberDecl
     property typ : Typ
-    property decl : VariableDecl
+    property var : VariableDecl
 
-    def initialize(modifiers : Array(Modifier), @typ : Typ, @decl : VariableDecl)
+    def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
     end
 
     def ast_children : Array(Node)
-      [typ.as(Node), decl.as(Node)]
+      [typ.as(Node), var.as(Node)]
     end
   end
 
@@ -439,6 +447,8 @@ module AST
 
   # `Param` represents a parameter definition in a method signature. It
   # includes the _name_ and _typ_ of the paramter.
+  # TODO(joey): If the Param wraps a `VariableDecl` or we remove `Param`
+  # outright, this will simplify variable resolution code.
   class Param < Node
     property name : String
     property typ : Typ
@@ -556,6 +566,34 @@ module AST
 
     def ast_children : Array(Node)
       [expr.as(Node), if_body.as(Node), else_body?.as?(Node)].compact
+    end
+  end
+
+  # `ExprInstanceOf` is the instanceof expression. The LHS is an
+  #  expression and the RHS is a type.
+  class ExprInstanceOf < Expr
+    property lhs : Expr
+    property typ : Typ
+
+    def initialize(@lhs : Expr, @typ : Typ)
+    end
+
+    def pprint(depth : Int32)
+      indent = INDENT.call(depth)
+      return "#{indent}(#{lhs.pprint} instanceof #{typ.pprint})"
+    end
+
+    def children
+      return [lhs] of Expr
+    end
+
+    def resolve_type
+      # TODO(joey): Change this to an ENUM when the typing PR merges.
+      return Typing::Type.new("boolean")
+    end
+
+    def ast_children : Array(Node)
+      [lhs, typ]
     end
   end
 
@@ -998,46 +1036,23 @@ module AST
 
   class CastExpr < Expr
     property rhs : Expr
-    property! typ : PrimitiveTyp
-    property is_arr : Bool
-    property! expr : Expr
-    property! name : Name
+    property typ : Typ
 
-    def initialize(@rhs : Expr, @typ : PrimitiveTyp, @is_arr : Bool)
-    end
-
-    def initialize(@rhs : Expr, @expr : Expr)
-      @is_arr = false
-    end
-
-    def initialize(@rhs : Expr, @name : Name)
-      @is_arr = true
+    def initialize(@rhs : Expr, @typ : Typ)
     end
 
     def to_s : String
-      type_str = (
-        if typ?
-          typ.name_str
-        elsif expr?
-          expr.to_s
-        else
-          name.name
-        end
-      )
-      return "(Cast: type={#{type_str}} value={#{@rhs.to_s}})"
+      return "(Cast: type={#{typ.to_s}} value={#{rhs.to_s}})"
     end
 
     def children
-      if expr?
-        [rhs, expr] of Expr
-      else
-        [rhs] of Expr
-      end
+      [rhs] of Expr
     end
 
     def ast_children : Array(Node)
-      [typ?.as?(Node), expr?.as?(Node), name?.as?(Node), rhs.as(Node)].compact
+      [typ, rhs]
     end
+    # TODO(joey): Add get_type() for new CastExpr.
   end
 
   class ParenExpr < Expr

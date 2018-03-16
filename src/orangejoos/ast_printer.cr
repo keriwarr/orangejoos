@@ -78,8 +78,8 @@ module AST
       super
     end
 
-    def visit(node : AST::ReferenceTyp) : Nil
-      print "ReferenceTyp: #{node.name_str}"
+    def visit(node : AST::ClassTyp) : Nil
+      print "ClassTyp: #{node.name_str}"
       # no super
     end
 
