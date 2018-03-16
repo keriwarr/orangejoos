@@ -154,8 +154,8 @@ class NameResolution
     # comes from this file).
 
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
-    file.ast = file.ast.accept(QualifiedNameDisambiguation.new)
     file.ast.accept(ClassTypResolutionVisitor.new(namespace))
+    file.ast = file.ast.accept(QualifiedNameDisambiguation.new(namespace))
     return file
   end
 
@@ -733,7 +733,7 @@ end
 # This visitor must run before `MethodEnvironmentVisitor`, because this
 # visitor may insert new `AST::ExprRef` that need to be resolved.
 class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
-  def initialize
+  def initialize(@namespace : ImportNamespace)
   end
 
   # Ignore any `QualifiedName` found in `PackageDecl` or `ImportDecl`.
@@ -745,33 +745,49 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
   end
 
   def visit(node : AST::ExprRef) : AST::Node
-    # STDERR.puts "node=#{node.pprint}"
     # If the qualified name was already resolved, then it (should be)
     # the child of a ClassTyp, which cannot be field accesses.
     # FIXME(joey): Once we add Parent references, we should assert this.
     name = node.name
-    # STDERR.puts "EXPRREF parts=#{node.name.parts}"
     return node if name.ref? || !name.is_a?(AST::QualifiedName)
 
     field_access = nil
     parts = node.name.parts
+
+    # Go through the parts left to right to see if any prefix is a valid
+    # type.
+    parts.each_index do |i|
+      path = parts[0..i].join(".")
+      if i == 0
+        class_name = AST::SimpleName.new(path)
+      else
+        class_name = AST::QualifiedName.new(parts[0..i])
+      end
+      if !@namespace.fetch(class_name).nil?
+        # Do not populate the Name.ref immediately, because it may later
+        # resolve to a local variable which will shadow the Type.
+        # FIXME(joey): The same may apply to a package prefix. This is
+        # currently only correct for types referred to directly and not
+        # by package path.
+        field_access = AST::ExprRef.new(class_name)
+        parts = parts[i+1..-1]
+        break
+      end
+    end
+
     # Go through the parts from left to right and generate the field
     # accesses for the inner expression outwards. We do not iterate to
     # the last part as it is the literal for the outer-most
     # `ExprFieldAccess`.
-    parts[0...parts.size-1].each_index do |i|
-      field_name = parts[i+1]
+    parts.each_index do |i|
+      field_name = parts[i]
       # If this is the inner field, it begins with a variable access.
       if field_access.nil?
-        var = AST::ExprRef.new(AST::SimpleName.new(parts[i]))
-        field_access = AST::ExprFieldAccess.new(var, field_name)
+        field_access = AST::ExprRef.new(AST::SimpleName.new(parts[i]))
       else
         field_access = AST::ExprFieldAccess.new(field_access, field_name)
       end
     end
-    puts "WE DUD parts=#{parts}"
-    a = field_access.not_nil!
-    puts "rea dud"
-    return a
+    return field_access.not_nil!
   end
 end

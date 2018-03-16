@@ -576,7 +576,7 @@ class Simplification
         else
           name = name.as(AST::QualifiedName)
           if name.parts.size > 2
-            prefix = AST::QualifiedName.new(name.parts[1...-1])
+            prefix = AST::QualifiedName.new(name.parts[0...-1])
           else
             prefix = AST::SimpleName.new(name.parts[0])
           end

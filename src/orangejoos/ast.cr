@@ -915,7 +915,7 @@ module AST
         class_node = typ.ref.as(ClassDecl)
         field = class_node.static_fields.find {|f| f.var.name == @field_name}
         if field.nil?
-          raise TypeCheckStageError.new("class #{class_node.name} has no static field #{@field_name}")
+          raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
@@ -1090,7 +1090,7 @@ module AST
     end
 
     def to_s : String
-      "(MethodInvoc: #{expr.to_s}.#{name} (#{(args.map &.to_s).join(", ")}))"
+      "(MethodInvoc: (#{expr.to_s}).#{name} (#{(args.map &.to_s).join(", ")}))"
     end
 
     def children
