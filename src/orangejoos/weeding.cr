@@ -151,7 +151,7 @@ class InvalidInstanceOfExpressionVisitor < Visitor::GenericVisitor
   def visit(node : AST::ExprInstanceOf) : Nil
     typ_node = node.typ
     if typ_node.is_a?(AST::PrimitiveTyp) && typ_node.cardinality == 0
-      raise WeedingStageError.new("Primitive types cannot be used in instanceof, node is: #{node.pprint}")
+      raise WeedingStageError.new("Primitive types cannot be used in instanceof, node is: #{node.to_s}")
     end
   end
 end

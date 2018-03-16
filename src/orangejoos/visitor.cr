@@ -62,26 +62,59 @@ module Visitor
     end
   end
 
+  # GenericVisitor has some behaviours which were added to facilitate pretty printing
   class GenericVisitor < Visitor
+    # Last child stack represents whether each node which is currently being visited was the last
+    # child of it's parent
+    # In particular, this can be used to decide how to pretty print an AST
+    # i.e. which box drawing characters to use
+    @last_child_stack = [] of Bool
+    # Used to to the descend method which value to push onto @last_child_stack
+    @is_last_child = false
+
+    def descend
+      super
+
+      @last_child_stack.push(@is_last_child)
+      @is_last_child = false
+    end
+
+    def ascend
+      super
+
+      @last_child_stack.pop
+    end
+
+    def visit(children : Array(AST::Node)) : Nil
+      if !children.empty?
+        children[0..-2].each { |c| c.accept(self) }
+        @is_last_child = true
+        children.last.accept(self)
+      end
+    end
+
     def visit(node : AST::PrimitiveTyp) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ClassTyp) : Nil
-      node.name.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::Literal) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::Keyword) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::PackageDecl) : Nil
-      node.path.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ImportDecl) : Nil
-      node.path.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::Modifier) : Nil
@@ -89,53 +122,45 @@ module Visitor
     end
 
     def visit(node : AST::ClassDecl) : Nil
-      # STDERR.puts "class_name=#{node.name}"
-      node.interfaces.each { |i| i.accept(self) }
-      node.body.each       { |b| b.accept(self) }
-      node.super_class.accept(self) if node.super_class?
+      visit(node.ast_children)
     rescue ex : CompilerError
       ex.register("class_name", node.name)
       raise ex
     end
 
     def visit(node : AST::InterfaceDecl) : Nil
-      node.extensions.each { |i| i.accept(self) }
-      node.body.each       { |b| b.accept(self) }
+      visit(node.ast_children)
     rescue ex : CompilerError
       ex.register("interface_name", node.name)
       raise ex
     end
 
     def visit(node : AST::SimpleName) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::QualifiedName) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::FieldDecl) : Nil
-      node.typ.accept(self)
-      node.var.accept(self)
-    rescue ex : CompilerError
-      ex.register("field_name", node.var.name)
-      raise ex
+      visit(node.ast_children)
     end
 
     def visit(node : AST::File) : Nil
-      node.package.accept(self) if node.package?
-      node.imports.each { |i| i.accept(self) }
-      node.decls.each   { |d| d.accept(self) }
+      visit(node.ast_children)
     end
 
     def visit(node : AST::Param) : Nil
-      node.typ.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::Block) : Nil
-      node.stmts.each { |s| s.accept(self) }
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprOp) : Nil
-      node.operands.each { |o| o.accept(self) }
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprInstanceOf) : Nil
@@ -144,116 +169,109 @@ module Visitor
     end
 
     def visit(node : AST::ExprClassInit) : Nil
-      node.typ.accept(self)
-      node.args.each { |a| a.accept(self) }
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprThis) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprFieldAccess) : Nil
-      node.obj.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprRef) : Nil
-      node.name.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ConstInteger) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ConstBool) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ConstChar) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ConstString) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ConstNull) : Nil
+      visit(node.ast_children)
     end
 
     def visit(node : AST::VariableDecl) : Nil
-      node.init.accept(self) if node.init?
+      visit(node.ast_children)
     end
 
     def visit(node : AST::DeclStmt) : Nil
-      node.typ.accept(self)
-      node.var.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ForStmt) : Nil
-      node.init.accept(self) if node.init?
-      node.expr.accept(self) if node.expr?
-      node.update.accept(self) if node.update?
-      node.body.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::WhileStmt) : Nil
-      node.expr.accept(self)
-      node.body.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::IfStmt) : Nil
-      node.expr.accept(self)
-      node.if_body.accept(self)
-      node.else_body.accept(self) if node.else_body?
+      visit(node.ast_children)
     end
 
     def visit(node : AST::MethodInvoc) : Nil
-      node.expr.accept(self)
-      node.args.each      { |b| b.accept(self) }
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprArrayAccess) : Nil
-      node.expr.accept(self)
-      node.index.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ExprArrayCreation) : Nil
-      node.arr.accept(self)
-      node.dim.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::MethodDecl) : Nil
-      # STDERR.puts "method=#{node.name}"
-      node.typ.accept(self) if node.typ?
-      node.params.each    { |p| p.accept(self) }
-      node.body.each      { |b| b.accept(self) } if node.body?
+      visit(node.ast_children)
     rescue ex : CompilerError
       ex.register("method", node.name)
       raise ex
     end
 
     def visit(node : AST::ConstructorDecl) : Nil
-      node.params.each    { |p| p.accept(self) }
-      node.body.each      { |b| b.accept(self) }
+      visit(node.ast_children)
+    rescue ex : CompilerError
+      ex.register("constructor", "")
+      raise ex
     end
 
     def visit(node : AST::ReturnStmt) : Nil
-      node.expr.accept(self) if node.expr?
+      visit(node.ast_children)
     end
 
     def visit(node : AST::CastExpr) : Nil
-      node.rhs.accept(self)
-      node.typ.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::ParenExpr) : Nil
-      node.expr.accept(self)
+      visit(node.ast_children)
     end
 
     def visit(node : AST::Variable) : Nil
-      if node.name?
-        node.name.accept(self)
-      end
-      if node.array_access?
-        node.array_access.accept(self)
-      end
-      if node.field_access?
-        node.field_access.accept(self)
-      end
+      visit(node.ast_children)
+    end
+
+    def visit(node : AST::Modifier) : Nil
+      raise Exception.new("should not be executed")
+    end
+
+    def visit(node : AST::TMPMethodDecl) : Nil
+      raise Exception.new("should not be executed")
     end
   end
 end

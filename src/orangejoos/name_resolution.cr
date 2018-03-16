@@ -79,7 +79,7 @@ class NameResolution
           on_demand_imports += import_tree.enumerate(prefix)
         end
       else
-        raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.pprint}")
+        raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.name}")
       end
     end
 

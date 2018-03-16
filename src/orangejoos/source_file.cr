@@ -1,5 +1,8 @@
 # A SourceFile represents a file containing source code to be compiled and eventually linked. As the
 # pipeline runs the data is modified to
+
+require "./ast_printer"
+
 class SourceFile
   property! tokens : Array(Lexeme)
   property! parse_tree : ParseTree
@@ -67,20 +70,25 @@ class SourceFile
   def debug_print(stage : Stage)
     return if @path.try &.includes?("/stdlib/") && @path.try &.includes?("/java/")
 
-    print_sections : Array({data_type: String, data: String | Nil}) = [] of {data_type: String, data: String | Nil}
-
     case stage
-    when Stage::SCAN     then print_sections.push({data_type: "lexemes",                     data: @tokens.to_s})
-    when Stage::PARSE    then print_sections.push({data_type: "parse tree",                  data: @parse_tree.as?(ParseTree).try &.pprint(0)})
-    when Stage::SIMPLIFY then print_sections.push({data_type: "abstract syntax tree",        data: @ast.as?(AST::File).try &.pprint(0)})
-    when Stage::WEED     then print_sections.push({data_type: "weeded abstract syntax tree", data: @ast.as?(AST::File).try &.pprint(0)})
+    when Stage::SCAN
+      STDERR.puts "=== lexemes: #{@path} ===\n#{@tokens.to_s}\n\n"
+    when Stage::PARSE
+      STDERR.puts "=== parse tree: #{@path} ===\n#{@parse_tree.as?(ParseTree).try &.pprint(0)}\n\n"
+    when Stage::SIMPLIFY
+      STDERR.puts "=== abstract syntax tree: #{@path} ===\n\n"
+      @ast.as?(AST::File).try &.accept(AST::ASTPrinterVisitor.new)
+      STDERR.puts ""
+    when Stage::WEED
+      STDERR.puts "=== weeded abstract syntax tree: #{@path} ===\n\n"
+      @ast.as?(AST::File).try &.accept(AST::ASTPrinterVisitor.new)
+      STDERR.puts ""
     when Stage::NAME_RESOLUTION
-      print_sections.push({data_type: "same file imports", data: @same_file_imports.try &.join("\n")})
-      print_sections.push({data_type: "single type imports", data: @single_type_imports.try &.join("\n")})
-      print_sections.push({data_type: "same pack imports", data: @same_package_imports.try &.join("\n")})
-      print_sections.push({data_type: "on demand imports", data: @on_demand_imports.try &.join("\n")})
-      print_sections.push({data_type: "system imports", data: @system_imports.try &.join("\n")})
+      STDERR.puts "=== same file imports: #{@path} ===\n#{@same_file_imports.try &.join("\n")}\n\n"
+      STDERR.puts "=== single type imports: #{@path} ===\n#{@single_type_imports.try &.join("\n")}\n\n"
+      STDERR.puts "=== same pack imports: #{@path} ===\n#{@same_package_imports.try &.join("\n")}\n\n"
+      STDERR.puts "=== on demand imports: #{@path} ===\n#{@on_demand_imports.try &.join("\n")}\n\n"
+      STDERR.puts "=== system imports: #{@path} ===\n#{@system_imports.try &.join("\n")}\n\n"
     end
-    print_sections.each { |s| STDERR.puts "=== #{s[:data_type]}: #{@path} ===\n#{s[:data]}\n\n" }
   end
 end
