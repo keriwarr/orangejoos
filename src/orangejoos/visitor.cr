@@ -269,9 +269,5 @@ module Visitor
     def visit(node : AST::Modifier) : Nil
       raise Exception.new("should not be executed")
     end
-
-    def visit(node : AST::TMPMethodDecl) : Nil
-      raise Exception.new("should not be executed")
-    end
   end
 end

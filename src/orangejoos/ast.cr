@@ -1302,7 +1302,7 @@ module AST
 
     def ast_children : Array(Node)
       [
-        typ.as(Node),
+        typ?.as?(Node),
         params.map &.as(Node),
         body?.try {|b| b.map &.as(Node)},
       ].flatten.compact
@@ -1455,29 +1455,6 @@ module AST
 
     def ast_children : Array(Node)
       [name?.as?(Node), array_access?.as?(Node), field_access?.as?(Node)].compact
-    end
-  end
-
-  # TODO(joey): some notes on clean up to be done here:
-  # - Replace tokens.to_a[i] access for children.
-  # - Clean up casting. This is done to consoldiate rules within a few
-  #   functions.
-  # - Change how conditional values are retrieved. e.g. "Modifiers" is a
-  #   common conditional where we want to default an empty array.
-
-  # Intermediate ASTs. These do not appear in the final result but are
-  # used to pass values up while doing simplificaiton.
-
-  # Intermediate AST.
-  class TMPMethodDecl < Node
-    property name : String
-    property params : Array(Param) = [] of Param
-
-    def initialize(@name : String, @params : Array(Param))
-    end
-
-    def ast_children : Array(Node)
-      [] of Node
     end
   end
 end

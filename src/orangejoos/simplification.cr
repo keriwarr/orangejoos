@@ -729,18 +729,13 @@ class Simplification
       raise Exception.new("unexpected ParseNode \"ConstructorImplementation\". See the comment in the code for why.")
 
     when "MethodDeclarator"
-      if (decl = tree.tokens.get_tree("MethodDeclarator")); !decl.nil?
-        return simplify(decl.as(ParseTree))
-      end
-      ident = simplify(tree.tokens.first.as(ParseTree)).as(AST::Literal)
-
-      params = [] of AST::Param
-      if (t = tree.tokens.get_tree("FormalParameterList")); !t.nil?
-        params = simplify_tree(t.as(ParseTree)).as(Array(AST::Param))
-      end
-
-      return AST::TMPMethodDecl.new(ident.val, params)
-
+      # This `ParseTree` should not be processed, because we never call
+      # `simplify_tree` on it. Instead, the parent `ParseTree` peers
+      # into the contents of this `ParseTree`, immediately below.
+      #
+      # This implementation is meant to fulfill the simplification_spec
+      # test, which checks for exhaustive rule implementations.
+      raise Exception.new("unexpected ParseNode \"MethodDeclarator\". See the comment above for why.")
     when "MethodHeader"
       t = tree.tokens.get_tree("Modifiers")
       mods = [] of AST::Modifier
@@ -749,9 +744,15 @@ class Simplification
       typ_tree = tree.tokens.get_tree("Type")
       typ = typ_tree.try {|t| simplify(t.as(ParseTree)).as(AST::Typ)}
 
-      decl = simplify(tree.tokens.get_tree("MethodDeclarator").as(ParseTree)).as(AST::TMPMethodDecl)
+      method_decl_tree = tree.tokens.get_tree("MethodDeclarator").as(ParseTree)
+      method_ident = simplify(method_decl_tree.tokens.first.as(ParseTree)).as(AST::Literal)
 
-      return AST::MethodDecl.new(decl.name, typ, mods, decl.params, [] of AST::Stmt)
+      params = [] of AST::Param
+      if (t = method_decl_tree.tokens.get_tree("FormalParameterList")); !t.nil?
+        params = simplify_tree(t.as(ParseTree)).as(Array(AST::Param))
+      end
+
+      return AST::MethodDecl.new(method_ident.val, typ, mods, params, [] of AST::Stmt)
 
     when "VariableDeclaratorId"
       return simplify(tree.tokens.first.as(ParseTree))
