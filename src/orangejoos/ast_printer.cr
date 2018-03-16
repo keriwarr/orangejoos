@@ -83,8 +83,8 @@ module AST
       # no super
     end
 
-    def visit(node : AST::Literal) : Nil
-      print "Literal: #{node.val}"
+    def visit(node : AST::Identifier) : Nil
+      print "Identifier: #{node.val}"
       super
     end
 

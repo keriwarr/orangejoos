@@ -232,9 +232,9 @@ module AST
     end
   end
 
-  # FIXME(joey): The literal is instead used for identifiers, such as class
-  # names, method names, and argument names. This should be refactored.
-  class Literal < Node
+  # `Identifier` is for identifiers, such as class names, method names,
+  # and argument names.
+  class Identifier < Node
     getter val : String
 
     def initialize(@val : String)

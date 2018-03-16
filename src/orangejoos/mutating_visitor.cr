@@ -2,7 +2,7 @@ module Visitor
   abstract class MutatingVisitor
     abstract def visit(node : AST::PrimativeTyp) : AST::Node
     abstract def visit(node : AST::ClassTyp) : AST::Node
-    abstract def visit(node : AST::Literal) : AST::Node
+    abstract def visit(node : AST::Identifier) : AST::Node
     abstract def visit(node : AST::Keyword) : AST::Node
     abstract def visit(node : AST::PackageDecl) : AST::Node
     abstract def visit(node : AST::ImportDecl) : AST::Node
@@ -57,7 +57,7 @@ module Visitor
       return node
     end
 
-    def visit(node : AST::Literal) : AST::Node
+    def visit(node : AST::Identifier) : AST::Node
       return node
     end
 
