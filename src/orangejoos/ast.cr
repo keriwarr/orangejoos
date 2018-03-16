@@ -94,18 +94,16 @@ module AST
     end
 
     def accept(v : Visitor::MutatingVisitor) : Node
-      v.descend
       result = v.visit(self)
       v.ascend
       return result
     end
 
-    # Implementations of this method should return all properties of this node which
-    # are themselves Nodes.
+    # Implementations of this method should return all properties of
+    # this node which are themselves Nodes.
     abstract def ast_children : Array(Node)
   end
 
-  # `Stmt` are AST nodes which appear in the body of methods and can be
   # executed. Not all `Stmt` return values.
   abstract class Stmt < Node
 
@@ -764,6 +762,10 @@ module AST
     def ast_children : Array(Node)
       [lhs.as(Node), typ.as(Node)]
     end
+
+    def ast_children : Array(Node)
+      [lhs, typ]
+    end
   end
 
   # `ExprOp` is an operator expression. Each expression has an operator
@@ -1372,7 +1374,7 @@ module AST
     end
 
     def to_s : String
-      return "(Cast: type={#{typ.to_s}} value={#{@rhs.to_s}})"
+      return "(Cast: type={#{typ.to_s}} value={#{rhs.to_s}})"
     end
 
     def children
@@ -1386,7 +1388,7 @@ module AST
     end
 
     def ast_children : Array(Node)
-      [typ.as(Node), rhs.as(Node)].compact
+      [typ, rhs]
     end
   end
 
