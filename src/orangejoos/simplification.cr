@@ -400,7 +400,7 @@ class Simplification
       end
 
       expr = nil
-      if (expr_tree = tree.tokens.get_tree("ForExpr")); !expr_tree.nil?
+      if (expr_tree = tree.tokens.get_tree("Expression")); !expr_tree.nil?
         expr = simplify(expr_tree).as(AST::Expr)
       end
 

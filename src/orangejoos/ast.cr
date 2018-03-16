@@ -670,11 +670,11 @@ module AST
     property! update : Stmt
     property body : Stmt
 
-    def initialize(@init : Stmt | Nil, @expr : Expr | Nil, @update : Stmt | Nil, @body : Stmt)
+    def initialize(@init : Stmt?, @expr : Expr?, @update : Stmt?, @body : Stmt)
     end
 
     def children
-      ([init?, expr?.as?(Stmt), update?, body] of Stmt | Nil).compact
+      ([init?, expr?.as?(Stmt), update?, body] of Stmt?).compact
     end
 
     def ast_children : Array(Node)

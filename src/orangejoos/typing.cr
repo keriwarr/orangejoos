@@ -16,6 +16,7 @@ module Typing
   end
 
   PRIMITIVES = [Types::CHAR, Types::NUM, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
+  NUMBERS = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
 
   def self.can_convert_type(from : Type, to : Type) : Bool
     return true if from == to
@@ -112,8 +113,7 @@ module Typing
       # When both are the same primative types (i.e. non-reference)
       return true if other.typ == self.typ
       # When both are numerical types.
-      numbers = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
-      return true if numbers.includes?(other.typ) && numbers.includes?(self.typ)
+      return true if NUMBERS.includes?(other.typ) && NUMBERS.includes?(self.typ)
       return false
     end
 
@@ -165,6 +165,11 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
     super
   end
 
+  def visit(node : AST::Expr) : Nil
+    node.get_type(@namespace)
+    super
+  end
+
   def visit(node : AST::ConstNull) : Nil
     node.get_type(@namespace)
     super
@@ -199,8 +204,8 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ForStmt) : Nil
-    if node.expr? && node.expr.get_type(@namespace).is_type?(Typing::Types::BOOLEAN)
-      raise TypeCheckStageError.new("for-loop comparison clause is not a bool, instead got: #{node.expr.get_type(@namespace)}")
+    if node.expr? && !node.expr.get_type(@namespace).is_type?(Typing::Types::BOOLEAN)
+      raise TypeCheckStageError.new("for-loop comparison clause is not a bool, instead got: #{node.expr.get_type(@namespace).to_s}")
     end
     super
   end

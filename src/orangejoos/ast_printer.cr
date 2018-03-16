@@ -161,15 +161,19 @@ module AST
 
     def visit(node : AST::ForStmt) : Nil
       print "ForStmt:"
-      print_child("Init:")
-      indent(false)
-      visit([node.init.as(Node)])
-      outdent
+      if node.init?
+        print_child("Init:")
+        indent(false)
+        visit([node.init.as(Node)])
+        outdent
+      end
       print_child "Test: #{node.expr.to_s}" if node.expr?
-      print_child("Update:")
-      indent(false)
-      visit([node.update.as(Node)])
-      outdent
+      if node.update?
+        print_child("Update:")
+        indent(false)
+        visit([node.update.as(Node)])
+        outdent
+      end
       print_child("Body:", true)
       indent
       visit([node.body.as(Node)])
