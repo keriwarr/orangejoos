@@ -159,12 +159,24 @@ for foldername in `find ${PUB_FOLDER}/assignment_testcases/a4 -type d -depth 1 |
   do_test "$files" $should_pass "$stdlib4"
 done
 
-# for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f | sort`; do
-#   should_pass=true;
-#   if [[ $(basename $filename) == Je* ]]; then
-#     should_pass=false;
-#   fi
-# done
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f -depth 1 | sort`; do
+  should_pass=true;
+  if [[ $(basename $filename) == Je* ]]; then
+    should_pass=false;
+  fi
+
+  do_test $filename $should_pass "$stdlib5"
+done
+
+for foldername in `find ${PUB_FOLDER}/assignment_testcases/a5 -type d -depth 1 | sort`; do
+  files=$(find ${foldername} -name "*.java" -type f | sort)
+  should_pass=true;
+  if [[ $(basename $foldername) == Je* ]]; then
+    should_pass=false;
+  fi
+
+  do_test "$files" $should_pass "$stdlib5"
+done
 
 # ----------------------------------------------------------------------------
 # Tally the results
