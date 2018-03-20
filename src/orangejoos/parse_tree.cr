@@ -33,7 +33,7 @@ class ParseNodes
 
   # Gets the child tree of the specified name, if only one node has the
   # name. Nil may be returned if no tree is found.
-  def get_tree(name : String) : ParseTree | Nil
+  def get_tree(name : String) : ParseTree?
     trees = self.get_trees(name)
     if trees.size > 1
       raise Exception.new("expected 1 tree, got: #{trees.size}")

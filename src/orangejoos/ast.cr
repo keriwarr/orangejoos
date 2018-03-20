@@ -104,7 +104,6 @@ module AST
     abstract def ast_children : Array(Node)
   end
 
-  # executed. Not all `Stmt` return values.
   abstract class Stmt < Node
 
     abstract def children : Array(Stmt)
@@ -365,7 +364,7 @@ module AST
     getter interfaces : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
 
@@ -591,7 +590,7 @@ module AST
     property imports : Array(ImportDecl) = [] of ImportDecl
     property decls : Array(TypeDecl) = [] of TypeDecl
 
-    def initialize(@package : PackageDecl | Nil, @imports : Array(ImportDecl), @decls : Array(TypeDecl))
+    def initialize(@package : PackageDecl?, @imports : Array(ImportDecl), @decls : Array(TypeDecl))
     end
 
     def decl?(name)
@@ -719,7 +718,7 @@ module AST
     property if_body : Stmt
     property! else_body : Stmt
 
-    def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt | Nil)
+    def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt?)
     end
 
     def children
@@ -1099,7 +1098,7 @@ module AST
     property name : String
     property args : Array(Expr)
 
-    def initialize(@expr : Expr | Nil, @name : String, @args : Array(Expr))
+    def initialize(@expr : Expr, @name : String, @args : Array(Expr))
     end
 
     def to_s : String
@@ -1244,7 +1243,7 @@ module AST
     property name : String
     property! init : Expr
 
-    def initialize(@name : String,@init : Expr | Nil)
+    def initialize(@name : String, @init : Expr?)
     end
 
     def ast_children : Array(Node)
@@ -1288,6 +1287,8 @@ module AST
     # `typ` is Nil if the method has a void return type.
     property! typ : Typ
     property params : Array(Param) = [] of Param
+    # `body` can be set to `Nil`, so even though it is a property! the
+    # type signature needs to include `Nil`.
     property! body : Array(Stmt) | Nil
 
     def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))

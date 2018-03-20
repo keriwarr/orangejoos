@@ -36,7 +36,7 @@ class Simplification
     return ret
   end
 
-  def simplify_tree(tree : ParseTree) # : Array(AST::Node) | Nil, but you cannot use that typedecl. It is inferred correctly.
+  def simplify_tree(tree : ParseTree) # : Array(AST::Node)?, but you cannot use that typedecl. It is inferred correctly.
     case tree.name
     when "ImportDeclarations"
       imports = tree.tokens.get_tree("ImportDeclarations")
@@ -191,7 +191,7 @@ class Simplification
   end
 
 
-  def simplify(tree : ParseTree) : AST::Node | Nil
+  def simplify(tree : ParseTree) : AST::Node?
     case tree.name
     when "Goal"
       return simplify(tree.tokens.first.as(ParseTree))

@@ -134,7 +134,7 @@ module Typing
       if !evaluated_typ?
         # This is done to assert `resolve_type` signature is (Type). If
         # the user forgets to return, it accidentally becomes
-        # `(Type | Nil)`.
+        # `Type?`.
         typ : Type = resolve_type(namespace)
         evaluated_typ = typ
       end
