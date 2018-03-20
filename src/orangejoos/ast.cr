@@ -39,7 +39,7 @@ module AST
     if string_class.nil?
       raise Exception.new("could not find java.lang.String to resolve for String literal")
     end
-    return Typing::Type.new(Typing::Types::REFERENCE, string_class.not_nil!)
+    return Typing::Type.new(Typing::Types::INSTANCE, string_class.not_nil!)
   end
 
   class MethodSignature
@@ -225,7 +225,7 @@ module AST
 
     def to_type : Typing::Type
       is_array = @cardinality > 0
-      return Typing::Type.new(Typing::Types::REFERENCE, name.ref.as(AST::TypeDecl), is_array)
+      return Typing::Type.new(Typing::Types::INSTANCE, name.ref.as(AST::TypeDecl), is_array)
     end
   end
 
@@ -887,7 +887,7 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      return Typing::Type.new(Typing::Types::REFERENCE, typ.name.ref.as(TypeDecl))
+      return Typing::Type.new(Typing::Types::INSTANCE, typ.name.ref.as(TypeDecl))
     end
 
     def ast_children : Array(Node)
@@ -1031,7 +1031,7 @@ module AST
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       # FIXME(joey): If the namespace is a static namespace, this should
       # be different.
-      return Typing::Type.new(Typing::Types::REFERENCE, namespace.current_class)
+      return Typing::Type.new(Typing::Types::INSTANCE, namespace.current_class)
     end
 
     def ast_children : Array(Node)
