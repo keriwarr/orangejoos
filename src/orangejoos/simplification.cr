@@ -635,11 +635,11 @@ class Simplification
       if !tree.tokens.get_tree("PrimitiveType").nil?
         typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::PrimitiveTyp)
         dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-        return AST::ExprArrayCreation.new(typ, dim_expr)
+        return AST::ExprArrayInit.new(typ, dim_expr)
       else
         name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Name)
         dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-        return AST::ExprArrayCreation.new(AST::ClassTyp.new(name), dim_expr)
+        return AST::ExprArrayInit.new(AST::ClassTyp.new(name), dim_expr)
       end
 
     when "LeftHandSide"

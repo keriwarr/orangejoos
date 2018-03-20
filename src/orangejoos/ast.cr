@@ -971,8 +971,8 @@ module AST
     end
   end
 
-  # `ExprArrayCreation` represents an array creation.
-  class ExprArrayCreation < Expr
+  # `ExprArrayInit` represents an array creation.
+  class ExprArrayInit < Expr
     # FIXME: (joey) Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
     # such as Name (or Class/Interface) and PrimitiveTyp.
