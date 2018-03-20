@@ -94,6 +94,7 @@ module AST
     end
 
     def accept(v : Visitor::MutatingVisitor) : Node
+      v.descend
       result = v.visit(self)
       v.ascend
       return result
