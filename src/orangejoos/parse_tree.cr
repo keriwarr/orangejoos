@@ -4,6 +4,7 @@ class ParseNodes
   def initialize(inp : Array(ParseNode))
     @arr = inp
   end
+
   def initialize(inp : ParseNode)
     @arr = Array(ParseNode).new
     @arr.push(inp)

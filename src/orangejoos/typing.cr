@@ -15,7 +15,7 @@ module Typing
   end
 
   PRIMITIVES = [Types::CHAR, Types::NUM, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
-  NUMBERS = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
+  NUMBERS    = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
 
   def self.can_convert_type(from : Type, to : Type) : Bool
     return true if from == to

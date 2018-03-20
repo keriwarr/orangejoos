@@ -1,4 +1,3 @@
-
 require "./lexeme"
 require "./compiler_errors"
 require "./util"
@@ -141,43 +140,59 @@ class Scanner
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when '='
       case self.peek(1)
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::EQ)    # ==
-      else return Lexeme.new(Type::Operator, 1, Operator::ASSIGN)         # =
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::EQ) # ==
+
+      else return Lexeme.new(Type::Operator, 1, Operator::ASSIGN) # =
+
       end
     when '!'
       case self.peek(1)
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::NEQ)   # !=
-      else return Lexeme.new(Type::Operator, 1, Operator::NOT)            # !
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::NEQ) # !=
+
+      else return Lexeme.new(Type::Operator, 1, Operator::NOT) # !
+
       end
-    when '+' then return Lexeme.new(Type::Operator, 1, Operator::ADD)     # +
-    when '-' then return Lexeme.new(Type::Operator, 1, Operator::SUB)     # -
-    when '*' then return Lexeme.new(Type::Operator, 1, Operator::MULT)    # *
-    when '/' then return Lexeme.new(Type::Operator, 1, Operator::DIV)     # /
-    when '%' then return Lexeme.new(Type::Operator, 1, Operator::MOD)     # %
+    when '+' then return Lexeme.new(Type::Operator, 1, Operator::ADD) # +
+
+    when '-' then return Lexeme.new(Type::Operator, 1, Operator::SUB) # -
+
+    when '*' then return Lexeme.new(Type::Operator, 1, Operator::MULT) # *
+
+    when '/' then return Lexeme.new(Type::Operator, 1, Operator::DIV) # /
+
+    when '%' then return Lexeme.new(Type::Operator, 1, Operator::MOD) # %
+
     when '<'
       case self.peek(1)
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::LEQ)   # <=
-      else return Lexeme.new(Type::Operator, 1, Operator::LT)             # <
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::LEQ) # <=
+
+      else return Lexeme.new(Type::Operator, 1, Operator::LT) # <
+
       end
     when '>'
       case self.peek(1)
-      when '=' then return Lexeme.new(Type::Operator, 2, Operator::GEQ)   # >=
-      else return Lexeme.new(Type::Operator, 1, Operator::GT)             # >
+      when '=' then return Lexeme.new(Type::Operator, 2, Operator::GEQ) # >=
+
+      else return Lexeme.new(Type::Operator, 1, Operator::GT) # >
+
       end
     when '&'
       case self.peek(1)
-      when '&' then return Lexeme.new(Type::Operator, 2, Operator::AND)   # &&
-      else return Lexeme.new(Type::Operator, 1, Operator::EAND)           # &
+      when '&' then return Lexeme.new(Type::Operator, 2, Operator::AND) # &&
+
+      else return Lexeme.new(Type::Operator, 1, Operator::EAND) # &
+
       end
     when '|'
       case self.peek(1)
-      when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR)    # ||
-      else return Lexeme.new(Type::Operator, 1, Operator::EOR)            # |
-      end
+      when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR) # ||
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                             SEPERATORS                                  #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      else return Lexeme.new(Type::Operator, 1, Operator::EOR) # |
+
+      end
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      #                             SEPERATORS                                  #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when '(' then return Lexeme.new(Type::Separator, 1, Separator::LPAREN)
     when ')' then return Lexeme.new(Type::Separator, 1, Separator::RPAREN)
     when '[' then return Lexeme.new(Type::Separator, 1, Separator::LBRACK)
@@ -187,10 +202,9 @@ class Scanner
     when ';' then return Lexeme.new(Type::Separator, 1, Separator::SEMICOL)
     when ',' then return Lexeme.new(Type::Separator, 1, Separator::COMMA)
     when '.' then return Lexeme.new(Type::Separator, 1, Separator::DOT)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                        IDENTIFIERS & KEYWORDS                           #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      #                        IDENTIFIERS & KEYWORDS                           #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when .ascii_letter?, '_', '$'
       word = ""
       i = 0
@@ -211,9 +225,9 @@ class Scanner
         end
       end
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                            NUMBER LITERAL                               #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      #                            NUMBER LITERAL                               #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when .ascii_number?
       num_str = ""
       i = 0
@@ -222,13 +236,11 @@ class Scanner
         i += 1
       end
       if num_str.size > 0
-
         # Check if the literal is an octal, and raise an error if it is.
         # Octal literals are denoted with a prefix of 0.
         if num_str.size > 1 && num_str[0] == '0'
           raise ScanningStageError.new("found octal literal, which is unsupported: #{num_str}", @lexemes)
         end
-
 
         # FIXME(joey): Catch an error if the number is invalid or
         # causes overflow/underflow.
@@ -237,9 +249,9 @@ class Scanner
         return Lexeme.new(Type::NumberLiteral, num_str.size, num_str)
       end
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                       STRING & CHARACTER LITERAL                        #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+      #                       STRING & CHARACTER LITERAL                        #
+      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when '\'', '"'
       quote_typ = self.peek(0)
       str = ""
@@ -251,7 +263,7 @@ class Scanner
         # Check if the char is escaping the next char. If it is, get
         # the escaped char.
         if ch == '\\'
-          if self.eof?(i+1)
+          if self.eof?(i + 1)
             raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
           end
           escaped_ch = self.peek(i + 1)
@@ -259,7 +271,7 @@ class Scanner
             # Read in an escaped octal value.
             num_str = "#{escaped_ch}"
 
-            if self.eof?(i+2)
+            if self.eof?(i + 2)
               raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
             end
 
@@ -268,7 +280,7 @@ class Scanner
             if escaped_ch.ascii_number? && escaped_ch.to_i < 8
               num_str += escaped_ch
 
-              if self.eof?(i+3)
+              if self.eof?(i + 3)
                 raise ScanningStageError.new("hit EOF while scanning string. string appears to be unterminated", @lexemes)
               end
 

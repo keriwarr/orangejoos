@@ -53,7 +53,7 @@ class SourceFile
         #   new_word = false
         #   cleaned_filename += c.upcase
         # else
-          cleaned_filename += c
+        cleaned_filename += c
         # end
       elsif c.ascii_number? || c == '$' || c == '_'
         # new_word = true

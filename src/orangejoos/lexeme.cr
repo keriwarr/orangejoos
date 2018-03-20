@@ -172,9 +172,9 @@ class Lexeme < ParseNode
     when Type::NumberLiteral    then "LEXEME(NumberLiteral)"
     when Type::StringLiteral    then "LEXEME(StringLiteral)"
     when Type::CharacterLiteral then "LEXEME(CharacterLiteral)"
-    when Type::Comment then "COMMENT"
+    when Type::Comment          then "COMMENT"
     when Type::MultilineComment then "MULTILINECOMMENT"
-    when Type::JavadocComment then "JAVADOC"
+    when Type::JavadocComment   then "JAVADOC"
       # ??, all other types which should be none of them.
     else @sem
     end

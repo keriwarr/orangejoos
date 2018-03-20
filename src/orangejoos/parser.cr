@@ -15,7 +15,7 @@ class Parser
   def initialize(@table : LALR1Table, input : Array(Lexeme))
     # Filter out any comment types from the input. These are ignored
     # during parsing.
-    input = input.reject {|lexeme| COMMENT_TYPES.includes?(lexeme.typ)}
+    input = input.reject { |lexeme| COMMENT_TYPES.includes?(lexeme.typ) }
 
     # Transform the input into a deque, to allow peeking (via. push_to_front)
     @input = Deque(ParseNode).new(input)
@@ -44,7 +44,7 @@ class Parser
       # Check if the action exists in the lookup table. If it does not,
       # then the program is invalid.
       if !@table.has_action(@state, lookahead.parse_token)
-        stack = @stack.map {|s| s.pprint }.join("\n=== STACK ITEM ===\n")
+        stack = @stack.map { |s| s.pprint }.join("\n=== STACK ITEM ===\n")
         raise ParseStageError.new("no next action for state=#{@state} token=#{lookahead.parse_token} parsenode=#{lookahead.inspect}\n=== STACK ===\n=== STACK ITEM ===\n#{stack}")
       end
 

@@ -34,9 +34,9 @@ class Pipeline
       if File.exists?(path)
         case path
         when /\.java?$/ then @sources.push(SourceFile.new(path))
-        else raise ArgumentError.new("ERROR: #{path} is not a .java or .jav file")
+        else                 raise ArgumentError.new("ERROR: #{path} is not a .java or .jav file")
         end
-      # check if directory that may contain java files
+        # check if directory that may contain java files
       elsif Dir.exists?(path)
         Dir.glob("**/*.java").each { |file| @sources.push(SourceFile.new(file)) }
       else
@@ -137,7 +137,6 @@ class Pipeline
     @sources.each { |file| do_parse!(@table, file) }
     @sources.map &.debug_print(Stage::PARSE) if @verbose
     return true if @end_stage == Stage::PARSE
-
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                             SIMPLIFICATION                              #
