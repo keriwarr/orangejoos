@@ -11,8 +11,6 @@ require "./visitor"
 require "./mutating_visitor"
 require "./typing"
 
-INDENT = ->(depth : Int32) { "  " * depth }
-
 # Type checking constants.
 # FIXME(joey): Change these to sets.
 BOOLEAN_OPS    = ["==", "!=", "&", "|", "^", "&&", "||"]
@@ -418,26 +416,6 @@ module AST
       return false
     end
 
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      super_str = ""
-      if super_class?
-        super_str = "#{super_class.name}"
-      end
-      interface_names = ""
-      if interfaces.size > 0
-        interface_names = interfaces.map { |i| i.name }.join(", ")
-      end
-      decls = body.map { |b| b.pprint(depth + 2) }.join("\n")
-      return (
-        "#{indent}Class #{name}:\n" \
-        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
-        "#{indent}  Super: #{super_str}\n" \
-        "#{indent}  Interfaces: #{interface_names}\n" \
-        "#{indent}  Decls:\n#{decls}"
-      )
-    end
-
     def ast_children : Array(Node)
       [super_class?.as?(Node), interfaces.map &.as(Node), body.map &.as(Node)].flatten.compact
     end
@@ -475,21 +453,6 @@ module AST
         return true if interface.extends?(node)
       end
       return false
-    end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      extensions_str = ""
-      if extensions.size > 0
-        extensions_str = extensions.map { |i| i.name }.join(", ")
-      end
-      decls = body.map { |b| b.pprint(depth + 2) }.join("\n")
-      return (
-        "#{indent}Interface #{name}:\n" \
-        "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
-        "#{indent}  Extensions: #{extensions_str}\n" \
-        "#{indent}  Decls:\n#{decls}"
-      )
     end
 
     def ast_children : Array(Node)
@@ -569,11 +532,6 @@ module AST
     def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
     end
-
-    # def pprint(depth : Int32)
-    #   indent = INDENT.call(depth)
-    #   return "#{indent}field #{var.pprint(0)} type=#{typ.to_s} mods=#{modifiers.join(",")}"
-    # end
 
     def ast_children : Array(Node)
       [typ.as(Node), var.as(Node)]
@@ -739,11 +697,6 @@ module AST
     property typ : Typ
 
     def initialize(@lhs : Expr, @typ : Typ)
-    end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      return "#{indent}(#{lhs.pprint} instanceof #{typ.pprint})"
     end
 
     def children
@@ -1303,14 +1256,6 @@ module AST
       return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.to_s))
     end
 
-    # def pprint(depth : Int32)
-    #   indent = INDENT.call(depth)
-    #   p = params.map {|i| i.pprint(0)}
-    #   body_str = "<no body>"
-    #   body_str = (body.map {|b| b.pprint(depth+1)}).join("\n") if body?
-    #   return "#{indent}method #{name} #{typ?.try &.pprint} #{modifiers.join(",")} #{p}\n#{body_str}"
-    # end
-
     def ast_children : Array(Node)
       [
         typ?.as?(Node),
@@ -1333,12 +1278,6 @@ module AST
 
     def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
-    end
-
-    def pprint(depth : Int32)
-      indent = INDENT.call(depth)
-      p = params.map { |i| i.pprint(0) }
-      return "#{indent}constructor #{name} #{modifiers.to_a} #{p}"
     end
 
     def ast_children : Array(Node)
