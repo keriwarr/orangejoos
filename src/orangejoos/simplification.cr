@@ -464,13 +464,13 @@ class Simplification
       lhs = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)
 
       if op == "-" && lhs.is_a?(AST::ConstInteger)
-        constInteger = lhs.as(AST::ConstInteger)
-        if constInteger.val.starts_with?("-")
-          constInteger.val = constInteger.val.strip("-")
+        const_int = lhs.as(AST::ConstInteger)
+        if const_int.val.starts_with?("-")
+          const_int.val = const_int.val.strip("-")
         else
-          constInteger.val = "-" + constInteger.val
+          const_int.val = "-" + const_int.val
         end
-        return constInteger
+        return const_int
       end
       return AST::ExprOp.new(op, lhs)
     when "PostfixExpression"

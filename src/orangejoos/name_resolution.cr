@@ -536,7 +536,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @class_static_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
   end
 
-  def addToNamespace(decl : DeclWrapper)
+  def add_to_namespace(decl : DeclWrapper)
     node = decl.unwrap
     if node.is_a?(AST::Param)
       name = node.name
@@ -622,38 +622,38 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
     # Add all of the method parameters to the namespace.
     node.params.each do |p|
-      addToNamespace(DeclWrapper.new(p))
+      add_to_namespace(DeclWrapper.new(p))
     end
 
-    visitStmts(node.body) if node.is_a?(AST::ConstructorDecl) || node.body?
+    visit_stmts(node.body) if node.is_a?(AST::ConstructorDecl) || node.body?
   rescue ex : CompilerError
     ex.register("method", node.name) if node.is_a?(AST::MethodDecl)
     ex.register("constructor", "") if node.is_a?(AST::ConstructorDecl)
     raise ex
   end
 
-  def visitStmts(stmts : Array(AST::Stmt))
+  def visit_stmts(stmts : Array(AST::Stmt))
     return if stmts.size == 0
 
     stmt = stmts.first
     case stmt
     when AST::VarDeclStmt
-      addToNamespace(DeclWrapper.new(stmt))
+      add_to_namespace(DeclWrapper.new(stmt))
       stmt.var.accept(self)
-      visitStmts(stmts[1..-1])
+      visit_stmts(stmts[1..-1])
       @namespace.pop
     else
       stmt.accept(self)
-      visitStmts(stmts[1..-1])
+      visit_stmts(stmts[1..-1])
     end
   end
 
   def visit(node : AST::Block) : Nil
-    visitStmts(node.children)
+    visit_stmts(node.children)
   end
 
   def visit(node : AST::ForStmt) : Nil
-    visitStmts(node.children)
+    visit_stmts(node.children)
   end
 
   def visit(node : AST::QualifiedName) : Nil

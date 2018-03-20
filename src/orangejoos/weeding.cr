@@ -46,10 +46,10 @@ class ClassDeclVisitor < Visitor::GenericVisitor
     node.body.each do |b|
       case b
       when AST::ConstructorDecl
-        handleConstructorDecl(node, b)
+        handle_constructor_decl(node, b)
         found_constructor = true
-      when AST::FieldDecl  then handleFieldDecl(node, b)
-      when AST::MethodDecl then handleMethodDecl(node, b)
+      when AST::FieldDecl  then handle_field_decl(node, b)
+      when AST::MethodDecl then handle_method_decl(node, b)
       end
     end
 
@@ -60,21 +60,21 @@ class ClassDeclVisitor < Visitor::GenericVisitor
     super
   end
 
-  def handleConstructorDecl(node : AST::ClassDecl, cd : AST::ConstructorDecl)
+  def handle_constructor_decl(node : AST::ClassDecl, cd : AST::ConstructorDecl)
     # Make sure all constructors have the correct name.
     if cd.name != node.name
       raise WeedingStageError.new("class #{node.name} has a constructor named #{cd.name}")
     end
   end
 
-  def handleFieldDecl(node : AST::ClassDecl, fd : AST::FieldDecl)
+  def handle_field_decl(node : AST::ClassDecl, fd : AST::FieldDecl)
     # Do not allow fields to be final.
     if fd.has_mod?("final")
       raise WeedingStageError.new("field #{node.name}.#{fd.var.name} is final, but final is not allowed")
     end
   end
 
-  def handleMethodDecl(node : AST::ClassDecl, md : AST::MethodDecl)
+  def handle_method_decl(node : AST::ClassDecl, md : AST::MethodDecl)
     # A method requires an access modifier, either protected or public.
     if !md.has_mod?("public") && !md.has_mod?("protected")
       raise WeedingStageError.new("method #{node.name}.#{md.name} has no access modifier (public/private)")
