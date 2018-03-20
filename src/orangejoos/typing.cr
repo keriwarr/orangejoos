@@ -10,11 +10,8 @@ module Typing
 
     VOID
 
-    REFERENCE
+    INSTANCE
     STATIC
-
-    # FIXME(joey): Remove usage.
-    TODO
   end
 
   PRIMITIVES = [Types::CHAR, Types::NUM, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
@@ -94,7 +91,7 @@ module Typing
     def is_type?(s : Types) : Bool
       # This is because of the comparisons below in `#==` use
       # `other.ref`, which will be nil and hit a nil assertion.
-      raise Exception.new("you cannot do this. use is_object? instead") if s == Types::REFERENCE
+      raise Exception.new("you cannot do this. use is_object? instead") if s == Types::INSTANCE
       return self == (Typing::Type.new(s))
     end
 
@@ -103,7 +100,7 @@ module Typing
     end
 
     def is_object? : Bool
-      return typ == Types::REFERENCE
+      return typ == Types::INSTANCE
     end
 
     def is_static? : Bool
@@ -114,7 +111,7 @@ module Typing
       # When both are not arrays, instatly false.
       return false unless other.is_array == self.is_array
       # When both are reference types and the same.
-      return true if other.typ == self.typ && self.typ == Types::REFERENCE && other.ref.qualified_name == self.ref.qualified_name
+      return true if other.typ == self.typ && self.typ == Types::INSTANCE && other.ref.qualified_name == self.ref.qualified_name
       # When both are the same primative types (i.e. non-reference)
       return true if other.typ == self.typ
       # When both are numerical types.
@@ -134,7 +131,7 @@ module Typing
       if !evaluated_typ?
         # This is done to assert `resolve_type` signature is (Type). If
         # the user forgets to return, it accidentally becomes
-        # `(Type | Nil)`.
+        # `Type?`.
         typ : Type = resolve_type(namespace)
         evaluated_typ = typ
       end
@@ -213,7 +210,7 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     super
   end
 
-  def visit(node : AST::DeclStmt) : Nil
+  def visit(node : AST::VarDeclStmt) : Nil
     init_typ = node.var.init.get_type(@namespace)
     typ = node.typ.to_type
     unless Typing.can_convert_type(init_typ, typ)

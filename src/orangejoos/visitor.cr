@@ -32,13 +32,13 @@ module Visitor
     abstract def visit(node : AST::ConstString) : Nil
     abstract def visit(node : AST::ConstNull) : Nil
     abstract def visit(node : AST::VariableDecl) : Nil
-    abstract def visit(node : AST::DeclStmt) : Nil
+    abstract def visit(node : AST::VarDeclStmt) : Nil
     abstract def visit(node : AST::ForStmt) : Nil
     abstract def visit(node : AST::WhileStmt) : Nil
     abstract def visit(node : AST::IfStmt) : Nil
     abstract def visit(node : AST::MethodInvoc) : Nil
     abstract def visit(node : AST::ExprArrayAccess) : Nil
-    abstract def visit(node : AST::ExprArrayCreation) : Nil
+    abstract def visit(node : AST::ExprArrayInit) : Nil
     abstract def visit(node : AST::MethodDecl) : Nil
     abstract def visit(node : AST::ConstructorDecl) : Nil
     abstract def visit(node : AST::ReturnStmt) : Nil
@@ -207,7 +207,7 @@ module Visitor
       visit(node.ast_children)
     end
 
-    def visit(node : AST::DeclStmt) : Nil
+    def visit(node : AST::VarDeclStmt) : Nil
       visit(node.ast_children)
     end
 
@@ -231,7 +231,7 @@ module Visitor
       visit(node.ast_children)
     end
 
-    def visit(node : AST::ExprArrayCreation) : Nil
+    def visit(node : AST::ExprArrayInit) : Nil
       visit(node.ast_children)
     end
 

@@ -39,7 +39,7 @@ module AST
     if string_class.nil?
       raise Exception.new("could not find java.lang.String to resolve for String literal")
     end
-    return Typing::Type.new(Typing::Types::REFERENCE, string_class.not_nil!)
+    return Typing::Type.new(Typing::Types::INSTANCE, string_class.not_nil!)
   end
 
   class MethodSignature
@@ -94,6 +94,7 @@ module AST
     end
 
     def accept(v : Visitor::MutatingVisitor) : Node
+      v.descend
       result = v.visit(self)
       v.ascend
       return result
@@ -104,7 +105,6 @@ module AST
     abstract def ast_children : Array(Node)
   end
 
-  # executed. Not all `Stmt` return values.
   abstract class Stmt < Node
 
     abstract def children : Array(Stmt)
@@ -226,7 +226,7 @@ module AST
 
     def to_type : Typing::Type
       is_array = @cardinality > 0
-      return Typing::Type.new(Typing::Types::REFERENCE, name.ref.as(AST::TypeDecl), is_array)
+      return Typing::Type.new(Typing::Types::INSTANCE, name.ref.as(AST::TypeDecl), is_array)
     end
   end
 
@@ -365,7 +365,7 @@ module AST
     getter interfaces : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name | Nil, @interfaces : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
 
@@ -591,7 +591,7 @@ module AST
     property imports : Array(ImportDecl) = [] of ImportDecl
     property decls : Array(TypeDecl) = [] of TypeDecl
 
-    def initialize(@package : PackageDecl | Nil, @imports : Array(ImportDecl), @decls : Array(TypeDecl))
+    def initialize(@package : PackageDecl?, @imports : Array(ImportDecl), @decls : Array(TypeDecl))
     end
 
     def decl?(name)
@@ -719,7 +719,7 @@ module AST
     property if_body : Stmt
     property! else_body : Stmt
 
-    def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt | Nil)
+    def initialize(@expr : Expr, @if_body : Stmt, @else_body : Stmt?)
     end
 
     def children
@@ -888,7 +888,7 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      return Typing::Type.new(Typing::Types::REFERENCE, typ.name.ref.as(TypeDecl))
+      return Typing::Type.new(Typing::Types::INSTANCE, typ.name.ref.as(TypeDecl))
     end
 
     def ast_children : Array(Node)
@@ -972,8 +972,8 @@ module AST
     end
   end
 
-  # `ExprArrayCreation` represents an array creation.
-  class ExprArrayCreation < Expr
+  # `ExprArrayInit` represents an array creation.
+  class ExprArrayInit < Expr
     # FIXME: (joey) Specialize the node type used here. Maybe if we
     # create a Type interface that multiple AST nodes can implement,
     # such as Name (or Class/Interface) and PrimitiveTyp.
@@ -1032,7 +1032,7 @@ module AST
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       # FIXME(joey): If the namespace is a static namespace, this should
       # be different.
-      return Typing::Type.new(Typing::Types::REFERENCE, namespace.current_class)
+      return Typing::Type.new(Typing::Types::INSTANCE, namespace.current_class)
     end
 
     def ast_children : Array(Node)
@@ -1049,7 +1049,7 @@ module AST
   #
   class ExprRef < Expr
     # The _name_ of an `ExprRef` may hold one of:
-    # - DeclStmt
+    # - VarDeclStmt
     # - FieldDecl
     # - Param
     # - TypeDecl (ClassDecl / InterfaceDecl)
@@ -1072,7 +1072,7 @@ module AST
         case node
         when AST::TypeDecl
           return Typing::Type.new(Typing::Types::STATIC, node)
-        when AST::DeclStmt then return node.typ.to_type
+        when AST::VarDeclStmt then return node.typ.to_type
         when AST::Param then return node.typ.to_type
         when AST::FieldDecl then return node.typ.to_type
         else raise Exception.new("unhandled case: #{node.inspect}")
@@ -1099,7 +1099,7 @@ module AST
     property name : String
     property args : Array(Expr)
 
-    def initialize(@expr : Expr | Nil, @name : String, @args : Array(Expr))
+    def initialize(@expr : Expr, @name : String, @args : Array(Expr))
     end
 
     def to_s : String
@@ -1244,7 +1244,7 @@ module AST
     property name : String
     property! init : Expr
 
-    def initialize(@name : String,@init : Expr | Nil)
+    def initialize(@name : String, @init : Expr?)
     end
 
     def ast_children : Array(Node)
@@ -1252,14 +1252,14 @@ module AST
     end
   end
 
-  # `DeclStmt` is a variable declaration statement. It wraps
+  # `VarDeclStmt` is a variable declaration statement. It wraps
   # `VariableDecl` to also include information about the `Typ` of the
   # `VariableDecl`.
   #
   # TODO(joey): Squash `VariableDecl` into this node. This will need to
-  # be squashed into both the `FieldDecl` and `DeclStmt`. The only
+  # be squashed into both the `FieldDecl` and `VarDeclStmt`. The only
   # difference is `FieldDecl` includes modifiers.
-  class DeclStmt < Stmt
+  class VarDeclStmt < Stmt
     property typ : Typ
     property var : VariableDecl
 
@@ -1288,6 +1288,8 @@ module AST
     # `typ` is Nil if the method has a void return type.
     property! typ : Typ
     property params : Array(Param) = [] of Param
+    # `body` can be set to `Nil`, so even though it is a property! the
+    # type signature needs to include `Nil`.
     property! body : Array(Stmt) | Nil
 
     def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
@@ -1455,7 +1457,7 @@ module AST
       if name?
         node = name.ref
         case node
-        when DeclStmt then return node.typ.to_type()
+        when VarDeclStmt then return node.typ.to_type()
         when Param then node.typ.to_type()
         when FieldDecl then node.typ.to_type()
         else raise Exception.new("unhandled: #{node.inspect}")

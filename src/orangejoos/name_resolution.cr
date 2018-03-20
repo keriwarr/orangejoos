@@ -491,13 +491,13 @@ end
 
 class DeclWrapper
   property! param : AST::Param
-  property! decl_stmt : AST::DeclStmt
+  property! decl_stmt : AST::VarDeclStmt
   property! field_decl : AST::FieldDecl
 
   def initialize(@param : AST::Param)
   end
 
-  def initialize(@decl_stmt : AST::DeclStmt)
+  def initialize(@decl_stmt : AST::VarDeclStmt)
   end
 
   def initialize(@field_decl : AST::FieldDecl)
@@ -517,7 +517,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   @import_namespace : ImportNamespace
 
   # Namespace of the scope during AST traversal. It is populated as we
-  # enter a function and encounter any `DeclStmt1.
+  # enter a function and encounter any `VarDeclStmt`.
   @namespace : Array({name: String, decl: DeclWrapper})
   # Field namespace of the scope during AST traversal. It is
   # pre-populated when we enter a `MethodDecl`.
@@ -546,7 +546,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     node = decl.unwrap
     if node.is_a?(AST::Param)
       name = node.name
-    elsif node.is_a?(AST::DeclStmt)
+    elsif node.is_a?(AST::VarDeclStmt)
       name = node.var.name
     elsif node.is_a?(AST::FieldDecl)
       name = node.var.name
@@ -643,7 +643,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
     stmt = stmts.first
     case stmt
-    when AST::DeclStmt
+    when AST::VarDeclStmt
       addToNamespace(DeclWrapper.new(stmt))
       stmt.var.accept(self)
       visitStmts(stmts[1..-1])

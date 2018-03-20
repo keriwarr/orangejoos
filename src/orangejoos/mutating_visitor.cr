@@ -26,13 +26,13 @@ module Visitor
     abstract def visit(node : AST::ConstString) : AST::Node
     abstract def visit(node : AST::ConstNull) : AST::Node
     abstract def visit(node : AST::VariableDecl) : AST::Node
-    abstract def visit(node : AST::DeclStmt) : AST::Node
+    abstract def visit(node : AST::VarDeclStmt) : AST::Node
     abstract def visit(node : AST::ForStmt) : AST::Node
     abstract def visit(node : AST::WhileStmt) : AST::Node
     abstract def visit(node : AST::IfStmt) : AST::Node
     abstract def visit(node : AST::MethodInvoc) : AST::Node
     abstract def visit(node : AST::ExprArrayAccess) : AST::Node
-    abstract def visit(node : AST::ExprArrayCreation) : AST::Node
+    abstract def visit(node : AST::ExprArrayInit) : AST::Node
     abstract def visit(node : AST::MethodDecl) : AST::Node
     abstract def visit(node : AST::ConstructorDecl) : AST::Node
     abstract def visit(node : AST::ReturnStmt) : AST::Node
@@ -180,7 +180,7 @@ module Visitor
       return node
     end
 
-    def visit(node : AST::DeclStmt) : AST::Node
+    def visit(node : AST::VarDeclStmt) : AST::Node
       node.typ = node.typ.accept(self)
       node.var = node.var.accept(self)
       return node
@@ -219,7 +219,7 @@ module Visitor
       return node
     end
 
-    def visit(node : AST::ExprArrayCreation) : AST::Node
+    def visit(node : AST::ExprArrayInit) : AST::Node
       # FIXME(joey): Not added due to the type specificity problem.
       # node.arr = node.arr.accept(self)
       node.dim = node.dim.accept(self)

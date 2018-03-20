@@ -36,7 +36,7 @@ class Simplification
     return ret
   end
 
-  def simplify_tree(tree : ParseTree) # : Array(AST::Node) | Nil, but you cannot use that typedecl. It is inferred correctly.
+  def simplify_tree(tree : ParseTree) # : Array(AST::Node)?, but you cannot use that typedecl. It is inferred correctly.
     case tree.name
     when "ImportDeclarations"
       imports = tree.tokens.get_tree("ImportDeclarations")
@@ -191,7 +191,7 @@ class Simplification
   end
 
 
-  def simplify(tree : ParseTree) : AST::Node | Nil
+  def simplify(tree : ParseTree) : AST::Node?
     case tree.name
     when "Goal"
       return simplify(tree.tokens.first.as(ParseTree))
@@ -635,11 +635,11 @@ class Simplification
       if !tree.tokens.get_tree("PrimitiveType").nil?
         typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::PrimitiveTyp)
         dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-        return AST::ExprArrayCreation.new(typ, dim_expr)
+        return AST::ExprArrayInit.new(typ, dim_expr)
       else
         name = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Name)
         dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-        return AST::ExprArrayCreation.new(AST::ClassTyp.new(name), dim_expr)
+        return AST::ExprArrayInit.new(AST::ClassTyp.new(name), dim_expr)
       end
 
     when "LeftHandSide"
@@ -691,7 +691,7 @@ class Simplification
     when "LocalVariableDeclaration"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
       var_decl = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::VariableDecl)
-      return AST::DeclStmt.new(typ, var_decl)
+      return AST::VarDeclStmt.new(typ, var_decl)
 
     when "FormalParameter"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
