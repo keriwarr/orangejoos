@@ -1288,9 +1288,9 @@ module AST
     # `typ` is Nil if the method has a void return type.
     property! typ : Typ
     property params : Array(Param) = [] of Param
-    # `body` can be set to `Nil`, so even though it is a property! the
+    # `body` can be assigned to `Nil`, so even though it is a property! the
     # type signature needs to include `Nil`.
-    property! body : Array(Stmt) | Nil
+    property! body : Array(Stmt)?
 
     def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers

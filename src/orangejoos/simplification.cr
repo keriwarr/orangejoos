@@ -700,7 +700,7 @@ class Simplification
 
     when "MethodDeclaration"
       decl = simplify(tree.tokens.first.as(ParseTree)).as(AST::MethodDecl)
-      body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt) | Nil)
+      body = simplify_tree(tree.tokens.to_a[1].as(ParseTree)).as(Array(AST::Stmt)?)
       decl.body = body
       return decl
 
