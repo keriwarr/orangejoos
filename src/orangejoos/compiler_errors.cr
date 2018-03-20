@@ -14,7 +14,7 @@ class CompilerError < Exception
   end
 
   def metadata : String
-    return @metadata.map {|k, v| "#{k}={#{v}}"}.join(" ")
+    return @metadata.map { |k, v| "#{k}={#{v}}" }.join(" ")
   end
 end
 
@@ -41,7 +41,6 @@ end
 # resolution stage.
 class NameResolutionStageError < CompilerError
 end
-
 
 # A TypeCheckStageError is an error encountered during the type check
 # stage.

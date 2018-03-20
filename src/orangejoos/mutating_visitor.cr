@@ -40,9 +40,9 @@ module Visitor
     abstract def visit(node : AST::ParenExpr) : AST::Node
     abstract def visit(node : AST::Variable) : AST::Node
 
-    abstract def descend()
-    abstract def ascend()
-    abstract def on_completion()
+    abstract def descend
+    abstract def ascend
+    abstract def on_completion
   end
 
   class GenericMutatingVisitor < MutatingVisitor
@@ -82,14 +82,14 @@ module Visitor
 
     def visit(node : AST::ClassDecl) : AST::Node
       node.interfaces.map! { |i| i.accept(self) }
-      node.body.map!       { |b| b.accept(self) }
+      node.body.map! { |b| b.accept(self) }
       node.super_class = node.super_class.accept(self) if node.super_class?
       return node
     end
 
     def visit(node : AST::InterfaceDecl) : AST::Node
       node.extensions.map! { |i| i.accept(self) }
-      node.body.map!       { |b| b.accept(self) }
+      node.body.map! { |b| b.accept(self) }
       return node
     end
 
@@ -110,7 +110,7 @@ module Visitor
     def visit(node : AST::File) : AST::Node
       node.package = node.package.accept(self) if node.package?
       node.imports.map! { |i| i.accept(self) }
-      node.decls.map!   { |d| d.accept(self) }
+      node.decls.map! { |d| d.accept(self) }
       return node
     end
 
@@ -209,7 +209,7 @@ module Visitor
 
     def visit(node : AST::MethodInvoc) : AST::Node
       node.expr = node.expr.accept(self)
-      node.args.map!      { |b| b.accept(self) }
+      node.args.map! { |b| b.accept(self) }
       return node
     end
 
@@ -228,14 +228,14 @@ module Visitor
 
     def visit(node : AST::MethodDecl) : AST::Node
       node.typ = node.typ.accept(self) if node.typ?
-      node.params.map!    { |p| p.accept(self) }
-      node.body.map!      { |b| b.accept(self) } if node.body?
+      node.params.map! { |p| p.accept(self) }
+      node.body.map! { |b| b.accept(self) } if node.body?
       return node
     end
 
     def visit(node : AST::ConstructorDecl) : AST::Node
-      node.params.map!    { |p| p.accept(self) }
-      node.body.map!      { |b| b.accept(self) }
+      node.params.map! { |p| p.accept(self) }
+      node.body.map! { |b| b.accept(self) }
       return node
     end
 

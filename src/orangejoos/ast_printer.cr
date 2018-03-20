@@ -1,6 +1,4 @@
-
 require "./visitor"
-
 
 module AST
   # A visitor which pretty prints the entire AST to STDERR
@@ -61,7 +59,7 @@ module AST
     end
 
     # All useages of indent should be paired to a corresponding call to outdent
-    def outdent() : Nil
+    def outdent : Nil
       @last_child_stack.pop
     end
 
@@ -218,7 +216,7 @@ module AST
       last_child = node.params.empty? && (!node.body? || node.body.empty?)
       print_child("Returns: #{node.typ.to_s}", last_child)
       last_child = !node.body? || node.body.empty?
-      print_child("Params: #{(node.params.map {|i| i.to_s}).join(", ")}", last_child) if !node.params.empty?
+      print_child("Params: #{(node.params.map { |i| i.to_s }).join(", ")}", last_child) if !node.params.empty?
       if node.body? && !node.body.empty?
         print_child("Body:", true)
         indent
@@ -238,7 +236,7 @@ module AST
       print_child("Modifiers: #{node.modifiers.join(", ")}", last_child)
       # FIXME: params aren't printing
       last_child = node.body.empty?
-      print_child("Params: #{(node.params.map {|i| i.to_s}).join(", ")}", last_child) if !node.params.empty?
+      print_child("Params: #{(node.params.map { |i| i.to_s }).join(", ")}", last_child) if !node.params.empty?
       if !node.body.empty?
         print_child("Body:", true)
         indent

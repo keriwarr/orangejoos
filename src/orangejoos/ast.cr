@@ -7,7 +7,6 @@
 # that AST node, without having to add extra machinery in the parent
 # node.
 
-
 require "./visitor"
 require "./mutating_visitor"
 require "./typing"
@@ -16,10 +15,10 @@ INDENT = ->(depth : Int32) { "  " * depth }
 
 # Type checking constants.
 # FIXME(joey): Change these to sets.
-BOOLEAN_OPS = ["==", "!=", "&", "|", "^", "&&", "||"]
+BOOLEAN_OPS    = ["==", "!=", "&", "|", "^", "&&", "||"]
 BINARY_NUM_OPS = ["+", "-", "/", "*", "%"]
-UNARY_NUM_OPS = ["+", "-"]
-NUM_CMP_OPS = [">", "<", "<=", ">=", "!=", "=="]
+UNARY_NUM_OPS  = ["+", "-"]
+NUM_CMP_OPS    = [">", "<", "<=", ">=", "!=", "=="]
 
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
 # categories of nodes:
@@ -31,7 +30,6 @@ NUM_CMP_OPS = [">", "<", "<=", ">=", "!=", "=="]
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
-
   # FIXME(joey): Move this to a better place. This was done to simplify
   # the code that refers to the not built-in String types.
   def self.get_string_type(namespace)
@@ -51,7 +49,7 @@ module AST
 
     def initialize(method : MethodDecl)
       @name = method.name
-      @params = method.params.map {|p| p.typ.to_type}
+      @params = method.params.map { |p| p.typ.to_type }
     end
 
     # Similar checks if the method signature is similar, i.e. it has
@@ -67,7 +65,7 @@ module AST
     end
 
     def params_equiv(other : MethodSignature)
-      params.size == other.params.size && params.zip(other.params).all? {|a, b| a == b}
+      params.size == other.params.size && params.zip(other.params).all? { |a, b| a == b }
     end
   end
 
@@ -106,7 +104,6 @@ module AST
   end
 
   abstract class Stmt < Node
-
     abstract def children : Array(Stmt)
 
     # TODO(joey): This was an attempt to make a traversal function for
@@ -193,12 +190,12 @@ module AST
     def to_type : Typing::Type
       is_array = @cardinality > 0
       case @name
-      when "byte" then return Typing::Type.new(Typing::Types::BYTE, is_array)
-      when "short" then return Typing::Type.new(Typing::Types::SHORT, is_array)
-      when "int" then return Typing::Type.new(Typing::Types::INT, is_array)
-      when "char" then return Typing::Type.new(Typing::Types::CHAR, is_array)
+      when "byte"    then return Typing::Type.new(Typing::Types::BYTE, is_array)
+      when "short"   then return Typing::Type.new(Typing::Types::SHORT, is_array)
+      when "int"     then return Typing::Type.new(Typing::Types::INT, is_array)
+      when "char"    then return Typing::Type.new(Typing::Types::CHAR, is_array)
       when "boolean" then return Typing::Type.new(Typing::Types::BOOLEAN, is_array)
-      else raise Exception.new("unexpected type: #{@name}")
+      else                raise Exception.new("unexpected type: #{@name}")
       end
     end
   end
@@ -212,6 +209,7 @@ module AST
     def initialize(@name : Name)
       @cardinality = 0
     end
+
     def initialize(@name : Name, @cardinality : Int32)
     end
 
@@ -266,7 +264,7 @@ module AST
   # file. For example:
   #
   # ```java
-  # package com.java.util;
+  # package com.java.util
   # ```
   #
   # TODO(joey): This could probably be squashed into the File node due
@@ -286,13 +284,13 @@ module AST
   # file. For example:
   #
   # ```java
-  # import com.java.util.Vector;
+  # import com.java.util.Vector
   # ```
   #
   # or, for importing all of the contents of a package:
   #
   # ```java
-  # import com.java.util.*;
+  # import com.java.util.*
   # ```
   class ImportDecl < Node
     # The _path_ the import declaration is importing.
@@ -302,7 +300,7 @@ module AST
     # of that is:
     #
     # ```java
-    # import java.util.*;
+    # import java.util.*
     # ```
     #
     # This imports all the items within java.util on demand, as used.
@@ -337,7 +335,6 @@ module AST
     end
   end
 
-
   # `TypeDecl` is type declaration, either a `InterfaceDecl` or a
   # `ClassDecl`.
   # FIXME(joey): Interface and Class could maybe be squashed into one
@@ -352,7 +349,7 @@ module AST
 
     def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
       signature = MethodSignature.new(name, args)
-      result = methods.find {|m| MethodSignature.new(m).equiv(signature) }
+      result = methods.find { |m| MethodSignature.new(m).equiv(signature) }
       return result
     end
   end
@@ -429,9 +426,9 @@ module AST
       end
       interface_names = ""
       if interfaces.size > 0
-        interface_names = interfaces.map {|i| i.name }.join(", ")
+        interface_names = interfaces.map { |i| i.name }.join(", ")
       end
-      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
+      decls = body.map { |b| b.pprint(depth + 2) }.join("\n")
       return (
         "#{indent}Class #{name}:\n" \
         "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
@@ -484,9 +481,9 @@ module AST
       indent = INDENT.call(depth)
       extensions_str = ""
       if extensions.size > 0
-        extensions_str = extensions.map {|i| i.name }.join(", ")
+        extensions_str = extensions.map { |i| i.name }.join(", ")
       end
-      decls = body.map {|b| b.pprint(depth+2)}.join("\n")
+      decls = body.map { |b| b.pprint(depth + 2) }.join("\n")
       return (
         "#{indent}Interface #{name}:\n" \
         "#{indent}  Modifiers: #{modifiers.join(",")}\n" \
@@ -599,7 +596,7 @@ module AST
     end
 
     def decl(name) : TypeDecl
-      results = decls.select {|decl| decl.name == name}
+      results = decls.select { |decl| decl.name == name }
       if results.size > 1
         raise Exception.new("more than 1 decl, got: #{results}")
       end
@@ -793,7 +790,7 @@ module AST
         rest_operands_str = ""
       else
         first_operand_str = "#{operands[0].to_s} #{op} "
-        rest_operands_str = (operands.skip(1).map {|o| o.to_s}).join(" ")
+        rest_operands_str = (operands.skip(1).map { |o| o.to_s }).join(" ")
       end
       return "(#{first_operand_str}#{rest_operands_str})"
     end
@@ -803,23 +800,23 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
+      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
-      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
+      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::NUM) }
         return Typing::Type.new(Typing::Types::NUM)
       end
 
-      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
+      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::NUM) }
         return Typing::Type.new(Typing::Types::NUM)
       end
 
-      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::NUM)}
+      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::NUM) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
-      if op == "!" && operands.size == 1 && operands.all? {|o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN)}
+      if op == "!" && operands.size == 1 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
@@ -852,12 +849,12 @@ module AST
       # type is casted to a String using `toString()` or converting the
       # primitive type.
       if op == "+" && operands.size == 2 &&
-        (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
+         (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
         return AST.get_string_type(namespace)
       end
 
       # FIXME(joey): Add exhaustive operators.
-      types = operands.map {|o| o.get_type(namespace).as(Typing::Type).to_s}
+      types = operands.map { |o| o.get_type(namespace).as(Typing::Type).to_s }
       raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
     end
 
@@ -924,14 +921,14 @@ module AST
         return Typing::Type.new(Typing::Types::INT)
       elsif typ.is_type?(Typing::Types::STATIC)
         class_node = typ.ref.as(ClassDecl)
-        field = class_node.static_fields.find {|f| f.var.name == @field_name}
+        field = class_node.static_fields.find { |f| f.var.name == @field_name }
         if field.nil?
           raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
-        field = class_node.non_static_fields.find {|f| f.var.name == @field_name}
+        field = class_node.non_static_fields.find { |f| f.var.name == @field_name }
         if field.nil?
           raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
         end
@@ -961,7 +958,6 @@ module AST
     def children : Array(Expr)
       [expr, index]
     end
-
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       expr.get_type(namespace).from_array_type
@@ -995,17 +991,16 @@ module AST
       return [arr, dim]
     end
 
-
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       # Crystal cannot modify the type from a method, `#arr`.
       node = arr
       case node
       when PrimitiveTyp
-        typ = node.to_type()
-        return typ.to_array_type()
+        typ = node.to_type
+        return typ.to_array_type
       when ClassTyp
-        typ = node.to_type()
-        return typ.to_array_type()
+        typ = node.to_type
+        return typ.to_array_type
       else raise Exception.new("unexpected type: #{arr.inspect}")
       end
     end
@@ -1043,8 +1038,8 @@ module AST
   # `ExprRef` represents referenced values, such as fields or classes.
   # For example, the `x` in `1 + x` is an ExprRef:
   # ```java
-  # int x;
-  # 1 + x;
+  # int x
+  # 1 + x
   # ```
   #
   class ExprRef < Expr
@@ -1073,9 +1068,9 @@ module AST
         when AST::TypeDecl
           return Typing::Type.new(Typing::Types::STATIC, node)
         when AST::VarDeclStmt then return node.typ.to_type
-        when AST::Param then return node.typ.to_type
-        when AST::FieldDecl then return node.typ.to_type
-        else raise Exception.new("unhandled case: #{node.inspect}")
+        when AST::Param       then return node.typ.to_type
+        when AST::FieldDecl   then return node.typ.to_type
+        else                       raise Exception.new("unhandled case: #{node.inspect}")
         end
       else
         raise TypeCheckStageError.new("ExprRef was not resolved: #{self.inspect}")
@@ -1236,7 +1231,6 @@ module AST
     end
   end
 
-
   # `VariableDecl` represents variable declarations, including `name`,
   # `cardinality` and the expression to initialize the value of the
   # variable to (`init`).
@@ -1303,7 +1297,7 @@ module AST
       # depends on resolving names in Typ to fix:
       #
       # ```java
-      # foo(a java.lang.Object);
+      # foo(a java.lang.Object)
       # foo(a Object)
       # ```
       return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.to_s))
@@ -1321,11 +1315,10 @@ module AST
       [
         typ?.as?(Node),
         params.map &.as(Node),
-        body?.try {|b| b.map &.as(Node)},
+        body?.try { |b| b.map &.as(Node) },
       ].flatten.compact
     end
   end
-
 
   # `ConstructorDecl` is a special method declaration. It includes
   # `name`, `modifiers`, `params` for the method signature, and the
@@ -1344,7 +1337,7 @@ module AST
 
     def pprint(depth : Int32)
       indent = INDENT.call(depth)
-      p = params.map {|i| i.pprint(0)}
+      p = params.map { |i| i.pprint(0) }
       return "#{indent}constructor #{name} #{modifiers.to_a} #{p}"
     end
 
@@ -1457,10 +1450,10 @@ module AST
       if name?
         node = name.ref
         case node
-        when VarDeclStmt then return node.typ.to_type()
-        when Param then node.typ.to_type()
-        when FieldDecl then node.typ.to_type()
-        else raise Exception.new("unhandled: #{node.inspect}")
+        when VarDeclStmt then return node.typ.to_type
+        when Param       then node.typ.to_type
+        when FieldDecl   then node.typ.to_type
+        else                  raise Exception.new("unhandled: #{node.inspect}")
         end
       elsif array_access?
         return array_access.get_type(namespace)

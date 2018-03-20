@@ -1,4 +1,3 @@
-
 require "./ast.cr"
 require "./compiler_errors.cr"
 

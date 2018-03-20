@@ -113,11 +113,11 @@ class NameResolution
         import_tree = exported_items.get(ROOT_PACKAGE)
         # These get created with a "."" prefix that needs to be removed.
         same_package_imports += import_tree.enumerate("")
-        same_package_imports = same_package_imports.map {|s, n| Tuple.new(s[1..s.size], n)}
+        same_package_imports = same_package_imports.map { |s, n| Tuple.new(s[1..s.size], n) }
       end
     end
 
-    same_file_imports = file.ast.decls.map {|decl| Tuple.new(decl.name, decl)}
+    same_file_imports = file.ast.decls.map { |decl| Tuple.new(decl.name, decl) }
 
     full_namespace = exported_items.enumerate
 
@@ -138,7 +138,6 @@ class NameResolution
 
     return namespace
   end
-
 
   def resolve_inheritance(file, namespace, cycle_tracker)
     # FIXME(joey): Maybe it would be great to replace Name instances
@@ -163,7 +162,6 @@ class NameResolution
     file.ast.accept(DuplicateFieldVisitor.new)
   end
 
-
   def resolve
     exported_items = generate_exported_items(@files)
 
@@ -176,26 +174,25 @@ class NameResolution
 
     files = @files
     # Populate the imports for each file in-place.
-    files.each {|f| f.import_namespace = populate_imports(f, exported_items) }
+    files.each { |f| f.import_namespace = populate_imports(f, exported_items) }
 
     # Populate the inheritance information for the interfaces and
     # classes in each file.
     cycle_tracker = CycleTracker.new
-    files = files.map {|f| resolve_inheritance(f, f.import_namespace, cycle_tracker)}
+    files = files.map { |f| resolve_inheritance(f, f.import_namespace, cycle_tracker) }
     # Check the hierarchy graph for any cycles.
-    cycle_tracker.check()
+    cycle_tracker.check
 
     # Check the correctness of classes and interfaces.
-    files.each {|f| check_correctness(f)}
+    files.each { |f| check_correctness(f) }
 
     # Resolve all variables found in the files. This mutates the AST
     # in-place by resolving `Name.ref`.
-    files.each {|f| f.ast.accept(MethodEnvironmentVisitor.new(f.import_namespace))}
+    files.each { |f| f.ast.accept(MethodEnvironmentVisitor.new(f.import_namespace)) }
 
     return files
   end
 end
-
 
 # PackageTree is the tree structure that holds all packages and types
 # defined. These are elements that are referable via import paths.
@@ -205,7 +202,6 @@ abstract class PackageTree
   abstract def get(path : Array(String)) : PackageTree
 end
 
-
 class TypeNode < PackageTree
   getter name : String
   getter decl : AST::TypeDecl
@@ -213,7 +209,7 @@ class TypeNode < PackageTree
   def initialize(@name : String, @decl : AST::TypeDecl)
   end
 
-  def enumerate(prefix : String = ""): Array(Tuple(String, AST::TypeDecl))
+  def enumerate(prefix : String = "") : Array(Tuple(String, AST::TypeDecl))
     return [Tuple.new(prefix + name, decl)]
   end
 
@@ -250,17 +246,17 @@ class PackageNode < PackageTree
       end
       c.add_child(parts[1..parts.size], node)
     elsif children.has_key?(node.name)
-        raise NameResolutionStageError.new("name #{node.name} already exists in package (TODO produce package name)")
+      raise NameResolutionStageError.new("name #{node.name} already exists in package (TODO produce package name)")
     else
       children[node.name] = node
     end
   end
 
   def enumerate(prefix : String = "") : Array(Tuple(String, AST::TypeDecl))
-    return children.values.flat_map(&.enumerate).map {|k, v| Tuple.new(prefix + k, v)} if @root
+    return children.values.flat_map(&.enumerate).map { |k, v| Tuple.new(prefix + k, v) } if @root
 
     return children.values.flat_map do |child|
-      child.enumerate.map {|c_name, tree| Tuple.new(prefix + name + "." + c_name, tree)}
+      child.enumerate.map { |c_name, tree| Tuple.new(prefix + name + "." + c_name, tree) }
     end
   end
 
@@ -461,9 +457,8 @@ class ImportNamespace
     same_package : Array(Tuple(String, AST::TypeDecl)),
     on_demand : Array(Tuple(String, AST::TypeDecl)),
     system : Array(Tuple(String, AST::TypeDecl)),
-    global : Array(Tuple(String, AST::TypeDecl)),
+    global : Array(Tuple(String, AST::TypeDecl))
   )
-
     @simple_names = Hash(String, AST::TypeDecl).new
     # Add items to the namespace in this order. They will overload based
     # on the precedence rules.
@@ -488,7 +483,6 @@ class ImportNamespace
   end
 end
 
-
 class DeclWrapper
   property! param : AST::Param
   property! decl_stmt : AST::VarDeclStmt
@@ -505,10 +499,10 @@ class DeclWrapper
 
   def unwrap : AST::Node
     case
-    when param? then return param
-    when decl_stmt? then return decl_stmt
+    when param?      then return param
+    when decl_stmt?  then return decl_stmt
     when field_decl? then return field_decl
-    else raise Exception.new("unhandled case")
+    else                  raise Exception.new("unhandled case")
     end
   end
 end
@@ -533,7 +527,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
 
   # All static instance fields that are accessible. The hash is
   # class_name -> namespace.
-  @class_static_fields :  Hash(String, Array({name: String, decl: DeclWrapper}))
+  @class_static_fields : Hash(String, Array({name: String, decl: DeclWrapper}))
 
   def initialize(@import_namespace : ImportNamespace)
     @namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
@@ -569,7 +563,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # We use `namespace` to ensure the return value type matches the
     # function signature.
     namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
-    node.non_static_fields.each {|field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)})}
+    node.non_static_fields.each { |field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)}) }
     return namespace
   end
 
@@ -581,7 +575,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # We use `namespace` to ensure the return value type matches the
     # function signature.
     namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
-    node.static_fields.each {|field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)})}
+    node.static_fields.each { |field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)}) }
     return namespace
   end
 
@@ -595,11 +589,11 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @class_static_fields[node.name] = get_class_static_fields(node) if !@class_static_fields.has_key?(node.name)
     @class_node = node
     methods = node.body.map(&.as?(AST::MethodDecl)).compact
-    methods.each {|m| m.accept(self)}
+    methods.each { |m| m.accept(self) }
     constructors = node.body.map(&.as?(AST::ConstructorDecl)).compact
-    constructors.each {|m| m.accept(self)}
+    constructors.each { |m| m.accept(self) }
     fields = node.body.map(&.as?(AST::FieldDecl)).compact
-    fields.each {|m| m.accept(self)}
+    fields.each { |m| m.accept(self) }
   rescue ex : CompilerError
     ex.register("class_name", node.name)
     raise ex
@@ -743,7 +737,6 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
   end
 end
 
-
 # `QualifiedNameDisambiguation` finds all amibigious `QualifiedName`
 # which represent field accesses, and converts them to
 # `ExprFieldAccess`. Currently, the only observed case of this is when a
@@ -808,7 +801,7 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
         # currently only correct for types referred to directly and not
         # by package path.
         field_access = AST::ExprRef.new(class_name)
-        parts = parts[i+1..-1]
+        parts = parts[i + 1..-1]
         break
       end
     end

@@ -48,7 +48,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
       when AST::ConstructorDecl
         handleConstructorDecl(node, b)
         found_constructor = true
-      when AST::FieldDecl then handleFieldDecl(node, b)
+      when AST::FieldDecl  then handleFieldDecl(node, b)
       when AST::MethodDecl then handleMethodDecl(node, b)
       end
     end
