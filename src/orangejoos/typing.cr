@@ -12,9 +12,6 @@ module Typing
 
     INSTANCE
     STATIC
-
-    # FIXME(joey): Remove usage.
-    TODO
   end
 
   PRIMITIVES = [Types::CHAR, Types::NUM, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
