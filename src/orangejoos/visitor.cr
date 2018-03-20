@@ -32,7 +32,7 @@ module Visitor
     abstract def visit(node : AST::ConstString) : Nil
     abstract def visit(node : AST::ConstNull) : Nil
     abstract def visit(node : AST::VariableDecl) : Nil
-    abstract def visit(node : AST::DeclStmt) : Nil
+    abstract def visit(node : AST::VarDeclStmt) : Nil
     abstract def visit(node : AST::ForStmt) : Nil
     abstract def visit(node : AST::WhileStmt) : Nil
     abstract def visit(node : AST::IfStmt) : Nil
@@ -207,7 +207,7 @@ module Visitor
       visit(node.ast_children)
     end
 
-    def visit(node : AST::DeclStmt) : Nil
+    def visit(node : AST::VarDeclStmt) : Nil
       visit(node.ast_children)
     end
 

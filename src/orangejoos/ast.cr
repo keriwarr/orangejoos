@@ -1048,7 +1048,7 @@ module AST
   #
   class ExprRef < Expr
     # The _name_ of an `ExprRef` may hold one of:
-    # - DeclStmt
+    # - VarDeclStmt
     # - FieldDecl
     # - Param
     # - TypeDecl (ClassDecl / InterfaceDecl)
@@ -1071,7 +1071,7 @@ module AST
         case node
         when AST::TypeDecl
           return Typing::Type.new(Typing::Types::STATIC, node)
-        when AST::DeclStmt then return node.typ.to_type
+        when AST::VarDeclStmt then return node.typ.to_type
         when AST::Param then return node.typ.to_type
         when AST::FieldDecl then return node.typ.to_type
         else raise Exception.new("unhandled case: #{node.inspect}")
@@ -1251,14 +1251,14 @@ module AST
     end
   end
 
-  # `DeclStmt` is a variable declaration statement. It wraps
+  # `VarDeclStmt` is a variable declaration statement. It wraps
   # `VariableDecl` to also include information about the `Typ` of the
   # `VariableDecl`.
   #
   # TODO(joey): Squash `VariableDecl` into this node. This will need to
-  # be squashed into both the `FieldDecl` and `DeclStmt`. The only
+  # be squashed into both the `FieldDecl` and `VarDeclStmt`. The only
   # difference is `FieldDecl` includes modifiers.
-  class DeclStmt < Stmt
+  class VarDeclStmt < Stmt
     property typ : Typ
     property var : VariableDecl
 
@@ -1456,7 +1456,7 @@ module AST
       if name?
         node = name.ref
         case node
-        when DeclStmt then return node.typ.to_type()
+        when VarDeclStmt then return node.typ.to_type()
         when Param then node.typ.to_type()
         when FieldDecl then node.typ.to_type()
         else raise Exception.new("unhandled: #{node.inspect}")

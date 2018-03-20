@@ -153,8 +153,8 @@ module AST
       # no super
     end
 
-    def visit(node : AST::DeclStmt) : Nil
-      print "DeclStmt: typ={#{node.typ.to_s}}"
+    def visit(node : AST::VarDeclStmt) : Nil
+      print "VarDeclStmt: typ={#{node.typ.to_s}}"
       visit([node.var.as(Node)])
       # no super
     end

@@ -691,7 +691,7 @@ class Simplification
     when "LocalVariableDeclaration"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)
       var_decl = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::VariableDecl)
-      return AST::DeclStmt.new(typ, var_decl)
+      return AST::VarDeclStmt.new(typ, var_decl)
 
     when "FormalParameter"
       typ = simplify(tree.tokens.first.as(ParseTree)).as(AST::Typ)

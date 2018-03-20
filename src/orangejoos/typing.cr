@@ -213,7 +213,7 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     super
   end
 
-  def visit(node : AST::DeclStmt) : Nil
+  def visit(node : AST::VarDeclStmt) : Nil
     init_typ = node.var.init.get_type(@namespace)
     typ = node.typ.to_type
     unless Typing.can_convert_type(init_typ, typ)
