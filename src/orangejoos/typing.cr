@@ -203,6 +203,13 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     super
   end
 
+  def visit(node : AST::IfStmt) : Nil
+    if !node.expr.get_type(@namespace).is_type?(Typing::Types::BOOLEAN)
+      raise TypeCheckStageError.new("if clause is not a bool, instead got: #{node.expr.get_type(@namespace).to_s}")
+    end
+    super
+  end
+
   def visit(node : AST::WhileStmt) : Nil
     if !node.expr.get_type(@namespace).is_type?(Typing::Types::BOOLEAN)
       raise TypeCheckStageError.new("while-loop comparison clause is not a bool, instead got: #{node.expr.get_type(@namespace).to_s}")
