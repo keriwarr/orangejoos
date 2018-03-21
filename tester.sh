@@ -70,7 +70,7 @@ do_test() {
   if [[ $result = 42 && $should_pass = true ]]; then
     description="== ${RED}FAIL${NC}: ${files}"
     bad_fail=$((bad_fail + 1))
-    echo "== ${RED}FAIL${NC}: ./joosc $args $files $stdlib -v" >> $failed_test_descr_file
+    echo "== ${RED}FAIL${NC}: ./joosc $args -v $files $stdlib" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
     description="== ${GREEN}PASS${NC}: ${files}"
     correct_pass=$((correct_pass + 1))
@@ -80,11 +80,11 @@ do_test() {
   elif [[ $result = 0  && $should_pass = false ]]; then
     description="== ${RED}PASS${NC}: ${files}"
     bad_pass=$((bad_pass + 1))
-    echo "== ${RED}PASS${NC}: ./joosc $args $files $stdlib -v" >> $failed_test_descr_file
+    echo "== ${RED}PASS${NC}: ./joosc $args -v $files $stdlib" >> $failed_test_descr_file
   else
     description="== ${RED}EROR${NC}: ${files}"
     errors=$((errors + 1))
-    echo "== ${RED}EROR${NC}: ./joosc $args $files $stdlib -v" >> $failed_test_descr_file
+    echo "== ${RED}EROR${NC}: ./joosc $args -v $files $stdlib" >> $failed_test_descr_file
   fi
 
   echo $description
