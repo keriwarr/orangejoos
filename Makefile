@@ -43,7 +43,7 @@ jlalr1: tools/jlalr/Jlalr1.class
 
 tools/jlalr/Jlalr1.class: ## JLALR1 is the LALR(1) prediction table generated, provided by CS444.
 tools/jlalr/Jlalr1.class: $(JLALR_SRCS)
-	javac ./tools/jlalr/Jlalr1.java
+	javac -source 8 -target 8 ./tools/jlalr/Jlalr1.java
 
 .PHONY: clean-light
 clean-light: ## Removes standard binary results.
