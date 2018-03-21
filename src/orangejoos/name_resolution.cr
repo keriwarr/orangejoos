@@ -599,6 +599,16 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     raise ex
   end
 
+  def visit(node : AST::FieldDecl) : Nil
+    if node.has_mod?("static")
+      @field_namespace = @class_static_fields[class_node.name]
+    else
+      @field_namespace = @class_instance_fields[class_node.name]
+    end
+    super
+  end
+
+
   def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
     # Set up the field for evaluating any initialization.
     if node.has_mod?("static")
