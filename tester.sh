@@ -131,7 +131,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
   if [[ -f $filename && $filename == *.java ]]; then
     do_test $filename $should_pass "-s nameresolution" "$stdlib2"
     elif [[ -d $filename ]]; then
-    files=$(find ${filename} -name "*.java" -type f | sort)
+    files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
     do_test "$files" $should_pass "-s nameresolution" "$stdlib2"
   fi
 done
@@ -145,7 +145,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -depth 1 | sort`; do
   if [[ -f $filename && $filename == *.java ]]; then
     do_test $filename $should_pass "-s typecheck" "$stdlib3"
     elif [[ -d $filename ]]; then
-    files=$(find ${filename} -name "*.java" -type f | sort)
+    files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
     do_test "$files" $should_pass "-s typecheck" "$stdlib3"
   fi
 done
@@ -159,7 +159,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
   if [[ -f $filename && $filename == *.java ]]; then
     do_test $filename $should_pass "-s all" "$stdlib4"
     elif [[ -d $filename ]]; then
-    files=$(find ${filename} -name "*.java" -type f | sort)
+    files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
     do_test "$files" $should_pass "-s all" "$stdlib4"
   fi
 done
@@ -173,7 +173,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type
   if [[ -f $filename && $filename == *.java ]]; then
     do_test $filename $should_pass "-s all" "$stdlib5"
     elif [[ -d $filename ]]; then
-    files=$(find ${filename} -name "*.java" -type f | sort)
+    files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
     do_test "$files" $should_pass "-s all" "$stdlib5"
   fi
 done
