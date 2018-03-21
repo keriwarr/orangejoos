@@ -32,6 +32,27 @@ bad_fail=0
 bad_pass=0
 errors=0
 
+finish() {
+  # ----------------------------------------------------------------------------
+  # Tally the results
+  # ----------------------------------------------------------------------------
+
+  echo ""
+  echo "=== FAILING TESTS ==="
+  echo ""
+
+  cat $failed_test_descr_file 2>/dev/null
+
+  echo ""
+  echo "=== RESULTS ==="
+  echo ""
+  echo "${GREEN}Correct${NC}: $((correct_pass + correct_fail))"
+  echo "${RED}Failed${NC}:  $((bad_pass + bad_fail))"
+  echo "${RED}Errors${NC}:  $((errors))"
+}
+
+trap finish EXIT
+
 do_test() {
   files="$1"
   should_pass=$2
@@ -156,20 +177,3 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type
     do_test "$files" $should_pass "-s all" "$stdlib5"
   fi
 done
-
-# ----------------------------------------------------------------------------
-# Tally the results
-# ----------------------------------------------------------------------------
-
-echo ""
-echo "=== FAILING TESTS ==="
-echo ""
-
-cat $failed_test_descr_file 2>/dev/null
-
-echo ""
-echo "=== RESULTS ==="
-echo ""
-echo "${GREEN}Correct${NC}: $((correct_pass + correct_fail))"
-echo "${RED}Failed${NC}:  $((bad_pass + bad_fail))"
-echo "${RED}Errors${NC}:  $((errors))"
