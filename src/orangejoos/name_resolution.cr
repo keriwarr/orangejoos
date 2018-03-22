@@ -161,6 +161,7 @@ class NameResolution
   def check_correctness(file, objectMethodDecls)
     file.ast.accept(DuplicateFieldVisitor.new)
     file.ast.accept(MethodAndCtorVisitor.new(objectMethodDecls))
+    file.ast.accept(InheritanceCheckingVisitor.new)
   end
 
   def resolve
@@ -795,10 +796,6 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
             raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
           end
 
-          if s_method.has_mod?("final") && method.equiv(s_method)
-            raise NameResolutionStageError.new("Method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a final method")
-          end
-
           if !method.has_mod?("abstract") && method.equiv(s_method)
             is_overridden_s_method? = true
           end
@@ -806,6 +803,17 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
 
         if !is_overridden_s_method?
           raise NameResolutionStageError.new("Abstract method \"#{s_method.name}\" is not defined concretely in \"#{node.name}\"")
+        end
+      end
+    end
+
+    all_super_methods = node.super_methods(@objectMethodDecls)
+    if all_super_methods.size > 0
+      all_super_methods.each do |s_method|
+        methods.each do |method|
+          if s_method.has_mod?("final") && method.signature.equiv(s_method.signature)
+            raise NameResolutionStageError.new("Method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a final method")
+          end
         end
       end
     end
