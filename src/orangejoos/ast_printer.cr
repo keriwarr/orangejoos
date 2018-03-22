@@ -217,7 +217,7 @@ module AST
       if node.typ?
         print_child("Returns: #{node.typ.to_s}", last_child)
       else
-        print_child("Returns: void", last_child) if node.typ?
+        print_child("Returns: void", last_child)
       end
       last_child = !node.body? || node.body.empty?
       print_child("Params: #{(node.params.map { |i| i.to_s }).join(", ")}", last_child) if !node.params.empty?

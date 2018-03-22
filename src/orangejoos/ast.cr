@@ -554,6 +554,25 @@ module AST
   # (either `InterfaceDecl` or `ClassDecl`).
   abstract class MemberDecl < Node
     include Modifiers
+
+    property! parent : TypeDecl
+
+    abstract def name : String
+
+    def check_field_access(current_class : ClassDecl, source_class : ClassDecl)
+      # If the field is not protected, no access problems.
+      return if !self.has_mod?("protected")
+      # If the field's class is in the same package as the current class, no access problems.
+      return if source_class.package == current_class.package
+      # If the class being accessed is a super-class.
+      return if current_class.extends?(source_class)
+      # If the class being accessed is a sub-class, but the field is from a super-class (or this class).
+      decl_class = self.parent.as(ClassDecl)
+      return if source_class.extends?(current_class) && (current_class.extends?(decl_class) || current_class == decl_class)
+
+      # Otherwise access is not permitted for the protected field.
+      raise TypeCheckStageError.new("attempting to access protected member #{source_class.qualified_name}.{#{self.name}} from class #{current_class.qualified_name}}")
+    end
   end
 
   # `FieldDecl` represents a field declaration in a class. For example:
@@ -568,6 +587,10 @@ module AST
 
     def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
+    end
+
+    def name : String
+      var.name
     end
 
     def ast_children : Array(Node)
@@ -917,9 +940,7 @@ module AST
         if field.nil?
           raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
-        if field.has_mod?("protected") && class_node.package != namespace.current_class.package
-          raise TypeCheckStageError.new("attempting to access protected field #{class_node.qualified_name}.{#{field.var.name}} from class #{namespace.current_class.qualified_name}}")
-        end
+        field.check_field_access(namespace.current_class, class_node)
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
@@ -927,9 +948,7 @@ module AST
         if field.nil?
           raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
         end
-        if field.has_mod?("protected") && class_node.package != namespace.current_class.package
-          raise TypeCheckStageError.new("attempting to access protected field #{class_node.qualified_name}.{#{field.var.name}} from class #{namespace.current_class.qualified_name}}")
-        end
+        field.check_field_access(namespace.current_class, class_node)
         return field.not_nil!.typ.to_type
       else
         raise Exception.new("unhandled case: #{typ.to_s}")
