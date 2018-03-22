@@ -107,6 +107,10 @@ module Typing
       return typ == Types::STATIC
     end
 
+    def is_number? : Bool
+      return NUMBERS.includes?(typ)
+    end
+
     def ==(other : Type) : Bool
       # When both are not arrays, instatly false.
       return false unless other.is_array == self.is_array
