@@ -158,8 +158,9 @@ class NameResolution
     return file
   end
 
-  def check_correctness(file)
+  def check_correctness(file, objectMethodDecls)
     file.ast.accept(DuplicateFieldVisitor.new)
+    file.ast.accept(DuplicateMethodVisitor.new(objectMethodDecls))
   end
 
   def resolve
@@ -183,8 +184,18 @@ class NameResolution
     # Check the hierarchy graph for any cycles.
     cycle_tracker.check
 
+    objectMethodDecls = [] of AST::MethodDecl
+    # Grab the methods that were declared in the java.lang.Object Class
+    if @use_stdlib
+      files.each do |f|
+        next if f.ast.package?.try(&.path.name) != "java.lang"
+        next unless f.ast.decl?("Object")
+        objectMethodDecls = f.ast.decl("Object").methods
+      end
+    end
+
     # Check the correctness of classes and interfaces.
-    files.each { |f| check_correctness(f) }
+    files.each { |f| check_correctness(f, objectMethodDecls) }
 
     # Resolve all variables found in the files. This mutates the AST
     # in-place by resolving `Name.ref`.
@@ -724,6 +735,42 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
     end
 
     super
+  end
+end
+
+# `DuplicateFieldVisitor` checks the correctness of the method declarations
+# of classes and interfaces,  also taking into account inheritance.
+class DuplicateMethodVisitor < Visitor::GenericVisitor
+  def initialize(@objectMethodDecls : Array(AST::MethodDecl))
+  end
+
+  def visit(node : AST::TypeDecl) : Nil
+    # Does a type decl itself declare any pair of methods which have the same
+    # signature?
+    methods = node.methods
+    if methods.size > 1
+      methods.each_with_index do |method, idx|
+        methods[(idx + 1)..-1].each do |other|
+          if method.signature.equiv(other.signature)
+            raise NameResolutionStageError.new("Duplicate method \"#{method.name}\" within type decl \"#{node.name}\"")
+          end
+        end
+      end
+    end
+
+    # Does a type decl declare (implicitly or explicitly), any methods which
+    # have the same signature but a different return type from any other method
+    # in it's super-type-decl hierarchy?
+    all_methods = node.all_methods(@objectMethodDecls)
+    if all_methods.size > 1
+      all_methods.each_with_index do |method, idx|
+        all_methods[(idx + 1)..-1].each do |other|
+          if method.signature.equiv(other.signature) && !method.equiv(other)
+            raise NameResolutionStageError.new("Methods of name \"#{method.name}\" within type decl \"#{node.name}\" have non-matching return types or modifiers")
+          end
+        end
+      end
+    end
   end
 end
 

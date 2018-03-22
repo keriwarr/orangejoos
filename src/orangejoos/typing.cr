@@ -119,6 +119,13 @@ module Typing
       return false
     end
 
+    def equiv(other : Type) : Bool
+      return false unless self.typ == other.typ
+      return false unless self.ref? == other.ref?
+      return false unless self.is_array == other.is_array
+      return true
+    end
+
     def to_s : String
       return "<Type \"#{typ} #{ref?.try &.qualified_name} #{is_array} \">"
     end
