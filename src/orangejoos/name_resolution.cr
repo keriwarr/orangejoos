@@ -750,6 +750,10 @@ class DuplicateMethodVisitor < Visitor::GenericVisitor
     methods = node.methods
     if methods.size > 1
       methods.each_with_index do |method, idx|
+        if node.is_a?(AST::ClassDecl) && !node.has_mod?("abstract") && method.has_mod?("abstract")
+          raise NameResolutionStageError.new("Abstract method \"#{method.name}\" within non-abstract class \"#{node.name}\"")
+        end
+
         methods[(idx + 1)..-1].each do |other|
           if method.signature.equiv(other.signature)
             raise NameResolutionStageError.new("Duplicate method \"#{method.name}\" within type decl \"#{node.name}\"")
@@ -772,13 +776,35 @@ class DuplicateMethodVisitor < Visitor::GenericVisitor
       end
     end
 
-    super_methods = node.super_methods(@objectMethodDecls)
-    if super_methods.size > 1
+    super_methods = node.super_methods
+    if super_methods.size > 0
       super_methods.each do |s_method|
+        is_overridden_s_method? = true
+        if s_method.has_mod?("abstract") && !node.has_mod?("abstract")
+          is_overridden_s_method? = false
+          super_methods.each do |other_s_method|
+            if !other_s_method.has_mod?("abstract") && other_s_method.equiv(s_method)
+              is_overridden_s_method? = true
+            end
+          end
+        end
+
         methods.each do |method|
-          if method.equiv(s_method) && s_method.has_mod?("public") && method.has_mod?("protected")
+          if s_method.has_mod?("public") && method.has_mod?("protected") && method.equiv(s_method)
             raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
           end
+
+          if s_method.has_mod?("final") && method.equiv(s_method)
+            raise NameResolutionStageError.new("Method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a final method")
+          end
+
+          if !method.has_mod?("abstract") && method.equiv(s_method)
+            is_overridden_s_method? = true
+          end
+        end
+
+        if !is_overridden_s_method?
+          raise NameResolutionStageError.new("Abstract method \"#{s_method.name}\" is not defined concretely in \"#{node.name}\"")
         end
       end
     end

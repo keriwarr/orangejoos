@@ -74,6 +74,10 @@ module AST
       @modifiers = Set(String).new(mods.map(&.name))
     end
 
+    def add(mod : String)
+      @modifiers = @modifiers.add(mod)
+    end
+
     # FIXME(joey): For maximum correctness, the parameter type should be
     # an ENUM of all correct modifiers.
     def has_mod?(modifier : String)
@@ -340,6 +344,8 @@ module AST
   # FIXME(joey): Interface and Class could maybe be squashed into one
   # node.
   abstract class TypeDecl < Node
+    # NOTE: Interfaces are implicitly abstract, and are explicitly given the abstract modifier
+    # during simplification
     include Modifiers
 
     property! name : String
