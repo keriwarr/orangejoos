@@ -63,7 +63,7 @@ module AST
     end
 
     def params_equiv(other : MethodSignature)
-      params.size == other.params.size && params.zip(other.params).all? { |a, b| a == b }
+      params.size == other.params.size && params.zip(other.params).all? { |a, b| a.equiv(b) }
     end
   end
 
@@ -153,6 +153,8 @@ module AST
     abstract def to_type : Typing::Type
 
     abstract def to_s : String
+
+    abstract def ==(other : Typ) : Bool
   end
 
   # `PrimitiveTyp` represents built-in types. This includes the types:
@@ -343,7 +345,10 @@ module AST
     property! name : String
     property! qualified_name : String
 
-    abstract def methods : Array(MethodDecl)
+    # objectMethodDecls is used in InterfaceDecl
+    abstract def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+    abstract def methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+    abstract def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
     abstract def non_static_fields : Array(FieldDecl)
     abstract def static_fields : Array(FieldDecl)
     abstract def all_non_static_fields : Array(FieldDecl)
@@ -351,8 +356,12 @@ module AST
 
     def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
       signature = MethodSignature.new(name, args)
-      result = methods.find { |m| MethodSignature.new(m).equiv(signature) }
+      result = all_methods.find { |m| MethodSignature.new(m).equiv(signature) }
       return result
+    end
+
+    def ==(other : TypeDecl) : Bool
+      return self.qualified_name == other.qualified_name
     end
   end
 
@@ -398,18 +407,28 @@ module AST
       all_fields.select &.has_mod?("static")
     end
 
-    def methods : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
-      visible_methods = body.map(&.as?(MethodDecl)).compact
+    def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
-      visible_methods += super_class.ref.as(ClassDecl).methods if super_class?
+      visible_methods = [] of MethodDecl
+      visible_methods += super_class.ref.as(ClassDecl).all_methods(objectMethodDecls) if super_class?
       interfaces.each do |i|
         interface = i.ref.as(InterfaceDecl)
-        visible_methods += interface.methods
+        visible_methods += interface.all_methods(objectMethodDecls)
       end
       return visible_methods
+    end
+
+    def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = methods(objectMethodDecls)
+      visible_methods += super_methods(objectMethodDecls)
+      return visible_methods
+    end
+
+    def methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+      body.map(&.as?(MethodDecl)).compact
     end
 
     def extends?(node : ClassDecl) : Bool
@@ -452,17 +471,59 @@ module AST
       self.modifiers = modifiers
     end
 
-    def methods : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
-      visible_methods = body.map(&.as?(MethodDecl)).compact
+    # objectMethodDecls is a list of all the methods declared on the Object Class
+    # JLS 9.2 has special rules about the usage of these methods when resolving
+    # names in Interfaces
+    # Passing in objectMethodDecls will attempt to add those methods to the returned methods
+    def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
+      visible_methods = [] of MethodDecl
       extensions.each do |i|
         interface = i.ref.as(InterfaceDecl)
-        visible_methods += interface.methods
+        visible_methods += interface.all_methods(objectMethodDecls)
       end
       return visible_methods
+    end
+
+    # objectMethodDecls is a list of all the methods declared on the Object Class
+    # JLS 9.2 has special rules about the usage of these methods when resolving
+    # names in Interfaces
+    # Passing in objectMethodDecls will attempt to add those methods to the returned methods
+    def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = (
+        if extensions.size > 0
+          methods
+        else
+          methods(objectMethodDecls)
+        end
+      )
+      visible_methods += super_methods(objectMethodDecls)
+      return visible_methods
+    end
+
+    # Passing in objectMethodDecls will attempt to add those methods to the returned methods
+    def methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+      explicit_methods = body.map(&.as?(MethodDecl)).compact
+      methods = explicit_methods
+      # For each objectMethodDecl, unless a method with the same signature and
+      # return type was already declared in this interface, add an 'implicit'
+      # declaration of that method
+      objectMethodDecls.each do |objMethod|
+        explicitly_defined = false
+        explicit_methods.each do |method|
+          if method.equiv(objMethod)
+            explicitly_defined = true
+          end
+        end
+        if !explicitly_defined
+          methods.push(objMethod)
+        end
+      end
+
+      return methods
     end
 
     def extends?(node : InterfaceDecl) : Bool
@@ -1329,7 +1390,21 @@ module AST
       # foo(a java.lang.Object)
       # foo(a Object)
       # ```
-      return MethodSignature.new(self.name, self.typ, self.modifiers, self.params.map(&.typ).map(&.to_s))
+      return MethodSignature.new(self)
+    end
+
+    # This method implements equivalency in the sense of what's relevant for
+    # determining whether two methods clash with eachother during name resolution
+    # i.e. same signature and return type
+    def equiv(other : MethodDecl) : Bool
+      # They must have the same signature
+      return false unless self.signature.equiv(other.signature)
+      # If they also both don't return a value, they're equivalent
+      return true if self.typ?.nil? && other.typ?.nil?
+      # If only one doesn't return a value they're not equivalent
+      return false if self.typ?.nil? || other.typ?.nil?
+      # Otherwise, are the types they return equivalent?
+      return self.typ.to_type.equiv(other.typ.to_type)
     end
 
     def ast_children : Array(Node)
