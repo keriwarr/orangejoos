@@ -1343,8 +1343,8 @@ module AST
       return MethodSignature.new(self)
     end
 
-    # This method implements the equivalency in the sense of what's relevant
-    # for determining if to methods clash with eachother during name resolution
+    # This method implements equivalency in the sense of what's relevant for
+    # determining whether two methods clash with eachother during name resolution
     # i.e. same signature and return type
     def equiv(other : MethodDecl) : Bool
       # They must have the same signature
