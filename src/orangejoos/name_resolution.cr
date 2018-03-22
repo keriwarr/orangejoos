@@ -447,6 +447,7 @@ class CycleVisitor < Visitor::GenericVisitor
   def visit(node : AST::ClassDecl) : Nil
     if node.super_class?
       soup_class = node.super_class.ref.as(AST::ClassDecl)
+      soup_class.is_inherited = true
       @cycle_tracker.add_edge(node.qualified_name, soup_class.qualified_name)
     end
 

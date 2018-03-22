@@ -159,6 +159,7 @@ class TypeCheck
 
   def check
     @file.ast.accept(StaticThisCheckVisitor.new)
+    @file.ast.accept(DefaultCtorCheckVisitor.new)
     @file.ast.accept(TypeResolutionVisitor.new(@file.import_namespace))
     @file.ast.accept(StmtTypeCheckVisitor.new(@file.import_namespace))
   end
@@ -211,6 +212,24 @@ class StaticThisCheckVisitor < Visitor::GenericVisitor
 end
 
 
+# `DefaultCtorCheckVisitor` checks if all classes have the
+# default constructor defined. This is a Joos1W requirement.
+class DefaultCtorCheckVisitor < Visitor::GenericVisitor
+  property! has_default_constructor : Bool
+
+  def visit(node : AST::ClassDecl) : Nil
+    self.has_default_constructor = false
+    super
+    if !self.has_default_constructor && node.is_inherited
+      raise TypeCheckStageError.new("class #{node.qualified_name} does not have default constructor and is a superclass")
+    end
+  end
+
+  def visit(node : AST::ConstructorDecl) : Nil
+    self.has_default_constructor = true if node.signature.equiv(AST::MethodSignature.constructor([] of Typing::Type))
+  end
+end
+
 # `StmtTypeCheckVisitor` checks that all statements have valid type
 # inputs. For example, a for loops comparison expression must evaluate
 # to a boolean. This includes:
@@ -235,6 +254,7 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   def visit(node : AST::ConstructorDecl) : Nil
     @namespace.current_method_name = node.name
     @namespace.current_method_typ = nil
+
     super
   end
 

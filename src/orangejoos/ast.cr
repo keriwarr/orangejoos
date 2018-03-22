@@ -45,6 +45,10 @@ module AST
     def initialize(@name : String, @params : Array(Typing::Type))
     end
 
+    def self.constructor(params : Array(Typing::Type)) : MethodSignature
+      return MethodSignature.new("<CONSTRUCTOR>", params)
+    end
+
     def initialize(method : MethodDecl)
       @name = method.name
       @params = method.params.map { |p| p.typ.to_type }
@@ -64,6 +68,10 @@ module AST
 
     def params_equiv(other : MethodSignature)
       params.size == other.params.size && params.zip(other.params).all? { |a, b| a.equiv(b) }
+    end
+
+    def to_s
+      return "(MethodSignature {#{name}} params=[#{params.map &.to_s}])"
     end
   end
 
@@ -379,6 +387,8 @@ module AST
     getter interfaces : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
+    property is_inherited : Bool = false
+
     def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
@@ -442,7 +452,7 @@ module AST
     end
 
     def constructor?(args : Array(Typing::Type)) : ConstructorDecl?
-      searching_sig = MethodSignature.new("<CONSTRUCTOR>", args)
+      searching_sig = MethodSignature.constructor(args)
       result = constructors.find { |c| c.signature.equiv(searching_sig) }
       return result
     end
@@ -1455,7 +1465,7 @@ module AST
     end
 
     def signature : MethodSignature
-      return MethodSignature.new("<CONSTRUCTOR>", params.map(&.typ.to_type))
+      return MethodSignature.constructor(params.map(&.typ.to_type))
     end
 
     def ast_children : Array(Node)
