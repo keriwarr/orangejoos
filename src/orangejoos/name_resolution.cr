@@ -513,27 +513,32 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   # Namespace of the scope during AST traversal. It is populated as we
   # enter a function and encounter any `VarDeclStmt`.
   @namespace : Array({name: String, decl: DeclWrapper})
+
   # Field namespace of the scope during AST traversal. It is
   # pre-populated when we enter a `MethodDecl`.
   @field_namespace : Array({name: String, decl: DeclWrapper})
+
   # Name of the method currently being traversed.
   @current_method_name : String = ""
 
-  property! class_node : AST::ClassDecl
+  property! type_decl_node : AST::TypeDecl
 
-  # All class instance fields that are accessible. The hash is
-  # class_name -> namespace.
-  @class_instance_fields : Hash(String, Array({name: String, decl: DeclWrapper}))
+  # All type_decl instance fields that are accessible. The hash is
+  # type_decl_name -> namespace.
+  # Note that only classes have fields, as opposed to interfaces,
+  # but it is convenient to implement this in terms of type decls
+  # in general.
+  @type_decl_instance_fields : Hash(String, Array({name: String, decl: DeclWrapper}))
 
   # All static instance fields that are accessible. The hash is
-  # class_name -> namespace.
-  @class_static_fields : Hash(String, Array({name: String, decl: DeclWrapper}))
+  # type_decl_name -> namespace.
+  @type_decl_static_fields : Hash(String, Array({name: String, decl: DeclWrapper}))
 
   def initialize(@import_namespace : ImportNamespace)
     @namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
     @field_namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
-    @class_instance_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
-    @class_static_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
+    @type_decl_instance_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
+    @type_decl_static_fields = Hash(String, Array({name: String, decl: DeclWrapper})).new
   end
 
   def add_to_namespace(decl : DeclWrapper)
@@ -555,7 +560,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @namespace.push({name: name, decl: decl})
   end
 
-  def get_class_instance_fields(node : AST::ClassDecl) : Array({name: String, decl: DeclWrapper})
+  def get_type_decl_instance_fields(node : AST::TypeDecl) : Array({name: String, decl: DeclWrapper})
     # TODO(joey): This depends on the order of fields matter so that
     # shadowing fields will be near the front so they resolve instead of
     # the shadowed fields. See `ClassDecl#fields` to see a TODO for
@@ -567,7 +572,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     return namespace
   end
 
-  def get_class_static_fields(node : AST::ClassDecl) : Array({name: String, decl: DeclWrapper})
+  def get_type_decl_static_fields(node : AST::TypeDecl) : Array({name: String, decl: DeclWrapper})
     # TODO(joey): This depends on the order of fields matter so that
     # shadowing fields will be near the front so they resolve instead of
     # the shadowed fields. See `ClassDecl#fields` to see a TODO for
@@ -584,10 +589,10 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # a `SimpleName` that we do not resolve.
   end
 
-  def visit(node : AST::ClassDecl) : Nil
-    @class_instance_fields[node.name] = get_class_instance_fields(node) if !@class_instance_fields.has_key?(node.name)
-    @class_static_fields[node.name] = get_class_static_fields(node) if !@class_static_fields.has_key?(node.name)
-    @class_node = node
+  def visit(node : AST::TypeDecl) : Nil
+    @type_decl_instance_fields[node.name] = get_type_decl_instance_fields(node)
+    @type_decl_static_fields[node.name] = get_type_decl_static_fields(node)
+    @type_decl_node = node
     methods = node.body.map(&.as?(AST::MethodDecl)).compact
     methods.each { |m| m.accept(self) }
     constructors = node.body.map(&.as?(AST::ConstructorDecl)).compact
@@ -595,26 +600,15 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     fields = node.body.map(&.as?(AST::FieldDecl)).compact
     fields.each { |m| m.accept(self) }
   rescue ex : CompilerError
-    ex.register("class_name", node.name)
+    ex.register("type_decl_name", node.name)
     raise ex
   end
 
   def visit(node : AST::FieldDecl) : Nil
     if node.has_mod?("static")
-      @field_namespace = @class_static_fields[class_node.name]
+      @field_namespace = @type_decl_static_fields[type_decl_node.name]
     else
-      @field_namespace = @class_instance_fields[class_node.name]
-    end
-    super
-  end
-
-
-  def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
-    # Set up the field for evaluating any initialization.
-    if node.has_mod?("static")
-      @field_namespace = @class_static_fields[class_node.name]
-    else
-      @field_namespace = @class_instance_fields[class_node.name]
+      @field_namespace = @type_decl_instance_fields[type_decl_node.name]
     end
     super
   end
@@ -623,10 +617,11 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @current_method_name = node.name
     # Set up the field namespace.
     if node.has_mod?("static")
-      @field_namespace = @class_static_fields[class_node.name]
+      @field_namespace = @type_decl_static_fields[type_decl_node.name]
     else
-      @field_namespace = @class_instance_fields[class_node.name]
+      @field_namespace = @type_decl_instance_fields[type_decl_node.name]
     end
+
     # Start with an empty local namespace.
     @namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
 

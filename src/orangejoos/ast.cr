@@ -344,6 +344,8 @@ module AST
     property! qualified_name : String
 
     abstract def methods : Array(MethodDecl)
+    abstract def non_static_fields : Array(FieldDecl)
+    abstract def static_fields : Array(FieldDecl)
 
     def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
       signature = MethodSignature.new(name, args)
@@ -453,6 +455,14 @@ module AST
         return true if interface.extends?(node)
       end
       return false
+    end
+
+    def non_static_fields : Array(FieldDecl)
+      [] of FieldDecl
+    end
+
+    def static_fields : Array(FieldDecl)
+      [] of FieldDecl
     end
 
     def ast_children : Array(Node)
