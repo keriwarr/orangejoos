@@ -343,7 +343,7 @@ module AST
     property! name : String
     property! qualified_name : String
 
-    abstract def methods : Array(MethodDecl)
+    abstract def all_methods : Array(MethodDecl)
     abstract def non_static_fields : Array(FieldDecl)
     abstract def static_fields : Array(FieldDecl)
     abstract def all_non_static_fields : Array(FieldDecl)
@@ -351,7 +351,7 @@ module AST
 
     def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
       signature = MethodSignature.new(name, args)
-      result = methods.find { |m| MethodSignature.new(m).equiv(signature) }
+      result = all_methods.find { |m| MethodSignature.new(m).equiv(signature) }
       return result
     end
   end
@@ -398,16 +398,16 @@ module AST
       all_fields.select &.has_mod?("static")
     end
 
-    def methods : Array(MethodDecl)
+    def all_methods : Array(MethodDecl)
       # FIXME(joey): Modifier rules, for name resolution.
       visible_methods = body.map(&.as?(MethodDecl)).compact
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
-      visible_methods += super_class.ref.as(ClassDecl).methods if super_class?
+      visible_methods += super_class.ref.as(ClassDecl).all_methods if super_class?
       interfaces.each do |i|
         interface = i.ref.as(InterfaceDecl)
-        visible_methods += interface.methods
+        visible_methods += interface.all_methods
       end
       return visible_methods
     end
@@ -452,7 +452,7 @@ module AST
       self.modifiers = modifiers
     end
 
-    def methods : Array(MethodDecl)
+    def all_methods : Array(MethodDecl)
       # FIXME(joey): Modifier rules, for name resolution.
       visible_methods = body.map(&.as?(MethodDecl)).compact
       # TODO(joey): Filter out fields that will be shadowed. Currently,
@@ -460,7 +460,7 @@ module AST
       # shadowing fields will be near the front.
       extensions.each do |i|
         interface = i.ref.as(InterfaceDecl)
-        visible_methods += interface.methods
+        visible_methods += interface.all_methods
       end
       return visible_methods
     end
