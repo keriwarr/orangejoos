@@ -746,9 +746,8 @@ class Simplification
         member_decls = simplify_tree(body_tree).as(Array(AST::MemberDecl))
       end
 
-
       class_decl = AST::ClassDecl.new(name.val, modifiers, super_class, interfaces, member_decls)
-      member_decls.each {|m| m.parent = class_decl}
+      member_decls.each { |m| m.parent = class_decl }
       return class_decl
     when "InterfaceDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
@@ -772,7 +771,13 @@ class Simplification
       end
 
       iface_decl = AST::InterfaceDecl.new(name.val, modifiers, extensions, member_decls)
-      member_decls.each {|m| m.parent = iface_decl}
+      member_decls.each do |m|
+        m.parent = iface_decl
+        if m.is_a?(AST::MethodDecl)
+          m.modifiers.add("abstract")
+        end
+      end
+      iface_decl.modifiers.add("abstract")
       return iface_decl
     else
       raise UnexpectedNodeException.new("unexepected node name=#{tree.name}")
