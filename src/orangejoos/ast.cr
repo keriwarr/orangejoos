@@ -842,11 +842,15 @@ module AST
           # Special case: char can be added with numeric types, but
           # cannot be assigned between numeric types.
           if lhs.typ == Typing::Types::CHAR && rhs.typ != Typing::Types::CHAR
-            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS=#{operands[1].get_type(namespace).to_s}")
+          end
+          # Special case: you cannot assign Object to things.
+          if rhs.typ == Typing::Types::INSTANCE && rhs.ref.qualified_name == "java.lang.Object" && lhs.typ == Typing::Types::INSTANCE && lhs.ref.qualified_name != "java.lang.Object"
+            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS=#{operands[1].get_type(namespace).to_s} (cannot assign Object to other things)")
           end
           return lhs
         else
-          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS=#{operands[1].get_type(namespace).to_s}")
         end
       end
 
