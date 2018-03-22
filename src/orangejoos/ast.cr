@@ -982,6 +982,8 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       class_decl = typ.name.ref.as(ClassDecl)
+      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?("abstract")
+
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
       constructor = class_decl.constructor?(arg_types)
       raise TypeCheckStageError.new("no constructor with args (#{arg_types.map &.to_s}) on #{class_decl.qualified_name}") if constructor.nil?
