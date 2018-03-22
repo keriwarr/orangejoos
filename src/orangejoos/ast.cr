@@ -366,22 +366,22 @@ module AST
       self.modifiers = modifiers
     end
 
-    def fields : Array(FieldDecl)
+    def all_fields : Array(FieldDecl)
       # FIXME(joey): Modifier rules, for name resolution.
       visible_fields = body.map(&.as?(FieldDecl)).compact
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
-      visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
+      visible_fields += super_class.ref.as(ClassDecl).all_fields if super_class?
       return visible_fields
     end
 
     def non_static_fields : Array(FieldDecl)
-      fields.reject &.has_mod?("static")
+      all_fields.reject &.has_mod?("static")
     end
 
     def static_fields : Array(FieldDecl)
-      fields.select &.has_mod?("static")
+      all_fields.select &.has_mod?("static")
     end
 
     def methods : Array(MethodDecl)
