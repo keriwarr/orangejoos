@@ -226,7 +226,11 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
     # Special case: char can be added with numeric types, but
     # cannot be assigned between numeric types.
     if init_typ.typ == Typing::Types::CHAR && typ.typ != Typing::Types::CHAR
-      raise TypeCheckStageError.new("assignment failure between LHS=#{typ.typ.to_s} RHS=#{init_typ.typ.to_s}")
+      raise TypeCheckStageError.new("assignment failure between LHS=#{typ.to_s} RHS=#{init_typ.to_s}")
+    end
+    # Special case: you cannot assign Object to things.
+    if init_typ.typ == Typing::Types::INSTANCE && init_typ.ref.qualified_name == "java.lang.Object" && typ.typ == Typing::Types::INSTANCE && typ.ref.qualified_name != "java.lang.Object"
+      raise TypeCheckStageError.new("assignment failure between LHS=#{typ.to_s} RHS=#{init_typ.to_s}")
     end
     super
   end
@@ -243,6 +247,10 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
       # Special case: char can be added with numeric types, but
       # cannot be assigned between numeric types.
       if method_typ.typ == Typing::Types::CHAR && return_typ.typ != Typing::Types::CHAR
+        raise TypeCheckStageError.new("cannot return here #{method_typ.to_s} RHS=#{return_typ.to_s}")
+      end
+      # Special case: you cannot assign Object to things.
+      if return_typ.typ == Typing::Types::INSTANCE && return_typ.ref.qualified_name == "java.lang.Object" && method_typ.typ == Typing::Types::INSTANCE && method_typ.ref.qualified_name != "java.lang.Object"
         raise TypeCheckStageError.new("cannot return here #{method_typ.to_s} RHS=#{return_typ.to_s}")
       end
     end
