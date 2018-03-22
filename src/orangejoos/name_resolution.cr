@@ -187,10 +187,10 @@ class NameResolution
     objectMethodDecls = [] of AST::MethodDecl
     # Grab the methods that were declared in the java.lang.Object Class
     if @use_stdlib
+      object_name = AST::QualifiedName.new(["java", "lang", "Object"])
       files.each do |f|
-        next if f.ast.package?.try(&.path.name) != "java.lang"
-        next unless f.ast.decl?("Object")
-        objectMethodDecls = f.ast.decl("Object").methods
+        obj = f.import_namespace.fetch(object_name)
+        objectMethodDecls = obj.methods unless obj.nil?
       end
     end
 

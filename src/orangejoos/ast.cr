@@ -467,6 +467,7 @@ module AST
     # objectMethodDecls is a list of all the methods declared on the Object Class
     # JLS 9.2 has special rules about the usage of these methods when resolving
     # names in Interfaces
+    # Passing in objectMethodDecls will attempt to add those methods to the returned methods
     def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
       # FIXME(joey): Modifier rules, for name resolution.
       visible_methods = (
@@ -486,6 +487,7 @@ module AST
       return visible_methods
     end
 
+    # Passing in objectMethodDecls will attempt to add those methods to the returned methods
     def methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
       explicit_methods = body.map(&.as?(MethodDecl)).compact
       methods = explicit_methods
