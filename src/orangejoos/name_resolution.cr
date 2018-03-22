@@ -160,7 +160,7 @@ class NameResolution
 
   def check_correctness(file, objectMethodDecls)
     file.ast.accept(DuplicateFieldVisitor.new)
-    file.ast.accept(DuplicateMethodVisitor.new(objectMethodDecls))
+    file.ast.accept(MethodAndCtorVisitor.new(objectMethodDecls))
   end
 
   def resolve
@@ -739,8 +739,9 @@ class DuplicateFieldVisitor < Visitor::GenericVisitor
 end
 
 # `DuplicateFieldVisitor` checks the correctness of the method declarations
-# of classes and interfaces,  also taking into account inheritance.
-class DuplicateMethodVisitor < Visitor::GenericVisitor
+# and constructor declarations of classes and interfaces,
+#  also taking into account inheritance.
+class MethodAndCtorVisitor < Visitor::GenericVisitor
   def initialize(@objectMethodDecls : Array(AST::MethodDecl))
   end
 
@@ -805,6 +806,17 @@ class DuplicateMethodVisitor < Visitor::GenericVisitor
 
         if !is_overridden_s_method?
           raise NameResolutionStageError.new("Abstract method \"#{s_method.name}\" is not defined concretely in \"#{node.name}\"")
+        end
+      end
+    end
+
+    if node.is_a?(AST::ClassDecl)
+      ctors = node.constructors
+      ctors.each_with_index do |ctor, idx|
+        ctors[(idx + 1)..-1].each do |other|
+          if ctor.signature.equiv(other.signature)
+            raise NameResolutionStageError.new("Class \"#{node.name}\" has duplicate Constructors")
+          end
         end
       end
     end
