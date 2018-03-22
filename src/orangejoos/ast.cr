@@ -348,6 +348,7 @@ module AST
     # objectMethodDecls is used in InterfaceDecl
     abstract def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
     abstract def methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+    abstract def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
     abstract def non_static_fields : Array(FieldDecl)
     abstract def static_fields : Array(FieldDecl)
     abstract def all_non_static_fields : Array(FieldDecl)
@@ -406,17 +407,23 @@ module AST
       all_fields.select &.has_mod?("static")
     end
 
-    def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
-      visible_methods = methods(objectMethodDecls)
+    def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
+      visible_methods = [] of MethodDecl
       visible_methods += super_class.ref.as(ClassDecl).all_methods(objectMethodDecls) if super_class?
       interfaces.each do |i|
         interface = i.ref.as(InterfaceDecl)
         visible_methods += interface.all_methods(objectMethodDecls)
       end
+      return visible_methods
+    end
+
+    def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+      # FIXME(joey): Modifier rules, for name resolution.
+      visible_methods = methods(objectMethodDecls)
+      visible_methods += super_methods(objectMethodDecls)
       return visible_methods
     end
 
@@ -468,6 +475,22 @@ module AST
     # JLS 9.2 has special rules about the usage of these methods when resolving
     # names in Interfaces
     # Passing in objectMethodDecls will attempt to add those methods to the returned methods
+    def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
+      # TODO(joey): Filter out fields that will be shadowed. Currently,
+      # there will be duplicates. The order of fields matter so that
+      # shadowing fields will be near the front.
+      visible_methods = [] of MethodDecl
+      extensions.each do |i|
+        interface = i.ref.as(InterfaceDecl)
+        visible_methods += interface.all_methods(objectMethodDecls)
+      end
+      return visible_methods
+    end
+
+    # objectMethodDecls is a list of all the methods declared on the Object Class
+    # JLS 9.2 has special rules about the usage of these methods when resolving
+    # names in Interfaces
+    # Passing in objectMethodDecls will attempt to add those methods to the returned methods
     def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
       # FIXME(joey): Modifier rules, for name resolution.
       visible_methods = (
@@ -477,13 +500,7 @@ module AST
           methods(objectMethodDecls)
         end
       )
-      # TODO(joey): Filter out fields that will be shadowed. Currently,
-      # there will be duplicates. The order of fields matter so that
-      # shadowing fields will be near the front.
-      extensions.each do |i|
-        interface = i.ref.as(InterfaceDecl)
-        visible_methods += interface.all_methods(objectMethodDecls)
-      end
+      visible_methods += super_methods(objectMethodDecls)
       return visible_methods
     end
 

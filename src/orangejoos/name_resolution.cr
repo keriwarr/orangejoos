@@ -771,6 +771,17 @@ class DuplicateMethodVisitor < Visitor::GenericVisitor
         end
       end
     end
+
+    super_methods = node.super_methods(@objectMethodDecls)
+    if super_methods.size > 1
+      super_methods.each do |s_method|
+        methods.each do |method|
+          if method.equiv(s_method) && s_method.has_mod?("public") && method.has_mod?("protected")
+            raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
+          end
+        end
+      end
+    end
   end
 end
 
