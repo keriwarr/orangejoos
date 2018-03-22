@@ -805,7 +805,7 @@ module AST
         end
       end
 
-      if op == "==" && operands.size == 2
+      if ["==", "!="].includes?(op) && operands.size == 2
         lhs = operands[0].get_type(namespace)
         rhs = operands[1].get_type(namespace)
         if Typing.can_convert_type(rhs, lhs)
