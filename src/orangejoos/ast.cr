@@ -418,6 +418,11 @@ module AST
       return false
     end
 
+    # Get the full package name of the class.
+    def package
+      qualified_name.split(".")[0...-1].join(".")
+    end
+
     def ast_children : Array(Node)
       [super_class?.as?(Node), interfaces.map &.as(Node), body.map &.as(Node)].flatten.compact
     end
@@ -890,12 +895,18 @@ module AST
         if field.nil?
           raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
+        if field.has_mod?("protected") && class_node.package != namespace.current_class.package
+          raise TypeCheckStageError.new("attempting to access protected field #{class_node.qualified_name}.{#{field.var.name}} from class #{namespace.current_class.qualified_name}}")
+        end
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
         field = class_node.non_static_fields.find { |f| f.var.name == @field_name }
         if field.nil?
           raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
+        end
+        if field.has_mod?("protected") && class_node.package != namespace.current_class.package
+          raise TypeCheckStageError.new("attempting to access protected field #{class_node.qualified_name}.{#{field.var.name}} from class #{namespace.current_class.qualified_name}}")
         end
         return field.not_nil!.typ.to_type
       else
