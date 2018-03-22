@@ -437,6 +437,10 @@ module AST
       body.map(&.as?(MethodDecl)).compact
     end
 
+    def constructors : Array(ConstructorDecl)
+      body.map(&.as?(ConstructorDecl)).compact
+    end
+
     def extends?(node : ClassDecl) : Bool
       return true if super_class? && super_class.ref.as(ClassDecl).qualified_name == node.qualified_name
       # TODO(joey): This is terribly inefficient lookup which could be
@@ -1435,6 +1439,10 @@ module AST
 
     def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
+    end
+
+    def signature : MethodSignature
+      return MethodSignature.new("<CONSTRCUTOR>", params.map(&.typ.to_type))
     end
 
     def ast_children : Array(Node)
