@@ -1442,7 +1442,7 @@ module AST
     end
 
     def signature : MethodSignature
-      return MethodSignature.new("<CONSTRCUTOR>", params.map(&.typ.to_type))
+      return MethodSignature.new("<CONSTRUCTOR>", params.map(&.typ.to_type))
     end
 
     def ast_children : Array(Node)
