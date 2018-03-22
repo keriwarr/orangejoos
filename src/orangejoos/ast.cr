@@ -958,6 +958,10 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
+      if !index.resolve_type(namespace).is_number?
+        raise TypeCheckStageError.new("array index expression is not a number: expr=#{index.to_s}")
+      end
+
       expr.get_type(namespace).from_array_type
     end
 
@@ -990,6 +994,10 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
+      if !dim.resolve_type(namespace).is_number?
+        raise TypeCheckStageError.new("array init dimension expression is not a number: expr=#{dim.to_s}")
+      end
+
       # Crystal cannot modify the type from a method, `#arr`.
       node = arr
       case node
