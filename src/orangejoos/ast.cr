@@ -346,6 +346,8 @@ module AST
     abstract def methods : Array(MethodDecl)
     abstract def non_static_fields : Array(FieldDecl)
     abstract def static_fields : Array(FieldDecl)
+    abstract def all_non_static_fields : Array(FieldDecl)
+    abstract def all_static_fields : Array(FieldDecl)
 
     def method?(name : String, args : Array(Typing::Type)) : MethodDecl?
       signature = MethodSignature.new(name, args)
@@ -366,14 +368,18 @@ module AST
       self.modifiers = modifiers
     end
 
-    def fields : Array(FieldDecl)
+    def all_fields : Array(FieldDecl)
       # FIXME(joey): Modifier rules, for name resolution.
       visible_fields = body.map(&.as?(FieldDecl)).compact
       # TODO(joey): Filter out fields that will be shadowed. Currently,
       # there will be duplicates. The order of fields matter so that
       # shadowing fields will be near the front.
-      visible_fields += super_class.ref.as(ClassDecl).fields if super_class?
+      visible_fields += super_class.ref.as(ClassDecl).all_fields if super_class?
       return visible_fields
+    end
+
+    def fields : Array(FieldDecl)
+      body.map(&.as?(FieldDecl)).compact
     end
 
     def non_static_fields : Array(FieldDecl)
@@ -382,6 +388,14 @@ module AST
 
     def static_fields : Array(FieldDecl)
       fields.select &.has_mod?("static")
+    end
+
+    def all_non_static_fields : Array(FieldDecl)
+      all_fields.reject &.has_mod?("static")
+    end
+
+    def all_static_fields : Array(FieldDecl)
+      all_fields.select &.has_mod?("static")
     end
 
     def methods : Array(MethodDecl)
@@ -467,6 +481,14 @@ module AST
     end
 
     def static_fields : Array(FieldDecl)
+      [] of FieldDecl
+    end
+
+    def all_non_static_fields : Array(FieldDecl)
+      [] of FieldDecl
+    end
+
+    def all_static_fields : Array(FieldDecl)
       [] of FieldDecl
     end
 
@@ -891,7 +913,7 @@ module AST
         return Typing::Type.new(Typing::Types::INT)
       elsif typ.is_type?(Typing::Types::STATIC)
         class_node = typ.ref.as(ClassDecl)
-        field = class_node.static_fields.find { |f| f.var.name == @field_name }
+        field = class_node.all_static_fields.find { |f| f.var.name == @field_name }
         if field.nil?
           raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
@@ -901,7 +923,7 @@ module AST
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
-        field = class_node.non_static_fields.find { |f| f.var.name == @field_name }
+        field = class_node.all_non_static_fields.find { |f| f.var.name == @field_name }
         if field.nil?
           raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
         end

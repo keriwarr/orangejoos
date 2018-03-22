@@ -568,7 +568,9 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # We use `namespace` to ensure the return value type matches the
     # function signature.
     namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
-    node.non_static_fields.each { |field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)}) }
+    node.all_non_static_fields.each do |field|
+      namespace.push({name: field.var.name, decl: DeclWrapper.new(field)})
+    end
     return namespace
   end
 
@@ -580,7 +582,9 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     # We use `namespace` to ensure the return value type matches the
     # function signature.
     namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
-    node.static_fields.each { |field| namespace.push({name: field.var.name, decl: DeclWrapper.new(field)}) }
+    node.all_static_fields.each do |field|
+      namespace.push({name: field.var.name, decl: DeclWrapper.new(field)})
+    end
     return namespace
   end
 
@@ -590,9 +594,9 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::TypeDecl) : Nil
+    @type_decl_node = node
     @type_decl_instance_fields[node.name] = get_type_decl_instance_fields(node)
     @type_decl_static_fields[node.name] = get_type_decl_static_fields(node)
-    @type_decl_node = node
     methods = node.body.map(&.as?(AST::MethodDecl)).compact
     methods.each { |m| m.accept(self) }
     constructors = node.body.map(&.as?(AST::ConstructorDecl)).compact
@@ -610,6 +614,9 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     else
       @field_namespace = @type_decl_instance_fields[type_decl_node.name]
     end
+
+    # We now use the assignde @field_namespace to validate name usage inside
+    # the initializer, by calling super.
     super
   end
 
@@ -708,15 +715,11 @@ end
 # `DuplicateFieldVisitor` checks the correctness of a classes
 # declarations, also taking into account inheritance.
 class DuplicateFieldVisitor < Visitor::GenericVisitor
-  def initialize
-  end
-
   def visit(node : AST::ClassDecl) : Nil
     field_set = Set(String).new
     node.fields.each do |f|
       field = f.as(AST::FieldDecl)
-      # FIXME(joey): A field can be shadowed, so this check is removed. This should only check non-inherited fields.
-      # raise NameResolutionStageError.new("field \"#{field.decl.name}\" is redefined") if field_set.includes?(field.decl.name)
+      raise NameResolutionStageError.new("field \"#{field.var.name}\" is redefined") if field_set.includes?(field.var.name)
       field_set.add(field.var.name)
     end
 
