@@ -792,10 +792,6 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
         end
 
         methods.each do |method|
-          if s_method.has_mod?("public") && method.has_mod?("protected") && method.equiv(s_method)
-            raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
-          end
-
           if !method.has_mod?("abstract") && method.equiv(s_method)
             is_overridden_s_method? = true
           end
@@ -811,8 +807,20 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
     if all_super_methods.size > 0
       all_super_methods.each do |s_method|
         methods.each do |method|
+          if s_method.has_mod?("public") && method.has_mod?("protected") && method.equiv(s_method)
+            raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
+          end
+
           if s_method.has_mod?("final") && method.signature.equiv(s_method.signature)
             raise NameResolutionStageError.new("Method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a final method")
+          end
+
+          if s_method.has_mod?("static") && !method.has_mod?("static") && method.equiv(s_method)
+            raise NameResolutionStageError.new("Instance method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a static method")
+          end
+
+          if !s_method.has_mod?("static") && method.has_mod?("static") && method.equiv(s_method)
+            raise NameResolutionStageError.new("Static method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding an instance method")
           end
         end
       end
@@ -831,12 +839,34 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
   end
 end
 
+class InheritanceCheckingVisitor < Visitor::GenericVisitor
+  def visit(node : AST::ClassDecl) : Nil
+    if node.super_class? && node.super_class.ref.is_a?(AST::ClassDecl) && node.super_class.ref.as(AST::ClassDecl).has_mod?("final")
+      raise NameResolutionStageError.new("Class \"#{node.name}\" extends final class \"#{node.super_class.ref.as(AST::ClassDecl).name}\"")
+    end
+  end
+end
+
 # `ClassTypResolutionVisitor` resolves the types in variable and
 # field declarations.
 class ClassTypResolutionVisitor < Visitor::GenericVisitor
   @namespace : ImportNamespace
 
   def initialize(@namespace : ImportNamespace)
+  end
+
+  def visit(node : AST::ClassDecl) : Nil
+    if !node.super_class? && node.qualified_name != "java.lang.Object"
+      name = AST::QualifiedName.new(["java", "lang", "Object"])
+      typ = @namespace.fetch(name).as?(AST::ClassDecl)
+      if typ.nil?
+        # FIXME(joey): assume no-stdlib mode. correctl check the flag.
+      else
+        name.ref = typ
+        node.super_class = name
+      end
+    end
+    super
   end
 
   def visit(node : AST::ClassTyp) : Nil
