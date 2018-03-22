@@ -68,6 +68,7 @@ module Typing
   # - Varible decls
   # - Field decls
   # - Assignment operation
+  # - Return statements
   def self.can_assign_type(from : Type, to : Type) : Bool
     # Only allow upcasting numeric assignments (similarily for arrays).
     # Do not allow assignments such as:
@@ -86,17 +87,6 @@ module Typing
 
     return _can_change_type(from, to)
   end
-
-  # Handles type conversions for: return statements.
-  # FIXME(joey): The only special rule for this has since been debunked
-  # (char -> int), as it also applies for assignability. This function
-  # may not be needed.
-  def self.can_convert_type(from : Type, to : Type) : Bool
-    return true if _can_change_type(from, to)
-
-    return false
-  end
-
 
   def self._can_change_type(from : Type, to : Type) : Bool
     return true if from == to
@@ -358,7 +348,7 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
       raise TypeCheckStageError.new("method #{method_name} is void but returning #{return_typ.try &.to_s}") if !return_typ.nil?
     else
       raise TypeCheckStageError.new("method #{method_name} has empty return, expected #{method_typ.try &.to_s}") if return_typ.nil?
-      if !Typing.can_convert_type(return_typ, method_typ)
+      if !Typing.can_assign_type(return_typ, method_typ)
         raise TypeCheckStageError.new("method #{method_name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}")
       end
     end
