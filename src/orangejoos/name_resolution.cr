@@ -819,6 +819,20 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
   def initialize(@namespace : ImportNamespace)
   end
 
+  def visit(node : AST::ClassDecl) : Nil
+    if !node.super_class? && node.qualified_name != "java.lang.Object"
+      name = AST::QualifiedName.new(["java", "lang", "Object"])
+      typ = @namespace.fetch(name).as?(AST::ClassDecl)
+      if typ.nil?
+        # FIXME(joey): assume no-stdlib mode. correctl check the flag.
+      else
+        name.ref = typ
+        node.super_class = name
+      end
+    end
+    super
+  end
+
   def visit(node : AST::ClassTyp) : Nil
     typ = @namespace.fetch(node.name)
     if typ.nil?

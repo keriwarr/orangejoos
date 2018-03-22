@@ -882,52 +882,48 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN) }
+      operand_typs = operands.map { |o| o.get_type(namespace).as(Typing::Type) }
+
+      if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operand_typs.all? { |t| t.is_type?(Typing::Types::BOOLEAN) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
-      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::NUM) }
-        return Typing::Type.new(Typing::Types::NUM)
+      # NOTE: During integer operations inputs are always widened to
+      # ints, and the resuling value is an int.
+
+      if BINARY_NUM_OPS.includes?(op) && operands.size == 2 && operand_typs.all? { |t| t.is_number? || t.is_type?(Typing::Types::CHAR) }
+        return Typing::Type.new(Typing::Types::INT)
       end
 
-      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::NUM) }
-        return Typing::Type.new(Typing::Types::NUM)
+      if UNARY_NUM_OPS.includes?(op) && operands.size == 1 && operand_typs.all? { |t| t.is_number? || t.is_type?(Typing::Types::CHAR) }
+        return Typing::Type.new(Typing::Types::INT)
       end
 
-      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::NUM) }
+      if NUM_CMP_OPS.includes?(op) && operands.size == 2 && operand_typs.all? { |t| t.is_number? || t.is_type?(Typing::Types::CHAR) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
-      if op == "!" && operands.size == 1 && operands.all? { |o| o.get_type(namespace).is_type?(Typing::Types::BOOLEAN) }
+      if op == "!" && operands.size == 1 && operand_typs.all? { |t| t.is_type?(Typing::Types::BOOLEAN) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
 
       if op == "=" && operands.size == 2
-        lhs = operands[0].get_type(namespace)
-        rhs = operands[1].get_type(namespace)
-        if Typing.can_convert_type(rhs, lhs)
-          # Special case: char can be added with numeric types, but
-          # cannot be assigned between numeric types.
-          if lhs.typ == Typing::Types::CHAR && rhs.typ != Typing::Types::CHAR
-            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS=#{operands[1].get_type(namespace).to_s}")
-          end
-          # Special case: you cannot assign Object to things.
-          if rhs.typ == Typing::Types::INSTANCE && rhs.ref.qualified_name == "java.lang.Object" && lhs.typ == Typing::Types::INSTANCE && lhs.ref.qualified_name != "java.lang.Object"
-            raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS=#{operands[1].get_type(namespace).to_s} (cannot assign Object to other things)")
-          end
+        lhs = operand_typs[0]
+        rhs = operand_typs[1]
+        if Typing.can_assign_type(rhs, lhs)
           return lhs
         else
-          raise TypeCheckStageError.new("assignment failure between LHS=#{operands[0].get_type(namespace).to_s} RHS=#{operands[1].get_type(namespace).to_s}")
+          raise TypeCheckStageError.new("assignment failure between LHS=#{operand_typs[0].to_s} RHS=#{operand_typs[1].to_s}")
         end
       end
 
       if ["==", "!="].includes?(op) && operands.size == 2
-        lhs = operands[0].get_type(namespace)
-        rhs = operands[1].get_type(namespace)
-        if Typing.can_convert_type(rhs, lhs)
+        lhs = operand_typs[0]
+        rhs = operand_typs[1]
+        if Typing.can_cast_type(rhs, lhs)
           return Typing::Type.new(Typing::Types::BOOLEAN)
         else
-          raise TypeCheckStageError.new("equality between two different types: LHS=#{operands[0].get_type(namespace).to_s} RHS#{operands[1].get_type(namespace).to_s}")
+          raise TypeCheckStageError.new("equality between two different types: LHS=#{operand_typs[0].to_s} RHS#{operand_typs[1].to_s}")
         end
       end
 
@@ -935,13 +931,13 @@ module AST
       # type is casted to a String using `toString()` or converting the
       # primitive type.
       if op == "+" && operands.size == 2 &&
-         (operands[0].get_type(namespace) == AST.get_string_type(namespace) || operands[1].get_type(namespace) == AST.get_string_type(namespace))
+         (operand_typs[0] == AST.get_string_type(namespace) || operand_typs[1] == AST.get_string_type(namespace))
         return AST.get_string_type(namespace)
       end
 
       # FIXME(joey): Add exhaustive operators.
-      types = operands.map { |o| o.get_type(namespace).as(Typing::Type).to_s }
-      raise Exception.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
+      types = operand_typs.map &.to_s
+      raise TypeCheckStageError.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
     end
 
     def ast_children : Array(Node)
@@ -997,7 +993,7 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       typ = obj.get_type(namespace)
-      unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array || typ.is_type?(Typing::Types::STATIC)
+      unless typ.is_object? && typ.ref.is_a?(ClassDecl) || typ.is_array || typ.is_static?
         raise TypeCheckStageError.new("cannot access field of non-class type or non-array type")
       end
       if typ.is_array
@@ -1005,7 +1001,7 @@ module AST
           raise TypeCheckStageError.new("array is not a field, can only access 'length'")
         end
         return Typing::Type.new(Typing::Types::INT)
-      elsif typ.is_type?(Typing::Types::STATIC)
+      elsif typ.is_static?
         class_node = typ.ref.as(ClassDecl)
         field = class_node.all_static_fields.find { |f| f.var.name == @field_name }
         if field.nil?
@@ -1048,7 +1044,8 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      if !index.resolve_type(namespace).is_number?
+      typ = index.resolve_type(namespace)
+      unless typ.is_number? || typ.is_type?(Typing::Types::CHAR)
         raise TypeCheckStageError.new("array index expression is not a number: expr=#{index.to_s}")
       end
 
@@ -1084,7 +1081,8 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      if !dim.resolve_type(namespace).is_number?
+      typ = dim.resolve_type(namespace)
+      unless typ.is_number? || typ.is_type?(Typing::Types::CHAR)
         raise TypeCheckStageError.new("array init dimension expression is not a number: expr=#{dim.to_s}")
       end
 
@@ -1209,11 +1207,11 @@ module AST
       typ = instance_type.ref.as(AST::TypeDecl)
       method = typ.method?(name, arg_types)
 
-      raise TypeCheckStageError.new("no method {#{name}} on #{typ.qualified_name}") if method.nil?
+      raise TypeCheckStageError.new("no method {#{name}}(#{arg_types.map &.to_s}) on #{typ.qualified_name}") if method.nil?
 
       method = method.not_nil!
 
-      if instance_type.is_type?(Typing::Types::STATIC)
+      if instance_type.is_static?
         raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?("static")
       else
         raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?("static")
@@ -1255,9 +1253,9 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation.
-      # I think constants evaluated to the smallest type they can.
-      return Typing::Type.new(Typing::Types::NUM)
+      # as a result of computation. I think constants evaluated to the
+      # smallest type they can.
+      return Typing::Type.new(Typing::Types::INT)
     end
   end
 
@@ -1474,7 +1472,7 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       expr_type = rhs.get_type(namespace)
-      raise TypeCheckStageError.new("cannot cast from #{expr_type.to_s} to #{typ.to_type.to_s}") if !Typing.can_convert_type(expr_type, typ.to_type)
+      raise TypeCheckStageError.new("cannot cast from #{expr_type.to_s} to #{typ.to_type.to_s}") if !Typing.can_cast_type(expr_type, typ.to_type)
       return typ.to_type
     end
 
