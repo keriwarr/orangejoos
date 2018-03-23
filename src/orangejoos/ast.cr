@@ -646,18 +646,20 @@ module AST
 
     abstract def name : String
 
-    def check_field_access(current_class : ClassDecl, source_class : ClassDecl)
-      # If the field is not protected, no access problems.
+    def check_access(current_class : ClassDecl, source_class : ClassDecl)
+      # If the class member is not protected, no access problems.
       return if !self.has_mod?("protected")
-      # If the field's class is in the same package as the current class, no access problems.
+      # If the member's class is in the same package as the current
+      # class, no access problems.
       return if source_class.package == current_class.package
       # If the class being accessed is a super-class.
       return if current_class.extends?(source_class)
-      # If the class being accessed is a sub-class, but the field is from a super-class (or this class).
+      # If the class being accessed is a sub-class, but the member is
+      # from a super-class (or this class).
       decl_class = self.parent.as(ClassDecl)
       return if source_class.extends?(current_class) && (current_class.extends?(decl_class) || current_class == decl_class)
 
-      # Otherwise access is not permitted for the protected field.
+      # Otherwise access is not permitted for the protected member.
       raise TypeCheckStageError.new("attempting to access protected member #{source_class.qualified_name}.{#{self.name}} from class #{current_class.qualified_name}}")
     end
   end
@@ -1005,6 +1007,13 @@ module AST
       constructor = class_decl.constructor?(arg_types)
       raise TypeCheckStageError.new("no constructor with args (#{arg_types.map &.to_s}) on #{class_decl.qualified_name}") if constructor.nil?
       constructor = constructor.not_nil!
+
+      # Check if the constructor is protected, and if it is check if the
+      # class is inside the same package.
+      if constructor.has_mod?("protected") && class_decl.package != namespace.current_class.package
+        raise TypeCheckStageError.new("cannot access protected constructor inside #{class_decl.qualified_name}")
+      end
+
       return Typing::Type.new(Typing::Types::INSTANCE, class_decl)
     end
 
@@ -1045,7 +1054,7 @@ module AST
         if field.nil?
           raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
-        field.check_field_access(namespace.current_class, class_node)
+        field.check_access(namespace.current_class, class_node)
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
@@ -1053,7 +1062,7 @@ module AST
         if field.nil?
           raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
         end
-        field.check_field_access(namespace.current_class, class_node)
+        field.check_access(namespace.current_class, class_node)
         return field.not_nil!.typ.to_type
       else
         raise Exception.new("unhandled case: #{typ.to_s}")
@@ -1246,8 +1255,13 @@ module AST
       method = typ.method?(name, arg_types)
 
       raise TypeCheckStageError.new("no method {#{name}}(#{arg_types.map &.to_s}) on #{typ.qualified_name}") if method.nil?
-
       method = method.not_nil!
+
+      # FIXME(joey): We only check access rules for class method calls,
+      # not interfaces.
+      if typ.is_a?(AST::ClassDecl)
+        method.check_access(namespace.current_class, typ)
+      end
 
       if instance_type.is_static?
         raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?("static")
