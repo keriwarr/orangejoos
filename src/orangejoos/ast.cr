@@ -904,6 +904,10 @@ module AST
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       operand_typs = operands.map { |o| o.get_type(namespace).as(Typing::Type) }
 
+      if operand_typs.any? { |o| o.is_type?(Typing::Types::VOID) }
+        raise TypeCheckStageError.new("cannot use void return value in expression")
+      end
+
       if BOOLEAN_OPS.includes?(op) && operands.size == 2 && operand_typs.all? { |t| t.is_type?(Typing::Types::BOOLEAN) }
         return Typing::Type.new(Typing::Types::BOOLEAN)
       end
