@@ -1,7 +1,6 @@
 module Typing
   enum Types
     CHAR
-    NUM
     INT
     SHORT
     BYTE
@@ -14,34 +13,36 @@ module Typing
     STATIC
   end
 
-  PRIMITIVES = [Types::CHAR, Types::NUM, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
-  NUMBERS    = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR, Types::NUM]
+  PRIMITIVES = [Types::CHAR, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
+  NUMBERS_WITH_CHAR    = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR]
+  NUMBERS    = [Types::INT, Types::SHORT, Types::BYTE]
 
-  def self.can_convert_type(from : Type, to : Type) : Bool
-    return true if from == to
 
-    return true if from.is_type?(Types::NUM) && to.is_type?(Types::NUM)
 
-    # 5.1.4 Widening Reference Conversions
+  # Handles type conversions for casting operations, including:
+  # - Casting
+  # - Equality (==, !=)
+  def self.can_cast_type(from : Type, to : Type) : Bool
+    return true if _can_change_type(from, to)
 
-    # From null to any class, interface, or array type.
-    return true if from.is_type?(Types::NULL) && (to.is_object? || to.is_array)
+    # Allow casts between numeric types (including chars).
+    return true if NUMBERS_WITH_CHAR.includes?(from.typ) && NUMBERS_WITH_CHAR.includes?(to.typ) && from.is_array == to.is_array
 
-    # From array type to Object, Cloneable, or java.io.Serializable.
-    return true if from.is_array && to.is_object? && ["java.lang.Object", "java.io.Serializable", "java.lang.Cloneable"].includes?(to.ref.as(AST::TypeDecl).qualified_name)
+
+    # Special case: conversion from Object to Object[].
+    return true if from.is_object? && !from.is_array && to.is_object? && to.is_array && from.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object" && to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
 
     if from.is_object? && from.ref.is_a?(AST::InterfaceDecl) && to.is_object?
       from_interface = from.ref.as(AST::InterfaceDecl)
-
-      # From any interface type to Object.
-      return true if to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
-
       # From any interface J to any interface K if J is a subinterface of K.
       return true if to.ref.is_a?(AST::InterfaceDecl) &&
                      to.ref.as(AST::InterfaceDecl).extends?(from.ref.as(AST::InterfaceDecl))
     end
 
     if from.is_object? && to.is_object?
+      # Between Object and any type.
+      return true if from.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object" || to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
+
       # From any class S to an interface K, if the class S implements the
       # interface K.
       return true if from.ref.is_a?(AST::ClassDecl) && to.ref.is_a?(AST::InterfaceDecl) &&
@@ -52,8 +53,83 @@ module Typing
       return true if from.ref.is_a?(AST::ClassDecl) && to.ref.is_a?(AST::ClassDecl) &&
                      from.ref.as(AST::ClassDecl).extends?(to.ref.as(AST::ClassDecl))
 
+      # From any class S to another class T, if S is a superclass of T.
+      # (Special case to Object).
+      return true if to.ref.is_a?(AST::ClassDecl) && from.ref.is_a?(AST::ClassDecl) &&
+                     to.ref.as(AST::ClassDecl).extends?(from.ref.as(AST::ClassDecl))
+
       # Special case: conversion from Object to Object[].
       return true if from.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object" && to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
+    end
+    return false
+  end
+
+  # Handles type conversions for type assignments, including:
+  # - Varible decls
+  # - Field decls
+  # - Assignment operation
+  # - Return statements
+  def self.can_assign_type(from : Type, to : Type) : Bool
+    # Only allow upcasting numeric assignments (similarily for arrays).
+    # Do not allow assignments such as:
+    #    byte <- int
+    #    short <- int
+    if from.is_number? && to.is_number? && from.is_array == to.is_array
+      # Only allow int <- int, not:
+      #   {byte,short} <- int
+      return false if from.typ == Types::INT && to.typ != Types::INT
+      # Only allow {short, int} <- short, not:
+      #   byte <- short
+      return false if from.typ == Types::SHORT && to.typ == Types::BYTE
+      # Disallow int[] <- byte[]. int <- byte is allowed though.
+      return false if from.typ == Types::BYTE && to.typ == Types::INT && from.is_array && to.is_array
+    end
+
+    return _can_change_type(from, to)
+  end
+
+  def self._can_change_type(from : Type, to : Type) : Bool
+    return true if from == to
+
+    # From null to any class, interface, or array type.
+    return true if from.typ == Types::NULL && (to.is_object? || to.is_array)
+
+    # From any interface/class type (any dimension) to Object.
+    return true if (from.is_object? || from.is_array) && !to.is_array && to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
+
+    # From array type to Object, Cloneable, or java.io.Serializable.
+    return true if from.is_array && to.is_object? && !to.is_array && ["java.lang.Object", "java.io.Serializable", "java.lang.Cloneable"].includes?(to.ref.as(AST::TypeDecl).qualified_name)
+
+    # Everything after must have same array-ness.
+    return false if from.is_array != to.is_array
+
+    # Allow casts between numeric types (not including chars), that are not arrays.
+    return true if !from.is_array && from.is_number? && to.is_number? && to.typ != Typing::Types::CHAR && from.typ != Typing::Types::CHAR
+
+    # Allow casts from char to int, that are not arrays.
+    return true if !from.is_array && from.is_type?(Types::CHAR) && to.typ == Types::INT
+
+    # Most of these rules are for 5.1.4 Widening Reference Conversions
+
+    if from.is_object? && from.ref.is_a?(AST::InterfaceDecl) && to.is_object?
+      from_interface = from.ref.as(AST::InterfaceDecl)
+
+
+      # From any interface J to any interface K if J is a subinterface of K.
+      return true if to.ref.is_a?(AST::InterfaceDecl) &&
+                     to.ref.as(AST::InterfaceDecl).extends?(from.ref.as(AST::InterfaceDecl))
+    end
+
+    if from.is_object? && to.is_object?
+      # From any class S to another class T, if S is a subclass of T.
+      # (Special case to Object).
+      return true if from.ref.is_a?(AST::ClassDecl) && to.ref.is_a?(AST::ClassDecl) &&
+                     from.ref.as(AST::ClassDecl).extends?(to.ref.as(AST::ClassDecl))
+
+      # # From any class S to another class T, if S is a superclass of T.
+      # # (Special case to Object).
+      # return true if to.ref.is_a?(AST::ClassDecl) && from.ref.is_a?(AST::ClassDecl) &&
+      #                to.ref.as(AST::ClassDecl).extends?(from.ref.as(AST::ClassDecl))
     end
 
     return false
@@ -64,7 +140,17 @@ module Typing
     property! ref : AST::TypeDecl
     property is_array : Bool = false
 
+    def ref ; AST::TypeDecl
+      if !@ref.nil?
+        return @ref.not_nil!
+      end
+      raise Exception.new("ref not evaluated for #{typ}")
+    end
+
     def initialize(@typ : Types)
+      if [Types::INSTANCE, Types::STATIC].includes?(@typ)
+        raise Exception.new("initializing with INSTANCE or STATIC without a ref type")
+      end
     end
 
     def initialize(@typ : Types, @is_array : Bool)
@@ -92,6 +178,7 @@ module Typing
       # This is because of the comparisons below in `#==` use
       # `other.ref`, which will be nil and hit a nil assertion.
       raise Exception.new("you cannot do this. use is_object? instead") if s == Types::INSTANCE
+      raise Exception.new("you cannot do this. use is_static? instead") if s == Types::STATIC
       return self == (Typing::Type.new(s))
     end
 
@@ -113,9 +200,11 @@ module Typing
 
     def ==(other : Type) : Bool
       # When both are not arrays, instatly false.
-      return false unless other.is_array == self.is_array
+      return false if other.is_array != self.is_array
       # When both are reference types and the same.
-      return true if other.typ == self.typ && self.typ == Types::INSTANCE && other.ref.qualified_name == self.ref.qualified_name
+      if other.typ == self.typ && [Types::INSTANCE, Types::STATIC].includes?(self.typ)
+        return other.ref.qualified_name == self.ref.qualified_name
+      end
       # When both are the same primative types (i.e. non-reference)
       return true if other.typ == self.typ
       # When both are numerical types.
@@ -174,6 +263,9 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
   def visit(node : AST::ClassDecl)
     @namespace.current_class = node
     super
+  rescue ex : CompilerError
+    ex.register("class_name", node.name)
+    raise ex
   end
 
   def visit(node : AST::Expr) : Nil
@@ -282,17 +374,19 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
   def visit(node : AST::VarDeclStmt) : Nil
     init_typ = node.var.init.get_type(@namespace)
     typ = node.typ.to_type
-    unless Typing.can_convert_type(init_typ, typ)
+    if !Typing.can_assign_type(init_typ, typ)
       raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected {#{typ.to_s}} got #{node.var.init.get_type(@namespace).to_s}")
     end
-    # Special case: char can be added with numeric types, but
-    # cannot be assigned between numeric types.
-    if init_typ.typ == Typing::Types::CHAR && typ.typ != Typing::Types::CHAR
-      raise TypeCheckStageError.new("assignment failure between LHS=#{typ.to_s} RHS=#{init_typ.to_s}")
-    end
-    # Special case: you cannot assign Object to things.
-    if init_typ.typ == Typing::Types::INSTANCE && init_typ.ref.qualified_name == "java.lang.Object" && typ.typ == Typing::Types::INSTANCE && typ.ref.qualified_name != "java.lang.Object"
-      raise TypeCheckStageError.new("assignment failure between LHS=#{typ.to_s} RHS=#{init_typ.to_s}")
+    super
+  end
+
+  def visit(node : AST::FieldDecl) : Nil
+    if node.var.init?
+      init_typ = node.var.init.get_type(@namespace)
+      typ = node.typ.to_type
+      if !Typing.can_assign_type(init_typ, typ)
+        raise TypeCheckStageError.new("variable decl #{node.var.name} types wrong: expected {#{typ.to_s}} got #{node.var.init.get_type(@namespace).to_s}")
+      end
     end
     super
   end
@@ -305,15 +399,8 @@ class StmtTypeCheckVisitor < Visitor::GenericVisitor
       raise TypeCheckStageError.new("method #{method_name} is void but returning #{return_typ.try &.to_s}") if !return_typ.nil?
     else
       raise TypeCheckStageError.new("method #{method_name} has empty return, expected #{method_typ.try &.to_s}") if return_typ.nil?
-      raise TypeCheckStageError.new("method #{method_name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}") unless Typing.can_convert_type(return_typ, method_typ)
-      # Special case: char can be added with numeric types, but
-      # cannot be assigned between numeric types.
-      if method_typ.typ == Typing::Types::CHAR && return_typ.typ != Typing::Types::CHAR
-        raise TypeCheckStageError.new("cannot return here #{method_typ.to_s} RHS=#{return_typ.to_s}")
-      end
-      # Special case: you cannot assign Object to things.
-      if return_typ.typ == Typing::Types::INSTANCE && return_typ.ref.qualified_name == "java.lang.Object" && method_typ.typ == Typing::Types::INSTANCE && method_typ.ref.qualified_name != "java.lang.Object"
-        raise TypeCheckStageError.new("cannot return here #{method_typ.to_s} RHS=#{return_typ.to_s}")
+      if !Typing.can_assign_type(return_typ, method_typ)
+        raise TypeCheckStageError.new("method #{method_name} is returning #{return_typ.try &.to_s}, expected #{method_typ.try &.to_s}")
       end
     end
     super
