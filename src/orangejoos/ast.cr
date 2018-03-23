@@ -441,6 +441,12 @@ module AST
       body.map(&.as?(ConstructorDecl)).compact
     end
 
+    def constructor?(args : Array(Typing::Type)) : ConstructorDecl?
+      searching_sig = MethodSignature.new("<CONSTRUCTOR>", args)
+      result = constructors.find { |c| c.signature.equiv(searching_sig) }
+      return result
+    end
+
     def extends?(node : ClassDecl) : Bool
       return true if super_class? && super_class.ref.as(ClassDecl).qualified_name == node.qualified_name
       # TODO(joey): This is terribly inefficient lookup which could be
@@ -975,7 +981,14 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      return Typing::Type.new(Typing::Types::INSTANCE, typ.name.ref.as(TypeDecl))
+      class_decl = typ.name.ref.as(ClassDecl)
+      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?("abstract")
+
+      arg_types = args.map &.get_type(namespace).as(Typing::Type)
+      constructor = class_decl.constructor?(arg_types)
+      raise TypeCheckStageError.new("no constructor with args (#{arg_types.map &.to_s}) on #{class_decl.qualified_name}") if constructor.nil?
+      constructor = constructor.not_nil!
+      return Typing::Type.new(Typing::Types::INSTANCE, class_decl)
     end
 
     def ast_children : Array(Node)
