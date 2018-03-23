@@ -932,6 +932,13 @@ module AST
       end
 
       if op == "=" && operands.size == 2
+        # If the field is `arr.length`, it is read-only so using it as a
+        # variable, i.e. writing to it, is not allowed.
+        lhs_op = operands[0]
+        if lhs_op.is_a?(ExprFieldAccess) && lhs_op.obj.get_type(namespace).is_array
+          raise TypeCheckStageError.new("cannot assign to array.length field")
+        end
+
         lhs = operand_typs[0]
         rhs = operand_typs[1]
         if Typing.can_assign_type(rhs, lhs)
@@ -1587,6 +1594,12 @@ module AST
       elsif array_access?
         return array_access.get_type(namespace)
       elsif field_access?
+        # If the field is `arr.length`, it is read-only so using it as a
+        # variable, i.e. writing to it, is not allowed.
+        if field_access.obj.get_type(namespace).is_array
+          raise TypeCheckStageError.new("cannot assign to array.length field")
+        end
+
         return field_access.get_type(namespace)
       else
         raise Exception.new("unhandled case")
