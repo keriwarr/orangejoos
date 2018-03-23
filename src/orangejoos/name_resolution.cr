@@ -635,7 +635,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
     @current_method_name = node.name
     # Set up the field namespace.
     if node.has_mod?("static")
-      @field_namespace = @type_decl_static_fields[type_decl_node.name]
+      @field_namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
     else
       @field_namespace = @type_decl_instance_fields[type_decl_node.name]
     end
