@@ -88,7 +88,7 @@ class SourceFile
       STDERR.puts "=== single type imports: #{@path} ===\n#{@single_type_imports.try &.join("\n")}\n\n"
       STDERR.puts "=== same pack imports: #{@path} ===\n#{@same_package_imports.try &.join("\n")}\n\n"
       STDERR.puts "=== on demand imports: #{@path} ===\n#{@on_demand_imports.try &.join("\n")}\n\n"
-      STDERR.puts "=== system imports: #{@path} ===\n#{@system_imports.try &.join("\n")}\n\n"
+      # STDERR.puts "=== system imports: #{@path} ===\n#{@system_imports.try &.join("\n")}\n\n"
     end
   end
 end

@@ -104,7 +104,7 @@ class NameResolution
     # Import all objects that exist in the internal package.
     if file.ast.package?
       import_tree = exported_items.get(file.ast.package.path.parts)
-      prefix = import.path.parts[0...import.path.parts.size - 1].join(".")
+      prefix = file.ast.package.path.parts[0..-2].join(".")
       prefix += "." if prefix.size > 0
       same_package_imports += import_tree.enumerate(prefix)
     else
@@ -253,7 +253,7 @@ class PackageNode < PackageTree
       children[parts.first] = PackageNode.new(parts.first) if !children.has_key?(parts.first)
       c = children[parts.first]
       if !c.is_a?(PackageNode)
-        raise NameResolutionStageError.new("type decl is prefix of existing package path")
+        raise NameResolutionStageError.new("type decl #{node.name} is prefix of existing package path #{parts.join(".")}")
       end
       c.add_child(parts[1..parts.size], node)
     elsif children.has_key?(node.name)
@@ -487,6 +487,9 @@ class ImportNamespace
 
   def fetch(node : AST::Name) : AST::Node?
     if node.is_a?(AST::QualifiedName)
+      if node.parts.size == 1
+        return simple_names.fetch(node.name, qualified_names.fetch(node.name, nil))
+      end
       return qualified_names.fetch(node.name, nil)
     else
       return simple_names.fetch(node.name, nil)
@@ -832,11 +835,22 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ClassTyp) : Nil
-    typ = @namespace.fetch(node.name)
-    if typ.nil?
-      raise NameResolutionStageError.new("#{node.name.name} type was not found")
+    name = node.name
+
+    prefix_length = 1
+    while prefix_length < name.parts.size
+      name_prefix = AST::QualifiedName.new(name.parts.first(prefix_length))
+      if !@namespace.fetch(name_prefix).nil?
+        raise NameResolutionStageError.new("Imported name #{name_prefix.name} is a prefix of other imported name #{name}")
+      end
+      prefix_length += 1
     end
-    node.name.ref = typ
+
+    typ = @namespace.fetch(name)
+    if typ.nil?
+      raise NameResolutionStageError.new("#{name.name} type was not found")
+    end
+    name.ref = typ
     super
   end
 end
