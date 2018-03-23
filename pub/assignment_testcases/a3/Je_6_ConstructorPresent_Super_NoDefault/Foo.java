@@ -1,5 +1,5 @@
 public class Foo {
 
-    public Foo(String s) {}
+    public Foo(int s) {}
 
 }
