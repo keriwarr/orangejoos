@@ -9,7 +9,7 @@ END_STAGE = Stage::ALL
 {% elsif flag?(:A1) %}
 END_STAGE = Stage::WEED
 {% elsif flag?(:A_NONE) %}
-END_STAGE = Stage::ALL
+END_STAGE = Stage::CODE_GEN
 {% else %}
 Compilation error: unexpected assignment
 {% end %}
