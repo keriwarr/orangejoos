@@ -1,19 +1,21 @@
-require "./lexeme"
 require "./ast"
-require "./lalr1_table"
-require "./parse_tree"
-require "./weeding"
-require "./name_resolution"
 require "./compiler_errors"
-require "./stage"
+require "./code_gen"
+require "./lalr1_table"
+require "./lexeme"
+require "./name_resolution"
+require "./parse_tree"
 require "./source_file"
+require "./stage"
 require "./typing"
+require "./weeding"
+require "./vtable"
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
   @sources = [] of SourceFile
   @table = uninitialized LALR1Table
-  @end_stage = Stage::ALL
+  @end_stage = Stage::CODE_GEN
   @use_stdlib = true
   @verbose = false
 
@@ -115,6 +117,14 @@ class Pipeline
     raise ex
   end
 
+  # do_code_gen generates .s assembly files for the file
+  def do_code_gen!(file : SourceFile, vtable : VTable, verbose : Bool)
+    CodeGenerator.new(file, vtable, verbose).generate
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
+  end
+
   # exec executes the compiler pipeline up to the specified ending stage.
   # each stage in the pipeline may raise an exception, which should be caught
   # and dealth with by the caller.
@@ -148,7 +158,7 @@ class Pipeline
     return true if @end_stage == Stage::SIMPLIFY
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                                  WEEDING                                #
+    #                                WEEDING                                  #
     #                                                                         #
     # Weed out any errors that could not be detected by parsing.              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -157,7 +167,7 @@ class Pipeline
     return true if @end_stage == Stage::WEED
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                                 NAME RESOLUTION                         #
+    #                             NAME RESOLUTION                             #
     #                                                                         #
     # Resolve any names to their referenced nodes.                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -166,7 +176,7 @@ class Pipeline
     return true if @end_stage == Stage::NAME_RESOLUTION
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    #                                 TYPE CHECKING                           #
+    #                               TYPE CHECKING                             #
     #                                                                         #
     #                                                                         #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -174,7 +184,17 @@ class Pipeline
     @sources.map &.debug_print(Stage::TYPE_CHECK) if @verbose
     return true if @end_stage == Stage::TYPE_CHECK
 
-    # Stage:ALL
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                              CODE GENERATION                            #
+    #                                                                         #
+    #                                                                         #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # create the magic big vtable for method calling
+    vtable = VTable.new(@sources)
+    # generate all the codes
+    @sources.each { |file| do_code_gen!(file, vtable, @verbose) }
+    @sources.map &.debug_print(Stage::CODE_GEN) if @verbose
     return true
   end
 end

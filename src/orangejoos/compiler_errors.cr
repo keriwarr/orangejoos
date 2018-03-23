@@ -46,3 +46,7 @@ end
 # stage.
 class TypeCheckStageError < CompilerError
 end
+
+# A CodegenError is an error encountered during the code generation stage.
+class CodegenError < CompilerError
+end
