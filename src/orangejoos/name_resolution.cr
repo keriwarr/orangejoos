@@ -59,11 +59,9 @@ class NameResolution
     # 2) Try any single-type import (A.B.C.D)
     # 3) Try same package import.
     # 4) Try any import-on-demand package (A.B.C.*) including java.lang.*
-    # 5) System packages implicitly imported from java.lang.*
     single_type_imports = [] of Tuple(String, AST::TypeDecl)
     same_package_imports = [] of Tuple(String, AST::TypeDecl)
     on_demand_imports = [] of Tuple(String, AST::TypeDecl)
-    system_imports = [] of Tuple(String, AST::TypeDecl)
 
     ast = file.ast
     imports = ast.imports.flat_map do |import|
@@ -73,11 +71,7 @@ class NameResolution
       if import_tree.is_a?(TypeNode)
         single_type_imports += import_tree.enumerate(prefix)
       elsif import_tree.is_a?(PackageNode) && import.on_demand
-        if import.path.name == "java.lang"
-          system_imports += import_tree.enumerate(prefix)
-        else
-          on_demand_imports += import_tree.enumerate(prefix)
-        end
+        on_demand_imports += import_tree.enumerate(prefix)
       else
         raise NameResolutionStageError.new("cannot single-type-import a package, only Class or Interfaces: violate file #{file.path} import #{import.path.name}")
       end
@@ -95,7 +89,7 @@ class NameResolution
       if import_tree.is_a?(TypeNode)
         raise NameResolutionStageError.new("error importing java.lang.* stdlib")
       elsif import_tree.is_a?(PackageNode) && import.on_demand
-        system_imports += import_tree.enumerate(prefix)
+        on_demand_imports += import_tree.enumerate(prefix)
       else
         raise NameResolutionStageError.new("error importing java.lang.* stdlib")
       end
@@ -126,7 +120,6 @@ class NameResolution
       single_type_imports,
       same_package_imports,
       on_demand_imports,
-      system_imports,
       full_namespace,
     )
 
@@ -134,7 +127,6 @@ class NameResolution
     file.single_type_imports = single_type_imports.map(&.first)
     file.same_package_imports = same_package_imports.map(&.first)
     file.on_demand_imports = on_demand_imports.map(&.first)
-    file.system_imports = system_imports.map(&.first)
 
     return namespace
   end
@@ -329,6 +321,10 @@ class ClassResolutionVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ClassDecl) : Nil
+    if !@namespace.fetch(AST::QualifiedName.new(node.qualified_name.split("."))).nil?
+      raise NameResolutionStageError.new("class #{node.name} clashes with import")
+    end
+
     if node.super_class?
       typ = @namespace.fetch(node.super_class)
       if typ.nil?
@@ -467,13 +463,12 @@ class ImportNamespace
     single_type : Array(Tuple(String, AST::TypeDecl)),
     same_package : Array(Tuple(String, AST::TypeDecl)),
     on_demand : Array(Tuple(String, AST::TypeDecl)),
-    system : Array(Tuple(String, AST::TypeDecl)),
     global : Array(Tuple(String, AST::TypeDecl))
   )
     @simple_names = Hash(String, AST::TypeDecl).new
     # Add items to the namespace in this order. They will overload based
     # on the precedence rules.
-    [system, on_demand, same_package, single_type, same_file].each do |scope|
+    [on_demand, same_package, single_type, same_file].each do |scope|
       scope.each do |_, v|
         simple_names[v.name] = v
       end

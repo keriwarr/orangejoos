@@ -15,7 +15,6 @@ class SourceFile
   property! single_type_imports : Array(String)
   property! same_package_imports : Array(String)
   property! on_demand_imports : Array(String)
-  property! system_imports : Array(String)
 
   property! import_namespace : ImportNamespace
 
@@ -88,7 +87,6 @@ class SourceFile
       STDERR.puts "=== single type imports: #{@path} ===\n#{@single_type_imports.try &.join("\n")}\n\n"
       STDERR.puts "=== same pack imports: #{@path} ===\n#{@same_package_imports.try &.join("\n")}\n\n"
       STDERR.puts "=== on demand imports: #{@path} ===\n#{@on_demand_imports.try &.join("\n")}\n\n"
-      STDERR.puts "=== system imports: #{@path} ===\n#{@system_imports.try &.join("\n")}\n\n"
     end
   end
 end
