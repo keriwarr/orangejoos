@@ -251,6 +251,7 @@ class TypeCheck
     @file.ast.accept(DefaultCtorCheckVisitor.new)
     @file.ast.accept(TypeResolutionVisitor.new(@file.import_namespace))
     @file.ast.accept(StmtTypeCheckVisitor.new(@file.import_namespace))
+    @file.ast.accept(FieldInitCheckVisitor.new)
   end
 end
 
@@ -319,6 +320,69 @@ class DefaultCtorCheckVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ConstructorDecl) : Nil
     self.has_default_constructor = true if node.signature.equiv(AST::MethodSignature.constructor([] of Typing::Type))
+  end
+end
+
+# `FieldInitCheckVisitor` checks that the initializers for fields are
+# well-formed. This checks:
+#
+# - If another field is accessed within an initializer, it must appear
+#   before this field. Except when:
+#
+#   - The field is assigned earlier in an expression, and is not the
+#     current field.
+class FieldInitCheckVisitor < Visitor::GenericVisitor
+  property! accessible_fields : Array(String)
+  property! class_name : String
+  property! field_name : String
+
+
+  def visit(node : AST::InterfaceDecl | AST::PackageDecl | AST::ImportDecl) : Nil
+    # no super
+  end
+
+  def visit(node : AST::ClassDecl) : Nil
+    self.accessible_fields = [] of String
+    self.class_name = node.qualified_name
+    node.fields.map &.accept(self)
+    # no super
+  end
+
+  def visit(node : AST::FieldDecl) : Nil
+    self.field_name = node.name
+    if !node.has_mod?("static")
+      super
+      self.accessible_fields.push(node.name)
+    end
+  end
+
+  def visit(node : AST::ExprOp) : Nil
+    if node.op == "="
+      lhs = node.operands[0]
+      # If the LHS is a field variable, then consider it an accessible
+      # field.
+      if lhs.is_a?(AST::Variable) && lhs.name?
+        ref = lhs.name.ref
+        if ref.is_a?(AST::FieldDecl)
+          # Do not allow access after assignment if the assignment is to
+          # the current field.
+          if ref.name != self.field_name
+            self.accessible_fields.push(ref.name)
+          end
+        end
+      end
+      node.operands[1].accept(self)
+    else
+      super
+    end
+  end
+
+  def visit(node : AST::SimpleName) : Nil
+    return unless node.ref.is_a?(AST::FieldDecl)
+    # Check if the field is currently accessible.
+    if !self.accessible_fields.includes?(node.name)
+      raise TypeCheckStageError.new("used field {#{node.name}} before initialization in #{self.class_name}.#{self.field_name}")
+    end
   end
 end
 
