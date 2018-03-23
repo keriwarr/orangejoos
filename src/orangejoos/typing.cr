@@ -158,6 +158,7 @@ class TypeCheck
   end
 
   def check
+    @file.ast.accept(StaticThisCheckVisitor.new)
     @file.ast.accept(TypeResolutionVisitor.new(@file.import_namespace))
     @file.ast.accept(StmtTypeCheckVisitor.new(@file.import_namespace))
   end
@@ -179,6 +180,36 @@ class TypeResolutionVisitor < Visitor::GenericVisitor
     super
   end
 end
+
+# `StaticThisCheckVisitor` checks that there are no references to `this`
+# inside static methods or fields bodies.
+class StaticThisCheckVisitor < Visitor::GenericVisitor
+  property! current_class_name : String
+  property! current_parent_name : String
+
+  def visit(node : AST::ConstructorDecl)
+    # Do not traverse down constructor bodies.
+    # no super
+  end
+
+  def visit(node : AST::ClassDecl)
+    current_class_name = node.qualified_name
+    super
+  end
+
+  def visit(node : AST::FieldDecl | AST::MethodDecl)
+    current_parent_name = node.name
+    # Only check static fields or methods.
+    super if node.has_mod?("static")
+  end
+
+  # We only traverse down static bodies, meaning we will only encounter
+  # _this_ expressions inside static bodies.
+  def visit(node : AST::ExprThis)
+    raise TypeCheckStageError.new("cannot use 'this' inside static #{current_parent_name} in class #{current_class_name}")
+  end
+end
+
 
 # `StmtTypeCheckVisitor` checks that all statements have valid type
 # inputs. For example, a for loops comparison expression must evaluate
