@@ -95,13 +95,26 @@ module Reachability
     end
 
     def visit(node : AST::ForStmt) : Nil
-      # TODO (keri): This is incorrect. We must do some checking on the resulting values of
-      # the for stmts properties
-      in_set[node.body] = in_set[node]
       in_set[node.init] = in_set[node] if node.init?
       in_set[node.update] = in_set[node] if node.update?
+
+      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
+        in_set[node.body] = in_set[node]
+      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
+        in_set[node.body] = Reachability::NO
+      else
+        # TODO: what to do here?
+        in_set[node.body] = in_set[node]
+      end
       super
-      out_set[node] = out_set[node.body]
+      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
+        out_set[node] = Reachability::NO
+      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
+        out_set[node] = in_set[node]
+      else
+        # TODO: what to do here?
+        out_set[node] = in_set[node]
+      end
     end
 
     def visit(node : AST::WhileStmt) : Nil
