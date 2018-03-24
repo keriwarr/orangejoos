@@ -154,6 +154,7 @@ class NameResolution
 
     file.ast.accept(CycleVisitor.new(namespace, cycle_tracker))
     file.ast.accept(ClassTypResolutionVisitor.new(namespace))
+    file.ast.accept(BackrefResolver.new)
     file.ast = file.ast.accept(QualifiedNameDisambiguation.new(namespace))
     return file
   end
@@ -891,6 +892,14 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
     end
     name.ref = typ
     super
+  end
+end
+
+# `BackrefResolver` resolves backwards references for members to their
+# parent type decl.
+class BackrefResolver < Visitor::GenericVisitor
+  def visit(node : AST::ClassDecl | AST::InterfaceDecl) : Nil
+    node.body.each {|b| b.parent = node}
   end
 end
 
