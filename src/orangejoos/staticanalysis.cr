@@ -45,7 +45,7 @@ module Reachability
       end
 
       if node.typ? && out_set[node.body.last] != Reachability::NO
-        raise StaticAnalysisError.new("Method #{node.name} missing return statmen of type #{node.typ.to_s}")
+        raise StaticAnalysisError.new("Method #{node.name} missing return statment of type #{node.typ.to_s}")
       end
 
       # no super
@@ -105,11 +105,23 @@ module Reachability
     end
 
     def visit(node : AST::WhileStmt) : Nil
-      # TODO (keri): This is incorrect. We must do some check on the resulting values of
-      # the test expr
-      in_set[node.body] = in_set[node]
+      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
+        in_set[node.body] = in_set[node]
+      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
+        in_set[node.body] = Reachability::NO
+      else
+        # TODO: what to do here?
+        in_set[node.body] = in_set[node]
+      end
       super
-      out_set[node] = out_set[node.body]
+      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
+        out_set[node] = Reachability::NO
+      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
+        out_set[node] = in_set[node]
+      else
+        # TODO: what to do here?
+        out_set[node] = in_set[node]
+      end
     end
 
     # If statements are a weird case and defy expectation. See JLS 14.20 for more details
