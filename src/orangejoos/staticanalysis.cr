@@ -90,6 +90,8 @@ module Reachability
       end
 
       out_set[node] = out_set[node.stmts.last]
+
+      # no super
     end
 
     def visit(node : AST::ForStmt) : Nil
@@ -104,7 +106,7 @@ module Reachability
 
     def visit(node : AST::WhileStmt) : Nil
       # TODO (keri): This is incorrect. We must do some check on the resulting values of
-      # the body
+      # the test expr
       in_set[node.body] = in_set[node]
       super
       out_set[node] = out_set[node.body]
@@ -136,9 +138,9 @@ module Reachability
     end
 
     def on_completion
-      in_set.each do |_, reachable|
+      in_set.each do |stmt, reachable|
         if reachable != Reachability::MAYBE
-          raise StaticAnalysisError.new("Unreachable statment")
+          raise StaticAnalysisError.new("Unreachable statment of type #{typeof(stmt)}")
         end
       end
     end
