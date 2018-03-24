@@ -1,5 +1,3 @@
-require "./ast"
-
 # Static Analysis perfoms checks about the validity of the code that can be done at compile time
 class StaticAnalysis
   def initialize(@file : SourceFile)

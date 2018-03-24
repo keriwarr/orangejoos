@@ -157,10 +157,10 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
   fi
 
   if [[ -f $filename && $filename == *.java ]]; then
-    do_test $filename $should_pass "-s all" "$stdlib4"
+    do_test $filename $should_pass "-s staticanalysis" "$stdlib4"
     elif [[ -d $filename ]]; then
     files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
-    do_test "$files" $should_pass "-s all" "$stdlib4"
+    do_test "$files" $should_pass "-s staticanalysis" "$stdlib4"
   fi
 done
 
