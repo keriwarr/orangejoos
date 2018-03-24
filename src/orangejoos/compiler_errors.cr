@@ -47,6 +47,10 @@ end
 class TypeCheckStageError < CompilerError
 end
 
+# A StaticAnalysisError is an error encountered during the static analysis stage.
+class StaticAnalysisError < CompilerError
+end
+
 # A CodegenError is an error encountered during the code generation stage.
 class CodegenError < CompilerError
 end

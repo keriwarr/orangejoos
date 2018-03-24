@@ -7,6 +7,7 @@ enum Stage
   NAME_RESOLUTION
   TYPE_CHECK
   CODE_GEN
+  STATIC_ANALYSIS
 
   # takes a string and gets the corresponding enum token, or else raises an exception
   def self.get(stage : String)
@@ -18,8 +19,10 @@ enum Stage
     when "weed"           then return Stage::WEED
     when "nameresolution" then return Stage::NAME_RESOLUTION
     when "typecheck"      then return Stage::TYPE_CHECK
+    when "staticanalysis" then return Stage::STATIC_ANALYSIS
     when "codegen"        then return Stage::CODE_GEN
-    else                  raise Exception.new("got unexpected stage: \"#{stage}\"")
+    when "all"            then return Stage::CODE_GEN
+    else                       raise Exception.new("got unexpected stage: \"#{stage}\"")
     end
   end
 end
