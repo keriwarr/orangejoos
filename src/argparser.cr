@@ -6,6 +6,8 @@ END_STAGE = Stage::NAME_RESOLUTION
 END_STAGE = Stage::TYPE_CHECK
 {% elsif flag?(:A4) %}
 END_STAGE = Stage::STATIC_ANALYSIS
+{% elsif flag?(:A5) %}
+END_STAGE = Stage::CODE_GEN
 {% elsif flag?(:A1) %}
 END_STAGE = Stage::WEED
 {% elsif flag?(:A_NONE) %}
@@ -17,7 +19,7 @@ Compilation error: unexpected assignment
 # haha nice meme dude
 module Bruce
   BANNER = "Usage: joosc compile [arguments] [files...]\n" \
-           "Stages:\n\tscan -> parse -> simplify -> weed -> ..."
+           "Stages:\n\tscan -> parse -> simplify -> weed -> nameresolution -> typecheck -> staticanalysis -> codegen"
 end
 
 # ArgParser parses options for the joosc compiler.
@@ -27,6 +29,7 @@ class ArgParser
   getter end_stage : Stage = END_STAGE
   getter paths = [] of String
   getter table_file : String = "grammar/joos1w.lr1"
+  getter output_dir : String = "output"
 
   def initialize(args : Array(String))
     OptionParser.parse(args) do |parser|
@@ -37,6 +40,10 @@ class ArgParser
       parser.on("-t TABLE", "--table=TABLE",
         "specifies LALR1 prediction table file (required for parsing stage") do |path|
         @table_file = path
+      end
+      parser.on("-tmp OUTPUT_DIR", "--tmp-dir=OUTPUT_DIR",
+        "specifies output directory for intermediary files") do |path|
+        @output_dir = path
       end
       parser.on("-s STAGE", "--stage=STAGE", "compiler stage to stop execution at") do |stage|
         @end_stage = Stage.get(stage)

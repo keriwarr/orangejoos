@@ -19,12 +19,21 @@ class SourceFile
 
   property! import_namespace : ImportNamespace
 
+  property! code : CodeFile
+
   def initialize(@path : String)
   end
 
   def read!
     @contents = File.read(path)
     return contents
+  end
+
+  def attempt
+    yield(self)
+  rescue ex : CompilerError
+    ex.file = self.path
+    raise ex
   end
 
   # The type name that this file is allowed to export.
