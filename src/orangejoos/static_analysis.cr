@@ -1,4 +1,4 @@
-# Static Analysis perfoms checks about the validity of the code that can be done at compile time
+# Static Analysis perfoms checks about the validity of the code that can be done at compile time.
 class StaticAnalysis
   def initialize(@file : SourceFile)
   end
@@ -20,12 +20,12 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
   def visit(node : AST::ExprOp) : AST::Expr
     return node if !SUPPORTED_OPERATORS.includes?(node.op)
 
-    # We execute `super` immediately so that folding occurs form the leaves of the AST
-    # up to the root of an expression sub-tree
-    # Thus is an apprently reducible expression contains sub-expressions which can't be
-    # reduced. Reduction will fail at the leaves, and the failure will propogate upwards
+    # We execute `super` immediately so that folding occurs from the leaves of
+    # the AST up to the root of an expression sub-tree. Thus if an apparently
+    # reducible expression contains sub-expressions which can't be reduced,
+    # reduction will fail at the leaves and the failure will propogate upwards
     # before any mutation is done.
-    node = super.as(AST::ExprOp) # If super doesn't return an ExprOp, something very strange has happened
+    node = super.as(AST::ExprOp) # If super doesn't return an ExprOp, something very strange has happened.
     op1 = node.operands[0]
     op2 = node.operands[1]
     op1bool = op1.as?(AST::ConstBool)
@@ -37,7 +37,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
       op1val = op1int.try(&.val.to_i32)
       op2val = op2int.try(&.val.to_i32)
     rescue ArgumentError
-      raise Exception.new("Const Integers contained invalid values")
+      raise Exception.new("Const integer contains invalid value")
     end
 
     case node.op
@@ -73,30 +73,30 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
       end
     when "+"
       if op1val && op2val
-        AST::ConstInteger.new((op1val + op2val).to_s) # Integer overflow may happen here and that is expected
+        AST::ConstInteger.new((op1val + op2val).to_s) # Integer overflow may happen here and that is expected.
       else
         node
       end
     when "-"
       if op1val && op2val
-        AST::ConstInteger.new((op1val - op2val).to_s) # Integer underflow may happen here and that is expected
+        AST::ConstInteger.new((op1val - op2val).to_s) # Integer underflow may happen here and that is expected.
       else
         node
       end
     when "*"
       if op1val && op2val
-        AST::ConstInteger.new((op1val * op2val).to_s) # Integer overflow may happen here and that is expected
+        AST::ConstInteger.new((op1val * op2val).to_s) # Integer overflow may happen here and that is expected.
       else
         node
       end
     when "/"
       if op1val && op2val
-        AST::ConstInteger.new((op1val / op2val).to_s) # Integer rounding may happen here and that is expected
+        AST::ConstInteger.new((op1val / op2val).to_s) # Integer rounding may happen here and that is expected.
       else
         node
       end
     else
-      raise Exception.new("supported operator not handled by case statement")
+      raise Exception.new("supported operator \"#{node.op}\" not handled by case statement")
     end
   end
 end
@@ -110,7 +110,7 @@ module Reachability
     NO
     MAYBE
 
-    # Convenience method for taking logical OR of this enum
+    # Convenience method for taking logical OR of this enum.
     def self.|(other : Reachability)
       if self == Reachability.MAYBE || other == Reachability.MAYBE
         return Reachability.MAYBE
@@ -120,7 +120,7 @@ module Reachability
     end
   end
 
-  # Performs all Reachability checks on the AST
+  # Performs all Reachability checks on the AST.
   class ReachabilityVisitor < Visitor::GenericVisitor
     property in_set = Hash(AST::Stmt, Reachability).new
     property out_set = Hash(AST::Stmt, Reachability).new
@@ -135,13 +135,11 @@ module Reachability
     end
 
     def visit(node : AST::MethodDecl) : Nil
-      # FIXME: By this stage, node.body should never be Nil but for some
-      # reason it sometimes is
-      # If it's empty we perform this edge-case check
+      # Edge case, where the body is absent or empty.
       if node.body? && node.body.size == 0 && node.typ?
         raise StaticAnalysisError.new("Method #{node.name} missing return statment of type #{node.typ.to_s}")
       elsif !node.body? || node.body.size == 0
-        # Nothing to do here
+        # Nothing to do here.
         return
       end
 
@@ -220,7 +218,7 @@ module Reachability
       end
     end
 
-    # If statements are a weird case and defy expectation. See JLS 14.20 for more details
+    # If statements are a weird case and defy expectation. See JLS 14.20 for more details.
     def visit(node : AST::IfStmt) : Nil
       # Not a mistake
       in_set[node.if_body] = in_set[node]
@@ -249,13 +247,13 @@ module Reachability
     end
 
     def visit(node : AST::Stmt) : Nil
-      raise Exception.new("ReachabilityVisitor must, but did not, explicitly visit all Statements")
+      raise Exception.new("ReachabilityVisitor must, but did not, explicitly visit statement: #{node.inspect}")
     end
 
     def on_completion
       in_set.each do |stmt, reachable|
         if reachable != Reachability::MAYBE
-          raise StaticAnalysisError.new("Unreachable statment of type #{typeof(stmt)}")
+          raise StaticAnalysisError.new("Unreachable statment: #{stmt.inspect}")
         end
       end
     end
