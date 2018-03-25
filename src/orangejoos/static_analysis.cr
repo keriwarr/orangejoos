@@ -114,7 +114,6 @@ module Reachability
   end
 
   # Performs all Reachability checks on the AST
-  # TODO (keri): would be nice if we could verify that all statements have been visited somehow.
   class ReachabilityVisitor < Visitor::GenericVisitor
     property in_set = Hash(AST::Stmt, Reachability).new
     property out_set = Hash(AST::Stmt, Reachability).new
@@ -250,6 +249,10 @@ module Reachability
       out_set[node] = Reachability::NO
 
       # no super
+    end
+
+    def visit(node : AST::Stmt) : Nil
+      raise Exception.new("ReachabilityVisitor must, but did not, explicitly visit all Statements")
     end
 
     def on_completion
