@@ -44,7 +44,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
     when "||"
       if op1bool.try &.val == "false" && op2bool.try &.val == "false"
         AST::ConstBool.new("false")
-      elsif !op1bool.nil? && !op2bool.nil?
+      elsif op1bool && op2bool
         AST::ConstBool.new("true")
       else
         node
@@ -52,7 +52,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
     when "&&"
       if op1bool.try &.val == "true" && op2bool.try &.val == "true"
         AST::ConstBool.new("true")
-      elsif !op1bool.nil? && !op2bool.nil?
+      elsif op1bool && op2bool
         AST::ConstBool.new("false")
       else
         node
