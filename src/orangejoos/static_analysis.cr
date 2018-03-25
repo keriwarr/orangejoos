@@ -173,6 +173,16 @@ module Reachability
       # no super
     end
 
+    # ------------------- STATEMENT VISITORS -------------------
+    # Each of the below visit methods handles a distinct class of Statement.
+    # All Classes of Statements must be explicitly handled.
+    # Each such visit method has the guarantee that in_set[node] is
+    # already set. Furthermore, each such visit method MUST set in_set for
+    # all of it's child Statements before calling super.
+    # Furthermore each such visit method MUST set out_set[node] for itself
+    # before returning.
+    # ----------------------------------------------------------
+
     def visit(node : AST::Block) : Nil
       if node.stmts.size == 0
         out_set[node] = in_set[node]
@@ -191,45 +201,27 @@ module Reachability
       # no super
     end
 
-    def visit(node : AST::ForStmt) : Nil
-      in_set[node.init] = in_set[node] if node.init?
-      in_set[node.update] = in_set[node] if node.update?
+    def visit(node : AST::ForStmt | AST::WhileStmt) : Nil
+      expr = node.expr.as?(AST::ConstBool)
 
-      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
+      in_set[node.init] = in_set[node] if node.responds_to?(:init?) && node.init?
+      in_set[node.update] = in_set[node] if node.responds_to?(:update?) && node.update?
+
+      if expr.try &.val == "true"
         in_set[node.body] = in_set[node]
-      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
+      elsif expr.try &.val == "false"
         in_set[node.body] = Reachability::NO
       else
-        # TODO: what to do here?
         in_set[node.body] = in_set[node]
       end
-      super
-      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
-        out_set[node] = Reachability::NO
-      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
-        out_set[node] = in_set[node]
-      else
-        # TODO: what to do here?
-        out_set[node] = in_set[node]
-      end
-    end
 
-    def visit(node : AST::WhileStmt) : Nil
-      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
-        in_set[node.body] = in_set[node]
-      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
-        in_set[node.body] = Reachability::NO
-      else
-        # TODO: what to do here?
-        in_set[node.body] = in_set[node]
-      end
       super
-      if node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "true"
+
+      if expr.try &.val == "true"
         out_set[node] = Reachability::NO
-      elsif node.expr.is_a?(AST::ConstBool) && node.expr.as(AST::ConstBool).val == "false"
+      elsif expr.try &.val == "false"
         out_set[node] = in_set[node]
       else
-        # TODO: what to do here?
         out_set[node] = in_set[node]
       end
     end
@@ -239,7 +231,9 @@ module Reachability
       # Not a mistake
       in_set[node.if_body] = in_set[node]
       in_set[node.else_body] = in_set[node] if node.else_body?
+
       super
+
       if node.else_body?
         out_set[node] = out_set[node.if_body] | out_set[node.else_body]
       else
