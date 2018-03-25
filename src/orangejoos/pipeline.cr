@@ -10,7 +10,7 @@ require "./stage"
 require "./typing"
 require "./weeding"
 require "./vtable"
-require "./staticanalysis"
+require "./static_analysis"
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
