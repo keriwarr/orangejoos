@@ -125,6 +125,15 @@ module Reachability
     property in_set = Hash(AST::Stmt, Reachability).new
     property out_set = Hash(AST::Stmt, Reachability).new
 
+    def handle_stmt_sequence(stmts : Array(AST::Stmt)) : Nil
+      previous_out_value = Reachability::MAYBE # Bootstrap the loop. First statement of a block is never unreachable
+      stmts.each do |stmt|
+        in_set[stmt] = previous_out_value
+        stmt.accept(self)
+        previous_out_value = out_set[stmt]
+      end
+    end
+
     def visit(node : AST::MethodDecl) : Nil
       # FIXME: By this stage, node.body should never be Nil but for some
       # reason it sometimes is
@@ -136,12 +145,7 @@ module Reachability
         return
       end
 
-      previous_out_value = Reachability::MAYBE # Bootstrap the loop. First statement of a method is never unreachable
-      node.body.each do |stmt|
-        in_set[stmt] = previous_out_value
-        stmt.accept(self)
-        previous_out_value = out_set[stmt]
-      end
+      handle_stmt_sequence(node.body)
 
       if node.typ? && out_set[node.body.last] != Reachability::NO
         raise StaticAnalysisError.new("Method #{node.name} missing return statment of type #{node.typ.to_s}")
@@ -155,12 +159,7 @@ module Reachability
         return
       end
 
-      previous_out_value = Reachability::MAYBE # Bootstrap the loop. First statement of a method is never unreachable
-      node.body.each do |stmt|
-        in_set[stmt] = previous_out_value
-        stmt.accept(self)
-        previous_out_value = out_set[stmt]
-      end
+      handle_stmt_sequence(node.body)
 
       # no super
     end
@@ -189,12 +188,7 @@ module Reachability
         return
       end
 
-      previous_out_value = in_set[node]
-      node.stmts.each do |stmt|
-        in_set[stmt] = previous_out_value
-        stmt.accept(self)
-        previous_out_value = out_set[stmt]
-      end
+      handle_stmt_sequence(node.stmts)
 
       out_set[node] = out_set[node.stmts.last]
 
