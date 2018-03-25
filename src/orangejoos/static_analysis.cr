@@ -107,9 +107,13 @@ module Reachability
     NO
     MAYBE
 
+    # Convenience method for taking logical OR of this enum
     def self.|(other : Reachability)
-      return Reachability.MAYBE if self == Reachability.MAYBE || other == Reachability.MAYBE
-      return Reachability.NO
+      if self == Reachability.MAYBE || other == Reachability.MAYBE
+        return Reachability.MAYBE
+      else
+        return Reachability.NO
+      end
     end
   end
 
@@ -119,10 +123,13 @@ module Reachability
     property out_set = Hash(AST::Stmt, Reachability).new
 
     def visit(node : AST::MethodDecl) : Nil
-      if !node.body? || node.body.size == 0
-        if node.body? && node.typ?
-          raise StaticAnalysisError.new("Method #{node.name} missing return statment of type #{node.typ.to_s}")
-        end
+      # FIXME: By this stage, node.body should never be Nil but for some
+      # reason it sometimes is
+      # If it's empty we perform this edge-case check
+      if node.body? && node.body.size == 0 && node.typ?
+        raise StaticAnalysisError.new("Method #{node.name} missing return statment of type #{node.typ.to_s}")
+      elsif !node.body? || node.body.size == 0
+        # Nothing to do here
         return
       end
 
@@ -155,12 +162,10 @@ module Reachability
       # no super
     end
 
-    # We don't actually visit all expressions, but for those that we do
+    # We don't visit all expressions, but for those that we do
     # (such as assignment expressions in blocks), forward the reachability on.
     def visit(node : AST::Expr) : Nil
-      if in_set[node]?
-        out_set[node] = in_set[node]
-      end
+      out_set[node] = in_set[node] if in_set[node]?
 
       # no super
     end
@@ -228,6 +233,7 @@ module Reachability
 
     # If statements are a weird case and defy expectation. See JLS 14.20 for more details
     def visit(node : AST::IfStmt) : Nil
+      # Not a mistake
       in_set[node.if_body] = in_set[node]
       in_set[node.else_body] = in_set[node] if node.else_body?
       super

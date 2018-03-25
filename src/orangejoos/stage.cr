@@ -6,8 +6,8 @@ enum Stage
   WEED
   NAME_RESOLUTION
   TYPE_CHECK
-  CODE_GEN
   STATIC_ANALYSIS
+  CODE_GEN
 
   # takes a string and gets the corresponding enum token, or else raises an exception
   def self.get(stage : String)
