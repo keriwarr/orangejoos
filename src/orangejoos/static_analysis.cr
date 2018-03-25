@@ -125,8 +125,8 @@ module Reachability
     property in_set = Hash(AST::Stmt, Reachability).new
     property out_set = Hash(AST::Stmt, Reachability).new
 
-    def handle_stmt_sequence(stmts : Array(AST::Stmt)) : Nil
-      previous_out_value = Reachability::MAYBE # Bootstrap the loop. First statement of a block is never unreachable
+    def handle_stmt_sequence(stmts : Array(AST::Stmt), initial_out_value : Reachability) : Nil
+      previous_out_value = initial_out_value
       stmts.each do |stmt|
         in_set[stmt] = previous_out_value
         stmt.accept(self)
@@ -145,7 +145,7 @@ module Reachability
         return
       end
 
-      handle_stmt_sequence(node.body)
+      handle_stmt_sequence(node.body, Reachability::MAYBE)
 
       if node.typ? && out_set[node.body.last] != Reachability::NO
         raise StaticAnalysisError.new("Method #{node.name} missing return statment of type #{node.typ.to_s}")
@@ -159,7 +159,7 @@ module Reachability
         return
       end
 
-      handle_stmt_sequence(node.body)
+      handle_stmt_sequence(node.body, Reachability::MAYBE)
 
       # no super
     end
@@ -188,7 +188,7 @@ module Reachability
         return
       end
 
-      handle_stmt_sequence(node.stmts)
+      handle_stmt_sequence(node.stmts, in_set[node])
 
       out_set[node] = out_set[node.stmts.last]
 
