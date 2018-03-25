@@ -10,91 +10,94 @@ class StaticAnalysis
 end
 
 class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
-  def visit(node : AST::ParenExpr) : AST::Node
+  SUPPORTED_OPERATORS = ["||", "&&", "==", "+", "*", "-", "/"]
+
+  # Remove parenthisization
+  def visit(node : AST::ParenExpr) : AST::Expr
     return node.expr.accept(self)
   end
 
-  def visit(node : AST::ExprOp) : AST::Node
-    case node.op
-    when "||"
-      node = super
-      if !node.is_a?(AST::ExprOp)
-        return node
-      end
-      exprop = node.as(AST::ExprOp)
-      if exprop.operands.size != 2 || !exprop.operands[0].is_a?(AST::ConstBool) || !exprop.operands[1].is_a?(AST::ConstBool)
-        return node
-      end
-      if exprop.operands[0].as(AST::ConstBool).val == "false" && exprop.operands[1].as(AST::ConstBool).val == "false"
-        node = AST::ConstBool.new("false")
-      else
-        node = AST::ConstBool.new("true")
-      end
-    when "&&"
-      node = super
-      if !node.is_a?(AST::ExprOp)
-        return node
-      end
-      exprop = node.as(AST::ExprOp)
-      if exprop.operands.size != 2 || !exprop.operands[0].is_a?(AST::ConstBool) || !exprop.operands[1].is_a?(AST::ConstBool)
-        return node
-      end
-      if exprop.operands[0].as(AST::ConstBool).val == "true" && exprop.operands[1].as(AST::ConstBool).val == "true"
-        node = AST::ConstBool.new("true")
-      else
-        node = AST::ConstBool.new("false")
-      end
-    when "=="
-      node = super
-      if !node.is_a?(AST::ExprOp) || node.as(AST::ExprOp).operands.size != 2
-        return node
-      end
+  def visit(node : AST::ExprOp) : AST::Expr
+    return node if !SUPPORTED_OPERATORS.includes?(node.op)
 
-      exprop = node.as(AST::ExprOp)
-      op1 = exprop.operands[0]
-      op2 = exprop.operands[1]
+    # We execute `super` immediately so that folding occurs form the leaves of the AST
+    # up to the root of an expression sub-tree
+    # Thus is an apprently reducible expression contains sub-expressions which can't be
+    # reduced. Reduction will fail at the leaves, and the failure will propogate upwards
+    # before any mutation is done.
+    node = super.as(AST::ExprOp) # If super doesn't return an ExprOp, something very strange has happened
+    op1 = node.operands[0]
+    op2 = node.operands[1]
+    op1bool = op1.as?(AST::ConstBool)
+    op2bool = op2.as?(AST::ConstBool)
+    op1int = op1.as?(AST::ConstInteger)
+    op2int = op2.as?(AST::ConstInteger)
 
-      if op1.as?(AST::ConstBool).try &.val == "true" && op2.as?(AST::ConstBool).try &.val == "true"
-        node = AST::ConstBool.new("true")
-      elsif op1.as?(AST::ConstBool).try &.val == "false" && op2.as?(AST::ConstBool).try &.val == "false"
-        node = AST::ConstBool.new("true")
-      elsif op1.is_a?(AST::ConstBool) && op2.is_a?(AST::ConstBool)
-        node = AST::ConstBool.new("false")
-      elsif op1.is_a?(AST::ConstInteger) && op2.is_a?(AST::ConstInteger)
-        if op1.as(AST::ConstInteger).val == op2.as(AST::ConstInteger).val
-          node = AST::ConstBool.new("true")
-        else
-          node = AST::ConstBool.new("false")
-        end
-      end
-    when "+", "-", "*", "/"
-      node = super
-      if !node.is_a?(AST::ExprOp) || node.as(AST::ExprOp).operands.size != 2
-        return node
-      end
-
-      exprop = node.as(AST::ExprOp)
-      op1 = exprop.operands[0]
-      op2 = exprop.operands[1]
-
-      if !op1.is_a?(AST::ConstInteger) || !op2.is_a?(AST::ConstInteger)
-        return node
-      end
-
-      case exprop.op
-      when "+"
-        .to_s
-        node = AST::ConstInteger.new((op1.as(AST::ConstInteger).val.to_i + op2.as(AST::ConstInteger).val.to_i).to_s)
-      when "-"
-        node = AST::ConstInteger.new((op1.as(AST::ConstInteger).val.to_i - op2.as(AST::ConstInteger).val.to_i).to_s)
-      when "*"
-        node = AST::ConstInteger.new((op1.as(AST::ConstInteger).val.to_i * op2.as(AST::ConstInteger).val.to_i).to_s)
-      when "/"
-        node = AST::ConstInteger.new((op1.as(AST::ConstInteger).val.to_i / op2.as(AST::ConstInteger).val.to_i).to_s)
-      end
+    begin
+      op1val = op1int.try(&.val.to_i32)
+      op2val = op2int.try(&.val.to_i32)
+    rescue ArgumentError
+      raise Exception.new("Const Integers contained invalid values")
     end
 
-    return node
+    case node.op
+    when "||"
+      if op1bool.try &.val == "false" && op2bool.try &.val == "false"
+        AST::ConstBool.new("false")
+      elsif !op1bool.nil? && !op2bool.nil?
+        AST::ConstBool.new("true")
+      else
+        node
+      end
+    when "&&"
+      if op1bool.try &.val == "true" && op2bool.try &.val == "true"
+        AST::ConstBool.new("true")
+      elsif !op1bool.nil? && !op2bool.nil?
+        AST::ConstBool.new("false")
+      else
+        node
+      end
+    when "=="
+      if op1bool.try &.val == "true" && op2bool.try &.val == "true"
+        AST::ConstBool.new("true")
+      elsif op1bool.try &.val == "false" && op2bool.try &.val == "false"
+        AST::ConstBool.new("true")
+      elsif op1bool && op2bool
+        AST::ConstBool.new("false")
+      elsif op1int && op2int && op1int.val == op2int.val
+        AST::ConstBool.new("true")
+      elsif op1int && op2int
+        AST::ConstBool.new("false")
+      else
+        node
+      end
+    when "+"
+      if op1val && op2val
+        AST::ConstInteger.new((op1val + op2val).to_s) # Integer overflow may happen here and that is expected
+      else
+        node
+      end
+    when "-"
+      if op1val && op2val
+        AST::ConstInteger.new((op1val - op2val).to_s) # Integer underflow may happen here and that is expected
+      else
+        node
+      end
+    when "*"
+      if op1val && op2val
+        AST::ConstInteger.new((op1val * op2val).to_s) # Integer overflow may happen here and that is expected
+      else
+        node
+      end
+    when "/"
+      if op1val && op2val
+        AST::ConstInteger.new((op1val / op2val).to_s) # Integer rounding may happen here and that is expected
+      else
+        node
+      end
+    else
+      raise Exception.new("supported operator not handled by case statement")
+    end
   end
 end
 

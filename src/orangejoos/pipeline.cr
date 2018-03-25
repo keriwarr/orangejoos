@@ -195,7 +195,9 @@ class Pipeline
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                              STATIC ANALYSIS                            #
     #                                                                         #
-    #                                                                         #
+    # Find any remaining errors that we without actually running the code.    #
+    # Note that this stage manipulates the AST by removing ParenExprs, and    #
+    # by folding constants expressions.                                       #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     @sources.each { |file| Pipeline.do_static_analysis!(file) }
     @sources.map &.debug_print(Stage::STATIC_ANALYSIS) if @verbose
