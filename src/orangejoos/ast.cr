@@ -1287,7 +1287,6 @@ module AST
   end
 
   class ConstBool < Const
-    # FIXME(joey): Make this a proper bool val.
     property val : Bool
 
     def initialize(@val : Bool)

@@ -25,11 +25,8 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
     # If super doesn't return an ExprOp, something very strange has happened.
     node = super.as(AST::ExprOp)
 
-    if (
-         node.operands.size == 2 &&
-         node.operands[0].is_a?(AST::ConstBool) &&
-         node.operands[1].is_a?(AST::ConstBool)
-       )
+    case {node.operands[0]?, node.operands[1]?}
+    when {AST::ConstBool, AST::ConstBool}
       op1 = node.operands[0].as(AST::ConstBool).val
       op2 = node.operands[1].as(AST::ConstBool).val
 
@@ -43,11 +40,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
       else
         node
       end
-    elsif (
-            node.operands.size == 2 &&
-            node.operands[0].is_a?(AST::ConstInteger) &&
-            node.operands[1].is_a?(AST::ConstInteger)
-          )
+    when {AST::ConstInteger, AST::ConstInteger}
       begin
         op1 = node.operands[0].as(AST::ConstInteger).try(&.val.to_i32)
         op2 = node.operands[1].as(AST::ConstInteger).try(&.val.to_i32)
