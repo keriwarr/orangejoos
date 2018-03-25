@@ -11,16 +11,12 @@ class StaticAnalysis
 end
 
 class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
-  SUPPORTED_OPERATORS = ["||", "&&", "==", "+", "*", "-", "/"]
-
-  # Remove parenthisization
+  # Remove parenthesization
   def visit(node : AST::ParenExpr) : AST::Expr
     return node.expr.accept(self)
   end
 
   def visit(node : AST::ExprOp) : AST::Expr
-    return node if !SUPPORTED_OPERATORS.includes?(node.op)
-
     # We execute `super` immediately so that folding occurs from the leaves of
     # the AST up to the root of an expression sub-tree. Thus if an apparently
     # reducible expression contains sub-expressions which can't be reduced,
@@ -28,83 +24,69 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
     # before any mutation is done.
     # If super doesn't return an ExprOp, something very strange has happened.
     node = super.as(AST::ExprOp)
-    op1 = node.operands[0]
-    op2 = node.operands[1]
-    op1bool = op1.as?(AST::ConstBool)
-    op2bool = op2.as?(AST::ConstBool)
-    op1int = op1.as?(AST::ConstInteger)
-    op2int = op2.as?(AST::ConstInteger)
 
-    begin
-      op1val = op1int.try(&.val.to_i32)
-      op2val = op2int.try(&.val.to_i32)
-    rescue ArgumentError
-      raise Exception.new("Const integer contains invalid value")
-    end
+    if (
+         node.operands.size == 2 &&
+         node.operands[0].is_a?(AST::ConstBool) &&
+         node.operands[1].is_a?(AST::ConstBool)
+       )
+      op1 = node.operands[0].as(AST::ConstBool).val
+      op2 = node.operands[1].as(AST::ConstBool).val
 
-    case node.op
-    when "||"
-      if op1bool.try &.val == "false" && op2bool.try &.val == "false"
-        AST::ConstBool.new("false")
-      elsif op1bool && op2bool
-        AST::ConstBool.new("true")
+      case node.op
+      when "||"
+        if op1 == "true" || op2 == "true"
+          AST::ConstBool.new("true")
+        else
+          AST::ConstBool.new("false")
+        end
+      when "&&"
+        if op1 == "true" && op2 == "true"
+          AST::ConstBool.new("true")
+        else
+          AST::ConstBool.new("false")
+        end
+      when "=="
+        if op1 == op2
+          AST::ConstBool.new("true")
+        else
+          AST::ConstBool.new("false")
+        end
       else
         node
       end
-    when "&&"
-      if op1bool.try &.val == "true" && op2bool.try &.val == "true"
-        AST::ConstBool.new("true")
-      elsif op1bool && op2bool
-        AST::ConstBool.new("false")
-      else
-        node
+    elsif (
+            node.operands.size == 2 &&
+            node.operands[0].is_a?(AST::ConstInteger) &&
+            node.operands[1].is_a?(AST::ConstInteger)
+          )
+      begin
+        op1 = node.operands[0].as(AST::ConstInteger).try(&.val.to_i32)
+        op2 = node.operands[1].as(AST::ConstInteger).try(&.val.to_i32)
+      rescue ArgumentError
+        raise Exception.new("Const integer contains invalid value")
       end
-    when "=="
-      if op1bool.try &.val == "true" && op2bool.try &.val == "true"
-        AST::ConstBool.new("true")
-      elsif op1bool.try &.val == "false" && op2bool.try &.val == "false"
-        AST::ConstBool.new("true")
-      elsif op1bool && op2bool
-        AST::ConstBool.new("false")
-      elsif op1int && op2int && op1int.val == op2int.val
-        AST::ConstBool.new("true")
-      elsif op1int && op2int
-        AST::ConstBool.new("false")
-      else
-        node
-      end
-    when "+"
-      if op1val && op2val
-        # Integer overflow may happen here and that is expected.
-        AST::ConstInteger.new((op1val + op2val).to_s)
-      else
-        node
-      end
-    when "-"
-      if op1val && op2val
-        # Integer underflow may happen here and that is expected.
-        AST::ConstInteger.new((op1val - op2val).to_s)
-      else
-        node
-      end
-    when "*"
-      if op1val && op2val
-        # Integer overflow may happen here and that is expected.
-        AST::ConstInteger.new((op1val * op2val).to_s)
-      else
-        node
-      end
-    when "/"
-      if op1val && op2val
-        # Integer rounding may happen here and that is expected.
-        AST::ConstInteger.new((op1val / op2val).to_s)
+
+      case node.op
+      when "=="
+        if op1 == op2
+          AST::ConstBool.new("true")
+        else
+          AST::ConstBool.new("false")
+        end
+      when "+"
+        AST::ConstInteger.new((op1 + op2).to_s)
+      when "-"
+        AST::ConstInteger.new((op1 - op2).to_s)
+      when "*"
+        AST::ConstInteger.new((op1 * op2).to_s)
+      when "/"
+        AST::ConstInteger.new((op1 / op2).to_s)
       else
         node
       end
     else
-      raise Exception.new(
-        "supported operator \"#{node.op}\" not handled by case statement"
-      )
+      node
     end
   end
 end
