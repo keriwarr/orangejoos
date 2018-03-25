@@ -608,7 +608,7 @@ class Simplification
     when "Literal"
       return simplify(tree.tokens.first.as(ParseTree))
     when "IntegerLiteral"   then return AST::ConstInteger.new(tree.tokens.first.as(Lexeme).sem)
-    when "BooleanLiteral"   then return AST::ConstBool.new(tree.tokens.first.as(Lexeme).sem)
+    when "BooleanLiteral"   then return AST::ConstBool.new(tree.tokens.first.as(Lexeme).sem == "true")
     when "CharacterLiteral" then return AST::ConstChar.new(tree.tokens.first.as(Lexeme).sem)
     when "StringLiteral"    then return AST::ConstString.new(tree.tokens.first.as(Lexeme).sem)
     when "NullLiteral"      then return AST::ConstNull.new

@@ -1288,13 +1288,13 @@ module AST
 
   class ConstBool < Const
     # FIXME(joey): Make this a proper bool val.
-    property val : String
+    property val : Bool
 
-    def initialize(@val : String)
+    def initialize(@val : Bool)
     end
 
     def to_s : String
-      val
+      val.to_s
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type

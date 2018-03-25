@@ -35,23 +35,11 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
 
       case node.op
       when "||"
-        if op1 == "true" || op2 == "true"
-          AST::ConstBool.new("true")
-        else
-          AST::ConstBool.new("false")
-        end
+        AST::ConstBool.new(op1 || op2)
       when "&&"
-        if op1 == "true" && op2 == "true"
-          AST::ConstBool.new("true")
-        else
-          AST::ConstBool.new("false")
-        end
+        AST::ConstBool.new(op1 && op2)
       when "=="
-        if op1 == op2
-          AST::ConstBool.new("true")
-        else
-          AST::ConstBool.new("false")
-        end
+        AST::ConstBool.new(op1 == op2)
       else
         node
       end
@@ -69,11 +57,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
 
       case node.op
       when "=="
-        if op1 == op2
-          AST::ConstBool.new("true")
-        else
-          AST::ConstBool.new("false")
-        end
+        AST::ConstBool.new(op1 == op2)
       when "+"
         AST::ConstInteger.new((op1 + op2).to_s)
       when "-"
@@ -202,9 +186,9 @@ module Reachability
         in_set[node.update] = in_set[node]
       end
 
-      if expr.try &.val == "true"
+      if expr.try &.val == true
         in_set[node.body] = in_set[node]
-      elsif expr.try &.val == "false"
+      elsif expr.try &.val == false
         in_set[node.body] = Reachability::NO
       else
         in_set[node.body] = in_set[node]
@@ -212,9 +196,9 @@ module Reachability
 
       super
 
-      if expr.try &.val == "true"
+      if expr.try &.val == true
         out_set[node] = Reachability::NO
-      elsif expr.try &.val == "false"
+      elsif expr.try &.val == false
         out_set[node] = in_set[node]
       else
         out_set[node] = in_set[node]
