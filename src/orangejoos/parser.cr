@@ -23,11 +23,8 @@ class Parser
     @input.push(Lexeme.new(Type::EOF, 0, ""))
     # The state always begins at 0.
     @state = 0
-    # Stack of tokens and the state.
-    @stack = Deque(ParseNode).new
-    # Stack of the state for each token.
-    # FIXME(joey): Make the stack of tuples.
-    @state_stack = Deque(Int32).new
+    # Stack of the tokens and state.
+    @stack = Deque(Tuple(ParseNode, Int32)).new
   end
 
   # Generates a parse tree from the input the parser was provided.
@@ -44,7 +41,7 @@ class Parser
       # Check if the action exists in the lookup table. If it does not,
       # then the program is invalid.
       if !@table.has_action(@state, lookahead.parse_token)
-        stack = @stack.map { |s| s.pprint }.join("\n=== STACK ITEM ===\n")
+        stack = @stack.map { |s, _| s.pprint }.join("\n=== STACK ITEM ===\n")
         raise ParseStageError.new("no next action for state=#{@state} token=#{lookahead.parse_token} parsenode=#{lookahead.inspect}\n=== STACK ===\n=== STACK ITEM ===\n#{stack}")
       end
 
@@ -63,8 +60,7 @@ class Parser
       # the next state transition. The state will be the state of the
       # most recently popped stack element.
       if action.typ == ActionType::Shift
-        @stack.push(lookahead)
-        @state_stack.push(@state)
+        @stack.push(Tuple.new(lookahead, @state))
         @state = action.state
         lookahead = nil
       elsif action.typ == ActionType::Reduce
@@ -73,7 +69,7 @@ class Parser
         rule = @table.get_rule(action.state)
         # Recover the state of the latest item on the stack along with
         # reducing items off the stack.
-        tokens = (0...rule.reduce_size).map { |tree| @state = @state_stack.pop; @stack.pop }
+        tokens = (0...rule.reduce_size).map { |tree| token, @state = @stack.pop; token }
         node = ParseTree.new(rule.lhs, tokens.reverse)
 
         lookahead = node
@@ -81,7 +77,7 @@ class Parser
     end
 
     # FIXME(joey): Make sure there is only one parse item and it is a parse tree.
-    node = @stack[0]
+    node = @stack[0][0]
     if !node.is_a?(ParseTree)
       raise ParseStageError.new("Huzza")
     end
