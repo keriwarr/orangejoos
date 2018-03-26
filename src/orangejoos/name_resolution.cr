@@ -26,9 +26,6 @@ class NameResolution
         package_parts = ROOT_PACKAGE
       end
 
-      # FIXME(joey): We need to handle the specifics for protected
-      # classes that are available within the same package or the root
-      # package.
       if ast.decl?(file.class_name)
         decl = ast.decl(file.class_name)
         typ = TypeNode.new(decl.name, decl)
@@ -140,9 +137,9 @@ class NameResolution
   end
 
   def resolve_inheritance(file, namespace, cycle_tracker)
-    # FIXME(joey): Maybe it would be great to replace Name instances
-    # with QualifiedNameResolution for doing better static assertion of
-    # resolution?
+    # FIXME: (joey) It may be a goo idea to replace Name instances with
+    # QualifiedNameResolution, or do some form of static assertion that
+    # they are all resolved.
     file.ast.accept(InterfaceResolutionVisitor.new(namespace))
     file.ast.accept(ClassResolutionVisitor.new(namespace))
 
@@ -865,7 +862,9 @@ class ClassTypResolutionVisitor < Visitor::GenericVisitor
       name = AST::QualifiedName.new(["java", "lang", "Object"])
       typ = @namespace.fetch(name).as?(AST::ClassDecl)
       if typ.nil?
-        # FIXME(joey): assume no-stdlib mode. correctl check the flag.
+        # If we cannot find Object, assume the compiler is being run in
+        # no-stdlib mode.
+        # TODO: (joey) Ideally, we correctly check the no-stdlib flag.
       else
         name.ref = typ
         node.super_class = name
@@ -933,7 +932,7 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
   def visit(node : AST::ExprRef) : AST::Node
     # If the qualified name was already resolved, then it (should be)
     # the child of a ClassTyp, which cannot be field accesses.
-    # FIXME(joey): Once we add Parent references, we should assert this.
+    # FIXME: (joey) once we add Parent references, we should assert this.
     name = node.name
     return node if name.ref? || !name.is_a?(AST::QualifiedName)
     return disambiguate(node.name)
@@ -963,7 +962,7 @@ class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
       if !@namespace.fetch(class_name).nil?
         # Do not populate the Name.ref immediately, because it may later
         # resolve to a local variable which will shadow the Type.
-        # FIXME(joey): The same may apply to a package prefix. This is
+        # FIXME: (joey) The same may apply to a package prefix. This is
         # currently only correct for types referred to directly and not
         # by package path.
         field_access = AST::ExprRef.new(class_name)

@@ -59,7 +59,7 @@ class Pipeline
     tokens = Scanner.new(file.contents.to_slice).scan
 
     # Search for Bad tokens.
-    # FIXME(joey): Collect errors.
+    # FIXME: (joey) Collect errors.
     tokens.each do |res|
       if res.typ == Type::Bad
         raise CompilerError.new("tokens=#{tokens}")

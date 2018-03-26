@@ -55,7 +55,7 @@ class Scanner
   end
 
   # Peeks i characters ahead in the input.
-  # FIXME(joey): Does not handle EOFs well. This may break on badly on
+  # FIXME: (joey) Does not handle EOFs well. This may break on badly on
   # bad input, but that will end up with a ScanningStageError.
   def peek(i : Int32)
     return @input[i].unsafe_chr
@@ -83,7 +83,7 @@ class Scanner
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     if self.peek(0) == '/' && self.peek(1) == '/'
       eol = 0
-      # FIXME(joey): Handle EOF.
+      # FIXME: (joey) Handle EOF.
       while !self.eof?(eol) && !NEWLINES.includes?(self.peek(eol))
         eol += 1
       end
@@ -110,7 +110,7 @@ class Scanner
         end_of_comment = 2
       end
 
-      # FIXME(joey): Handle EOF.
+      # FIXME: (joey) Handle EOF.
       while true
         if self.eof?(end_of_comment)
           raise ScanningStageError.new("unterminated multi-line comment.", @lexemes)
@@ -242,7 +242,7 @@ class Scanner
           raise ScanningStageError.new("found octal literal, which is unsupported: #{num_str}", @lexemes)
         end
 
-        # FIXME(joey): Catch an error if the number is invalid or
+        # FIXME: (joey) Catch an error if the number is invalid or
         # causes overflow/underflow.
         # TODO(joey): We can throw an error if the number is out of
         # bounds here. We also need to be aware of the Crystal int size.
@@ -328,7 +328,7 @@ class Scanner
       end
 
       # When scanning character literals longer than 1, it is invalid.
-      # FIXME(joey): Handle this error better, for example exit early.
+      # FIXME: (joey) Handle this error better, for example exit early.
       if quote_typ == '\'' && str.size != 1
         return Lexeme.new(Type::Bad, str.size + escaped_chars + 2, str)
       end

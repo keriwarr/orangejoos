@@ -215,8 +215,6 @@ module Visitor
     end
 
     def visit(node : AST::ExprArrayInit) : AST::Node
-      # FIXME(joey): Not added due to the type specificity problem.
-      # node.arr = node.arr.accept(self)
       node.dim = node.dim.accept(self)
       return node
     end
