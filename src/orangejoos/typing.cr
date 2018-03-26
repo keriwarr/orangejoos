@@ -136,8 +136,7 @@ module Typing
     property! ref : AST::TypeDecl
     property is_array : Bool = false
 
-    def ref
-      AST::TypeDecl
+    def ref : AST::TypeDecl
       if !@ref.nil?
         return @ref.not_nil!
       end
