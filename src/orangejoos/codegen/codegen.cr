@@ -1,3 +1,7 @@
+require "asm/file_dsl"
+require "asm/register"
+require "asm/instructions"
+
 class CodeGenerator
   property vtable : VTable
   property verbose : Bool
@@ -8,7 +12,6 @@ class CodeGenerator
 
   def generate(file : SourceFile)
     file.ast.accept(CodeGenerationVisitor.new(output_dir, file))
-    file.code.write_and_close
   end
 
   def generate_entry(files : Array(SourceFile))
@@ -74,13 +77,11 @@ _exit:
 end
 
 class CodeFile
+  include ASM::FileDSL
+
   property path : String
   property source_path : String
   property typ_decl : AST::TypeDecl
-
-  property f : String::Builder
-
-  property indentation : Int32 = 0
 
   def initialize(@path : String, @source_path : String, @typ_decl : AST::TypeDecl)
     @f = String::Builder.new
@@ -91,14 +92,6 @@ class CodeFile
     f << "; === source: #{source_path}\n"
     f << "  SECTION .text\n\n\n"
     # TODO(joey): Add comments indicating the object layout.
-  end
-
-  def indent
-    self.indentation += 2
-  end
-
-  def unindent
-    self.indentation -= 2
   end
 
   def <<(s : String) : CodeFile
@@ -118,7 +111,11 @@ class CodeFile
 end
 
 # `CodeCreationVisitor`
+# FIXME(joey): CodeGenerationVisitor can only handle files with a single
+# entity. We will need to change this DSL/generator to handle otherwise.
 class CodeGenerationVisitor < Visitor::GenericVisitor
+  include ASM::FileDSL
+
   property output_dir : String
   property file : SourceFile
 
@@ -126,13 +123,20 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ClassDecl) : Nil
-    file_name = node.qualified_name.split(".").join("_") + ".s"
-    file_path = File.join(output_dir, file_name)
-    # TODO(joey): Because each file only contains one class/interface,
-    # this is fine. If we want to extend the compiler though, we will
-    # need to create a flatmap of code files.
-    file.code = CodeFile.new(file_path, @file.path, node)
+    source_path = @file.path
+
+    annotate "orangejoos generated Joos1W x86-32"
+    annotate "interface: #{node.package}.#{node.name}" if node.is_a?(AST::InterfaceDecl)
+    annotate "class: #{node.package}.#{node.name}" if node.is_a?(AST::ClassDecl)
+    # FIXME(joey): This path is often munged, e.g. multiple //.
+    annotate "source: #{source_path}"
+    raw "  SECTION .text\n"
+
     super
+
+    file_name = node.qualified_name.split(".").join("_") + ".s"
+    path = File.join(output_dir, file_name)
+    write_to_file(path)
   rescue ex : CompilerError
     ex.register("class_name", node.name)
     raise ex
@@ -144,14 +148,10 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       return
     end
 
-    file.code << "; static method #{node.parent.name}.#{node.name}\n"
-    file.code << "  GLOBAL #{node.label.to_s}\n"
-    file.code << "#{node.label.to_s}:\n"
-    file.code.indent
-    super
-    file.code.unindent
-
-    file.code << "\n\n\n"
+    comment "static method #{node.parent.name}.#{node.name}"
+    method(node.label) do
+      super
+    end
   rescue ex : CompilerError
     ex.register("method_name", node.name)
     raise ex
@@ -160,7 +160,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::ReturnStmt) : Nil
     super
     stack_size = 0
-    file.code << "RET #{stack_size}"
+    instr ASM.ret stack_size
   end
 
   def visit(node : AST::ExprOp) : Nil
@@ -169,24 +169,26 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # Add code for LHS.
       node.operands[0].accept(self)
       # Push the LHS result (EAX) to the stack.
-      file.code << "PUSH EAX\n"
+      instr ASM.push ASM::Register::EAX
       # Add code for RHS.
       node.operands[1].accept(self)
       # Compute LHS + RHS into EAX
-      file.code << "POP EBX\n"
+      instr ASM.pop ASM::Register::EBX
       # Do operations.
       # FIXME(joey): It would probably be better to not just be writing
       # strings to a file/stringbuilder. Using the ENUMS and all
       # available in lib/asm would be great for compile-time
       # correctness.
       case node.op
-      when "+" then file.code << "ADD EAX, EBX\n"
-      when "-" then file.code << "SUB EAX, EBX\n"
-      when "*" then file.code << "IMULT EAX, EBX\n"
+      when "+" then instr ASM.add ASM::Register::EAX, ASM::Register::EBX
+      when "-" then instr ASM.sub ASM::Register::EAX, ASM::Register::EBX
+      when "*" then instr ASM.imult ASM::Register::EAX, ASM::Register::EBX
       # IDIV: divide EAX by the parameter and put the quotient in EAX
       # and remainder in EDX.
-      when "/" then file.code << "IDIV EBX\n"
-      when "%" then file.code << "IDIV EBX\nMOV EAX, EDX"
+      when "/" then instr ASM.idiv ASM::Register::EBX
+      when "%"
+        instr ASM.idiv ASM::Register::EBX
+        instr ASM.mov ASM::Register::EAX, ASM::Register::EDX
       end
       return
     end
@@ -195,20 +197,21 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # Add code for LHS.
       node.operands[0].accept(self)
       # Push the LHS result (EAX) to the stack.
-      file.code << "PUSH EAX\n"
+      instr ASM.push ASM::Register::EAX
       # Add code for RHS.
       node.operands[1].accept(self)
       # Compute LHS + RHS into EAX
-      file.code << "POP EBX\n"
+      instr ASM.pop ASM::Register::EBX
       # FIXME(joey): TODO
-      file.code << "CMP EAX, EBX\nSETC EAX\n"
+      instr ASM.cmp ASM::Register::EAX, ASM::Register::EBX
+      instr ASM.setc ASM::Register::EAX
     end
 
     raise Exception.new("unimplemented: op=#{node.op} types=#{op_types.map &.to_s}")
   end
 
   def visit(node : AST::ConstInteger) : Nil
-    file.code << "MOV EAX, #{node.val}\n"
+    instr ASM.mov ASM::Register::EAX, node.val
   end
 
 end

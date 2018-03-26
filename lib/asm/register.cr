@@ -10,5 +10,8 @@ module ASM
     EBP, BP,
     ESP, SP,
     EIP
+
+    # Special register.
+    FLAGS
   end
 end
