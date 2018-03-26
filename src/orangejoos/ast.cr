@@ -1268,7 +1268,7 @@ module AST
   end
 
   class ConstInteger < Const
-    property val : Int32 = 0
+    property val : Int32
 
     def initialize(@val : Int32)
     end

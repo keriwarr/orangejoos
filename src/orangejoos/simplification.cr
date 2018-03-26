@@ -8,8 +8,6 @@ require "./lexeme.cr"
 class UnexpectedNodeException < Exception
 end
 
-2
-
 # This exception is used to signal when an Integer with apparent value
 # of excatly INT_MAX + 1 was encountered.
 class IntMaxPlusOneExcuption < Exception
