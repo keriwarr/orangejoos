@@ -181,7 +181,7 @@ class Lexeme < ParseNode
   end
 
   def to_s
-    # TODO(joey): Handle cases for literals. Ideally, the case
+    # TODO: (joey) Handle cases for literals. Ideally, the case
     # statements in Parser.parse are moved to an abstract fcn on
     # ParseNode.
     @sem

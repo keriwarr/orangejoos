@@ -18,7 +18,7 @@ class Scanner
       end
     end
 
-    # TODO(joey): Might be worth looking into StringScanner for
+    # TODO: (joey) Might be worth looking into StringScanner for
     # cool-ness (and speed?).
     @lexemes = Array(Lexeme).new
   end
@@ -142,52 +142,69 @@ class Scanner
       case self.peek(1)
       when '=' then return Lexeme.new(Type::Operator, 2, Operator::EQ) # ==
 
+
       else return Lexeme.new(Type::Operator, 1, Operator::ASSIGN) # =
+
 
       end
     when '!'
       case self.peek(1)
       when '=' then return Lexeme.new(Type::Operator, 2, Operator::NEQ) # !=
 
+
       else return Lexeme.new(Type::Operator, 1, Operator::NOT) # !
+
 
       end
     when '+' then return Lexeme.new(Type::Operator, 1, Operator::ADD) # +
 
+
     when '-' then return Lexeme.new(Type::Operator, 1, Operator::SUB) # -
+
 
     when '*' then return Lexeme.new(Type::Operator, 1, Operator::MULT) # *
 
+
     when '/' then return Lexeme.new(Type::Operator, 1, Operator::DIV) # /
 
+
     when '%' then return Lexeme.new(Type::Operator, 1, Operator::MOD) # %
+
 
     when '<'
       case self.peek(1)
       when '=' then return Lexeme.new(Type::Operator, 2, Operator::LEQ) # <=
 
+
       else return Lexeme.new(Type::Operator, 1, Operator::LT) # <
+
 
       end
     when '>'
       case self.peek(1)
       when '=' then return Lexeme.new(Type::Operator, 2, Operator::GEQ) # >=
 
+
       else return Lexeme.new(Type::Operator, 1, Operator::GT) # >
+
 
       end
     when '&'
       case self.peek(1)
       when '&' then return Lexeme.new(Type::Operator, 2, Operator::AND) # &&
 
+
       else return Lexeme.new(Type::Operator, 1, Operator::EAND) # &
+
 
       end
     when '|'
       case self.peek(1)
       when '|' then return Lexeme.new(Type::Operator, 2, Operator::OR) # ||
 
+
       else return Lexeme.new(Type::Operator, 1, Operator::EOR) # |
+
 
       end
       # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -242,10 +259,6 @@ class Scanner
           raise ScanningStageError.new("found octal literal, which is unsupported: #{num_str}", @lexemes)
         end
 
-        # FIXME(joey): Catch an error if the number is invalid or
-        # causes overflow/underflow.
-        # TODO(joey): We can throw an error if the number is out of
-        # bounds here. We also need to be aware of the Crystal int size.
         return Lexeme.new(Type::NumberLiteral, num_str.size, num_str)
       end
 

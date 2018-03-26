@@ -1,12 +1,6 @@
 # The AST is a simple and easy to manipulate representation of the
 # source code.
 
-# TODO(joey): A great way to represent names and their resolved types
-# would be adding functionality to `Name` to have a settable referenced
-# type. That way each `Name` gets evaluated and a reference is added in
-# that AST node, without having to add extra machinery in the parent
-# node.
-
 require "./visitor"
 require "./mutating_visitor"
 require "./typing"
@@ -115,29 +109,6 @@ module AST
 
   abstract class Stmt < Node
     abstract def children : Array(Stmt)
-
-    # TODO(joey): This was an attempt to make a traversal function for
-    # `Stmt` trees in a rather general manner. It is not actually used.
-    def traverse(map : Stmt -> Tuple(Object, Boolean), reduce : Array(Object) -> Object)
-      results = [] of Object
-
-      result, cont = map(self)
-      if !cont
-        return result
-      end
-
-      results.push(result)
-
-      self.children.each do |c|
-        result, cont = c.traverse(map, reduce)
-        if !cont
-          return {result, cont}
-        end
-        results.push(result)
-      end
-
-      return {reduce(results.compact), false}
-    end
   end
 
   # `Expr` are parts of the code which return a value. They are a subset
@@ -279,7 +250,7 @@ module AST
   # package com.java.util
   # ```
   #
-  # TODO(joey): This could probably be squashed into the File node due
+  # TODO: (joey) This could probably be squashed into the File node due
   # to this only containing a Name.
   class PackageDecl < Node
     property! path : Name
@@ -395,10 +366,10 @@ module AST
 
     def all_fields : Array(FieldDecl)
       # FIXME(joey): Modifier rules, for name resolution.
-      visible_fields = body.map(&.as?(FieldDecl)).compact
-      # TODO(joey): Filter out fields that will be shadowed. Currently,
-      # there will be duplicates. The order of fields matter so that
-      # shadowing fields will be near the front.
+      visible_fields = fields
+      # TODO: (keri/joey) Find a general solution for representing hierarchies
+      # of members. Shadowed members shouldn't be removed entirely because we
+      # want to later check the relationship between shadower and shadowee.
       visible_fields += super_class.ref.as(ClassDecl).all_fields if super_class?
       return visible_fields
     end
@@ -424,9 +395,9 @@ module AST
     end
 
     def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # TODO(joey): Filter out fields that will be shadowed. Currently,
-      # there will be duplicates. The order of fields matter so that
-      # shadowing fields will be near the front.
+      # TODO: (keri/joey) Find a general solution for representing hierarchies
+      # of members. Shadowed members shouldn't be removed entirely because we
+      # want to later check the relationship between shadower and shadowee.
       visible_methods = [] of MethodDecl
       visible_methods += super_class.ref.as(ClassDecl).all_methods(objectMethodDecls) if super_class?
       interfaces.each do |i|
@@ -459,14 +430,14 @@ module AST
 
     def extends?(node : ClassDecl) : Bool
       return true if super_class? && super_class.ref.as(ClassDecl).qualified_name == node.qualified_name
-      # TODO(joey): This is terribly inefficient lookup which could be
+      # TODO: (joey) This is a terribly inefficient lookup which could be
       # cached or precomputed in name resolution.
       return true if super_class? && super_class.ref.as(ClassDecl).extends?(node)
       return false
     end
 
     def implements?(node : InterfaceDecl) : Bool
-      # TODO(joey): This function is terribly inefficient lookup which could be
+      # TODO: (joey) This is a terribly inefficient lookup which could be
       # cached or precomputed in name resolution.
       interfaces.each do |i|
         interface = i.ref.as(InterfaceDecl)
@@ -502,9 +473,9 @@ module AST
     # names in Interfaces
     # Passing in objectMethodDecls will attempt to add those methods to the returned methods
     def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # TODO(joey): Filter out fields that will be shadowed. Currently,
-      # there will be duplicates. The order of fields matter so that
-      # shadowing fields will be near the front.
+      # TODO: (keri/joey) Find a general solution for representing hierarchies
+      # of members. Shadowed members shouldn't be removed entirely because we
+      # want to later check the relationship between shadower and shadowee.
       visible_methods = [] of MethodDecl
       extensions.each do |i|
         interface = i.ref.as(InterfaceDecl)
@@ -553,7 +524,7 @@ module AST
     end
 
     def extends?(node : InterfaceDecl) : Bool
-      # TODO(joey): This function is terribly inefficient lookup which could be
+      # TODO: (joey) This is a terribly inefficient lookup which could be
       # cached or precomputed in name resolution.
       extensions.each do |i|
         interface = i.ref.as(InterfaceDecl)
@@ -717,7 +688,7 @@ module AST
 
   # `Param` represents a parameter definition in a method signature. It
   # includes the _name_ and _typ_ of the paramter.
-  # TODO(joey): If the Param wraps a `VariableDecl` or we remove `Param`
+  # TODO: (joey) If the Param wraps a `VariableDecl` or we remove `Param`
   # outright, this will simplify variable resolution code.
   class Param < Node
     property name : String
@@ -872,7 +843,7 @@ module AST
   # `ExprOp` is an operator expression. Each expression has an operator
   # (`op`) and any number of `operands`. They generically any type of
   # operator, including unary and binary.
-  # TODO: can we make operands into type `Expr | NamedTuple(lhs: Expr, rhs: Expr)` ?
+  # TODO: make this abstract and subclass with unaryop and binaryop
   class ExprOp < Expr
     property op : String
     property operands : Array(Expr) = [] of Expr
@@ -1394,7 +1365,7 @@ module AST
   # `VariableDecl` to also include information about the `Typ` of the
   # `VariableDecl`.
   #
-  # TODO(joey): Squash `VariableDecl` into this node. This will need to
+  # TODO: (joey) Squash `VariableDecl` into this node. This will need to
   # be squashed into both the `FieldDecl` and `VarDeclStmt`. The only
   # difference is `FieldDecl` includes modifiers.
   class VarDeclStmt < Stmt
