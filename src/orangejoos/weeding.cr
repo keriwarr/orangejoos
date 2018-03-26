@@ -9,8 +9,6 @@ class Weeding
   end
 
   def weed
-    # NOTE: when in doubt, assume that this ordering of visitors is necessary
-    # TODO(keri): find a way to indicate visitor pre/post requisites
     @root.accept(InterfaceDeclVisitor.new)
     @root.accept(ClassDeclVisitor.new)
     @root.accept(PublicDeclVisitor.new)
@@ -37,7 +35,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
     found_constructor = false
 
     # A class annot be final and abstract.
-    # TODO(joey): add reference to specific JLS section for rule.
+    # See JLS 8.1.1.2 for more details
     if node.has_mod?("final") && node.has_mod?("abstract")
       raise WeedingStageError.new("class #{node.name} is both final and abstract.")
     end
@@ -129,7 +127,6 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::TypeDecl) : Nil
-    # TODO(keri): implement .is_public? ??
     if node.has_mod?("public") && node.name != @public_class_name
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
     end

@@ -13,11 +13,9 @@ module Typing
     STATIC
   end
 
-  PRIMITIVES = [Types::CHAR, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
-  NUMBERS_WITH_CHAR    = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR]
-  NUMBERS    = [Types::INT, Types::SHORT, Types::BYTE]
-
-
+  PRIMITIVES        = [Types::CHAR, Types::INT, Types::SHORT, Types::BYTE, Types::BOOLEAN, Types::NULL]
+  NUMBERS_WITH_CHAR = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR]
+  NUMBERS           = [Types::INT, Types::SHORT, Types::BYTE]
 
   # Handles type conversions for casting operations, including:
   # - Casting
@@ -27,7 +25,6 @@ module Typing
 
     # Allow casts between numeric types (including chars).
     return true if NUMBERS_WITH_CHAR.includes?(from.typ) && NUMBERS_WITH_CHAR.includes?(to.typ) && from.is_array == to.is_array
-
 
     # Special case: conversion from Object to Object[].
     return true if from.is_object? && !from.is_array && to.is_object? && to.is_array && from.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object" && to.ref.as(AST::TypeDecl).qualified_name == "java.lang.Object"
@@ -114,7 +111,6 @@ module Typing
     if from.is_object? && from.ref.is_a?(AST::InterfaceDecl) && to.is_object?
       from_interface = from.ref.as(AST::InterfaceDecl)
 
-
       # From any interface J to any interface K if J is a subinterface of K.
       return true if to.ref.is_a?(AST::InterfaceDecl) &&
                      to.ref.as(AST::InterfaceDecl).extends?(from.ref.as(AST::InterfaceDecl))
@@ -140,7 +136,8 @@ module Typing
     property! ref : AST::TypeDecl
     property is_array : Bool = false
 
-    def ref ; AST::TypeDecl
+    def ref
+      AST::TypeDecl
       if !@ref.nil?
         return @ref.not_nil!
       end
@@ -304,7 +301,6 @@ class StaticThisCheckVisitor < Visitor::GenericVisitor
   end
 end
 
-
 # `DefaultCtorCheckVisitor` checks if all classes have the
 # default constructor defined. This is a Joos1W requirement.
 class DefaultCtorCheckVisitor < Visitor::GenericVisitor
@@ -335,7 +331,6 @@ class FieldInitCheckVisitor < Visitor::GenericVisitor
   property! accessible_fields : Array(String)
   property! class_name : String
   property! field_name : String
-
 
   def visit(node : AST::InterfaceDecl | AST::PackageDecl | AST::ImportDecl) : Nil
     # no super

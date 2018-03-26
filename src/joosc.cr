@@ -34,5 +34,5 @@ rescue ex : CompilerError
   exit 42
 rescue ex : Exception
   STDERR.puts ex.inspect_with_backtrace
-  exit 42 # TODO(slnt) exit differently if verbose specifed?
+  exit 42 # TODO: (slnt) exit differently if verbose specifed?
 end

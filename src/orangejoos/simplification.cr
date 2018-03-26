@@ -426,10 +426,6 @@ class Simplification
          "RelationalExpression",
          "AdditiveExpression",
          "MultiplicativeExpression"
-      # TODO(joey): Resolve instanceof to a specific type, to make
-      # expressions easier where they will not contain a name referring
-      # to a class and only names referring to variables.
-
       return simplify(tree.tokens.first.as(ParseTree)) if tree.tokens.size == 1
 
       if tree.tokens.to_a[1].as(Lexeme).sem == "instanceof"
@@ -511,7 +507,7 @@ class Simplification
     when "PostfixExpression"
       result = simplify(tree.tokens.first.as(ParseTree))
       case result
-      # TODO(joey): we may want to refactor this to not be a thing.
+      # TODO: (joey) we may want to refactor this to not be a thing.
       # This is done to convert Name types to an Expr.
       when AST::Name then return AST::ExprRef.new(result)
       else                return result

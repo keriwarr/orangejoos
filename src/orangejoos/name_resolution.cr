@@ -148,7 +148,7 @@ class NameResolution
 
     # Check for clashes of the namespace with any classes defined in the
     # file.
-    # TODO(joey): Check that any decl in file.ast does not class with
+    # TODO: (joey) Check that any decl in file.ast does not clash with
     # anything in namespace (excluding the single exported type that
     # comes from this file).
 
@@ -578,7 +578,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   end
 
   def get_type_decl_instance_fields(node : AST::TypeDecl) : Array({name: String, decl: DeclWrapper})
-    # TODO(joey): This depends on the order of fields matter so that
+    # TODO: (joey) This depends on the order of fields matter so that
     # shadowing fields will be near the front so they resolve instead of
     # the shadowed fields. See `ClassDecl#fields` to see a TODO for
     # fixing this.
@@ -592,7 +592,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   end
 
   def get_type_decl_static_fields(node : AST::TypeDecl) : Array({name: String, decl: DeclWrapper})
-    # TODO(joey): This depends on the order of fields matter so that
+    # TODO: (joey) This depends on the order of fields matter so that
     # shadowing fields will be near the front so they resolve instead of
     # the shadowed fields. See `ClassDecl#fields` to see a TODO for
     # fixing this.
@@ -714,11 +714,6 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
       end
     end
 
-    # TODO(joey): If the name does not resolve to a local variable or
-    # field in scope, search the import path for a Class. The parent
-    # node must be a FieldAccess in this case.
-    # TODO(joey): The above comment also applies for QualifiedName when
-    # accessing static fields.
     result = @import_namespace.fetch(node)
     if !result.nil?
       node.ref = result
@@ -899,7 +894,7 @@ end
 # parent type decl.
 class BackrefResolver < Visitor::GenericVisitor
   def visit(node : AST::ClassDecl | AST::InterfaceDecl) : Nil
-    node.body.each {|b| b.parent = node}
+    node.body.each { |b| b.parent = node }
   end
 end
 
