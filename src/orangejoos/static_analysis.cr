@@ -39,9 +39,13 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
         op2 = node.operands[1].as(AST::ConstBool).val
 
         case node.op
+        when "==" then AST::ConstBool.new(op1 == op2)
+        when "!=" then AST::ConstBool.new(op1 != op2)
         when "||" then AST::ConstBool.new(op1 || op2)
         when "&&" then AST::ConstBool.new(op1 && op2)
-        when "==" then AST::ConstBool.new(op1 == op2)
+        when "&"  then AST::ConstBool.new(op1 & op2)
+        when "|"  then AST::ConstBool.new(op1 | op2)
+        when "^"  then AST::ConstBool.new(op1 ^ op2)
         else           node
         end
       when {AST::ConstInteger, AST::ConstInteger}
@@ -50,11 +54,32 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
 
         case node.op
         when "==" then AST::ConstBool.new(op1 == op2)
+        when "!=" then AST::ConstBool.new(op1 != op2)
+        when "<"  then AST::ConstBool.new(op1 < op2)
+        when ">"  then AST::ConstBool.new(op1 > op2)
+        when "<=" then AST::ConstBool.new(op1 <= op2)
+        when ">=" then AST::ConstBool.new(op1 >= op2)
         when "+"  then AST::ConstInteger.new(op1 + op2)
         when "-"  then AST::ConstInteger.new(op1 - op2)
         when "*"  then AST::ConstInteger.new(op1 * op2)
         when "/"  then AST::ConstInteger.new(op1 / op2)
+        when "%"  then AST::ConstInteger.new(op1 % op2)
         else           node
+        end
+      when {AST::ConstBool, Nil}
+        op1 = node.operands[0].as(AST::ConstBool).val
+
+        case node.op
+        when "!" then AST::ConstBool.new(!op1)
+        else          node
+        end
+      when {AST::ConstInteger, Nil}
+        op1 = node.operands[0].as(AST::ConstInteger).val
+
+        case node.op
+        when "+" then node.operands[0]
+        when "-" then AST::ConstInteger.new(-op1)
+        else          node
         end
       else
         node
