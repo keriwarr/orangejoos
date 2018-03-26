@@ -17,7 +17,14 @@ module Typing
   NUMBERS_WITH_CHAR    = [Types::INT, Types::SHORT, Types::BYTE, Types::CHAR]
   NUMBERS    = [Types::INT, Types::SHORT, Types::BYTE]
 
-
+  # This is a short-hand for referring to the non-built-in String type.
+  def self.get_string_type(namespace)
+    string_class = namespace.fetch(AST::QualifiedName.new(["java", "lang", "String"]))
+    if string_class.nil?
+      raise Exception.new("could not find java.lang.String to resolve for String literal")
+    end
+    return Typing::Type.new(Typing::Types::INSTANCE, string_class.not_nil!)
+  end
 
   # Handles type conversions for casting operations, including:
   # - Casting
