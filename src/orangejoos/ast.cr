@@ -21,16 +21,6 @@ NUM_CMP_OPS    = Set(String).new([">", "<", "<=", ">=", "!=", "=="])
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
-  # FIXME(joey): Move this to a better place. This was done to simplify
-  # the code that refers to the not built-in String types.
-  def self.get_string_type(namespace)
-    string_class = namespace.fetch(QualifiedName.new(["java", "lang", "String"]))
-    if string_class.nil?
-      raise Exception.new("could not find java.lang.String to resolve for String literal")
-    end
-    return Typing::Type.new(Typing::Types::INSTANCE, string_class.not_nil!)
-  end
-
   class MethodSignature
     getter name : String
     getter params : Array(Typing::Type)
@@ -934,8 +924,8 @@ module AST
       # type is casted to a String using `toString()` or converting the
       # primitive type.
       if op == "+" && operands.size == 2 &&
-         (operand_typs[0] == AST.get_string_type(namespace) || operand_typs[1] == AST.get_string_type(namespace))
-        return AST.get_string_type(namespace)
+         (operand_typs[0] == Typing.get_string_type(namespace) || operand_typs[1] == Typing.get_string_type(namespace))
+        return Typing.get_string_type(namespace)
       end
 
       # FIXME(joey): Add exhaustive operators.
@@ -1328,7 +1318,7 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      return AST.get_string_type(namespace)
+      return Typing.get_string_type(namespace)
     end
   end
 
