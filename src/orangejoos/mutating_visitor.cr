@@ -3,7 +3,6 @@ module Visitor
     abstract def visit(node : AST::PrimativeTyp) : AST::Node
     abstract def visit(node : AST::ClassTyp) : AST::Node
     abstract def visit(node : AST::Identifier) : AST::Node
-    abstract def visit(node : AST::Keyword) : AST::Node
     abstract def visit(node : AST::PackageDecl) : AST::Node
     abstract def visit(node : AST::ImportDecl) : AST::Node
     abstract def visit(node : AST::Modifier) : AST::Node
@@ -58,10 +57,6 @@ module Visitor
     end
 
     def visit(node : AST::Identifier) : AST::Node
-      return node
-    end
-
-    def visit(node : AST::Keyword) : AST::Node
       return node
     end
 

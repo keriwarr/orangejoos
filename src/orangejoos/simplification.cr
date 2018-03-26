@@ -245,11 +245,6 @@ class Simplification
       # FIXME(joey): This should not be a Literal but instead be an
       # Identifier maybe?
       return AST::Identifier.new(tree.tokens.first.as(Lexeme).sem)
-    when "Keyword"
-      if tree.tokens.size != 1
-        raise Exception.new("unexpected token count: #{tree.tokens.size}")
-      end
-      return AST::Keyword.new(tree.tokens.first.as(Lexeme).sem)
     when "Type"
       return simplify(tree.tokens.first.as(ParseTree))
     when "ReferenceType"
