@@ -6,11 +6,10 @@ require "./mutating_visitor"
 require "./typing"
 
 # Type checking constants.
-# FIXME(joey): Change these to sets.
-BOOLEAN_OPS    = ["==", "!=", "&", "|", "^", "&&", "||"]
-BINARY_NUM_OPS = ["+", "-", "/", "*", "%"]
-UNARY_NUM_OPS  = ["+", "-"]
-NUM_CMP_OPS    = [">", "<", "<=", ">=", "!=", "=="]
+BOOLEAN_OPS    = Set(String).new(["==", "!=", "&", "|", "^", "&&", "||"])
+BINARY_NUM_OPS = Set(String).new(["+", "-", "/", "*", "%"])
+UNARY_NUM_OPS  = Set(String).new(["+", "-"])
+NUM_CMP_OPS    = Set(String).new([">", "<", "<=", ">=", "!=", "=="])
 
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
 # categories of nodes:
