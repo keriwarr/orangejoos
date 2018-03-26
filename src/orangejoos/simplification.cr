@@ -148,7 +148,6 @@ class Simplification
       return var_inits
     when "BlockStatements"
       blocks = [] of AST::Stmt
-      # FIXME (Simon) changed block -> block_tree here, which I think is correct.
       if (block_tree = tree.tokens.get_tree("BlockStatements"))
         !block_tree.nil?
         blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
@@ -242,8 +241,6 @@ class Simplification
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
       end
-      # FIXME(joey): This should not be a Literal but instead be an
-      # Identifier maybe?
       return AST::Identifier.new(tree.tokens.first.as(Lexeme).sem)
     when "Type"
       return simplify(tree.tokens.first.as(ParseTree))
@@ -318,9 +315,8 @@ class Simplification
         stmts = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Stmt))
         return AST::Block.new(stmts)
       elsif tree.tokens.first.as(ParseTree).name == "EmptyStatement"
-        # FIXME(joey): I believe this is the easiest or only way to
-        # represent EmptyStatement. Is this easy for the later parts of
-        # the pipeline?
+        # FIXME: (joey) This may be the easiest way to represent a
+        # EmptyStatement.
         return AST::Block.new([] of AST::Stmt)
       end
       return simplify(tree.tokens.first.as(ParseTree))
@@ -514,8 +510,6 @@ class Simplification
       return AST::ParenExpr.new(simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)) if tree.tokens.size == 3
       # else
       case tree.tokens.first
-      # FIXME(joey): Seems weird to special case this. We may also not need to support
-      # this and can remove it in the grammar.
       when Lexeme then return AST::ExprThis.new
       else             return simplify(tree.tokens.first.as(ParseTree))
       end
@@ -570,7 +564,7 @@ class Simplification
     when "ArrayAccess"
       arr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr | AST::Name)
       index_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-      # FIXME(joey): This is done to handle hacky type specificness for
+      # FIXME: (joey) This is done to handle hacky type specificness for
       # the different ways of accessing an array.
       if arr.is_a?(AST::Expr)
         return AST::ExprArrayAccess.new(arr, index_expr)
@@ -608,7 +602,6 @@ class Simplification
         return AST::CastExpr.new(rhs, typ)
       end
     when "ArrayCreationExpression"
-      # FIXME(joey): Specialize the node type used here.
       if !tree.tokens.get_tree("PrimitiveType").nil?
         typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::PrimitiveTyp)
         dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
@@ -644,7 +637,7 @@ class Simplification
         end
       end
     when "BooleanLiteral"   then return AST::ConstBool.new(tree.tokens.first.as(Lexeme).sem == "true")
-    when "CharacterLiteral" then return AST::ConstChar.new(tree.tokens.first.as(Lexeme).sem)
+    when "CharacterLiteral" then return AST::ConstChar.new(tree.tokens.first.as(Lexeme).sem[0])
     when "StringLiteral"    then return AST::ConstString.new(tree.tokens.first.as(Lexeme).sem)
     when "NullLiteral"      then return AST::ConstNull.new
       # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -652,12 +645,12 @@ class Simplification
       # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Super" then return simplify(tree.tokens.to_a[1].as(ParseTree))
     when "ClassType"
-      # FIXME(joey): A marker should be added to the Name node here to
-      # signify that the Name must resolve to a Class type.
+      # TODO: (joey) a flag should be added to the Name node to signify
+      # that the Name must resolve to a Class type.
       return simplify(tree.tokens.first.as(ParseTree))
     when "InterfaceType"
-      # FIXME(joey): A marker should be added to the Name node here to
-      # signify that the Name must resolve to an Interface type.
+      # TODO: (joey) a flag should be added to the Name node to signify
+      # that the Name must resolve to an Interfacetype.
       return simplify(tree.tokens.first.as(ParseTree))
     when "ClassOrInterfaceType", "InterfaceMemberDeclaration",
          "ConstantDeclaration", "AbstractMethodDeclaration",

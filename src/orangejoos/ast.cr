@@ -285,8 +285,6 @@ module AST
 
   # `TypeDecl` is type declaration, either a `InterfaceDecl` or a
   # `ClassDecl`.
-  # FIXME(joey): Interface and Class could maybe be squashed into one
-  # node.
   abstract class TypeDecl < Node
     # NOTE: Interfaces are implicitly abstract, and are explicitly given the abstract modifier
     # during simplification
@@ -330,7 +328,8 @@ module AST
     end
 
     def all_fields : Array(FieldDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
+      # NOTE: visible fields does not discriminate. Protection is
+      # checking in `FieldAccess#resolve_type`.
       visible_fields = fields
       # TODO: (keri/joey) Find a general solution for representing hierarchies
       # of members. Shadowed members shouldn't be removed entirely because we
@@ -373,7 +372,8 @@ module AST
     end
 
     def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
+      # NOTE: visible methods does not discriminate. Protection is
+      # checking in `MethodInvoc#resolve_type`.
       visible_methods = methods(objectMethodDecls)
       visible_methods += super_methods(objectMethodDecls)
       return visible_methods
@@ -454,7 +454,8 @@ module AST
     # names in Interfaces
     # Passing in objectMethodDecls will attempt to add those methods to the returned methods
     def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
+      # NOTE: visible methods does not discriminate. Protection is
+      # checking in `MethodInvoc#resolve_type`.
       visible_methods = (
         if extensions.size > 0
           methods
@@ -904,7 +905,6 @@ module AST
         return Typing.get_string_type(namespace)
       end
 
-      # FIXME(joey): Add exhaustive operators.
       types = operand_typs.map &.to_s
       raise TypeCheckStageError.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
     end
@@ -1042,9 +1042,6 @@ module AST
 
   # `ExprArrayInit` represents an array creation.
   class ExprArrayInit < Expr
-    # FIXME: (joey) Specialize the node type used here. Maybe if we
-    # create a Type interface that multiple AST nodes can implement,
-    # such as Name (or Class/Interface) and PrimitiveTyp.
     property arr : Typ
     property dim : Expr
 
@@ -1102,8 +1099,8 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): If the namespace is a static namespace, this should
-      # be different.
+      # NOTE: `StaticThisCheckVisitor` checks for invalid uses of
+      # `ExprThis` inside static methods.
       return Typing::Type.new(Typing::Types::INSTANCE, namespace.current_class)
     end
 
@@ -1193,7 +1190,7 @@ module AST
       raise TypeCheckStageError.new("no method {#{name}}(#{arg_types.map &.to_s}) on #{typ.qualified_name}") if method.nil?
       method = method.not_nil!
 
-      # FIXME(joey): We only check access rules for class method calls,
+      # FIXME: (joey) We only check access rules for class method calls,
       # not interfaces.
       if typ.is_a?(AST::ClassDecl)
         method.check_access(namespace.current_class, typ)
@@ -1239,9 +1236,6 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation. I think constants evaluated to the
-      # smallest type they can.
       return Typing::Type.new(Typing::Types::INT)
     end
   end
@@ -1257,18 +1251,14 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation.
-      # I think constants evaluated to the smallest type they can.
       return Typing::Type.new(Typing::Types::BOOLEAN)
     end
   end
 
   class ConstChar < Const
-    # FIXME(joey): Make this a proper char val.
-    property val : String
+    property val : Char
 
-    def initialize(@val : String)
+    def initialize(@val : Char)
     end
 
     def to_s : String
@@ -1276,9 +1266,6 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation.
-      # I think constants evaluated to the smallest type they can.
       return Typing::Type.new(Typing::Types::CHAR)
     end
   end
@@ -1371,15 +1358,6 @@ module AST
     end
 
     def signature : MethodSignature
-      # FIXME(joey): Parameters in the method signature use the string
-      # in the source tree. Both of the arguments have the same type,
-      # but their signature will not match. This is incorrect, and
-      # depends on resolving names in Typ to fix:
-      #
-      # ```java
-      # foo(a java.lang.Object)
-      # foo(a Object)
-      # ```
       return MethodSignature.new(self)
     end
 
@@ -1408,8 +1386,9 @@ module AST
 
   # `ConstructorDecl` is a special method declaration. It includes
   # `name`, `modifiers`, `params` for the method signature, and the
-  # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
-  # with a flag denoting it's a constructor with no type.
+  # `body`.
+  # FIXME: (joey) Make ConstructorDecl a similar type to MethoDecl. Maybe
+  # a sub-type?
   class ConstructorDecl < MemberDecl
     include ModifierSet
 
