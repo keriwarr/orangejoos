@@ -130,7 +130,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a1 -name "*.java" -type
   do_test $filename $should_pass "-s weed" "" 1 $filename
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -maxdepth 1 | sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -144,7 +144,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
   fi
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -maxdepth 1 | sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -158,7 +158,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -depth 1 | sort`; do
   fi
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -maxdepth 1 | sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -172,7 +172,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
   fi
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f -maxdepth 1 | sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
