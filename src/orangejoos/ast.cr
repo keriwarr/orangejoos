@@ -815,14 +815,7 @@ module AST
     property operands : Array(Expr) = [] of Expr
 
     def initialize(@op : String, *ops)
-      ops.each do |operand|
-        # FIXME: (keri) this is gross
-        if operand.is_a?(Expr)
-          @operands.push(operand)
-        else
-          raise Exception.new("unexpected type, got operand: #{operand.inspect}")
-        end
-      end
+      self.operands = ops.to_a.map(&.as?(Expr)).compact
     end
 
     def to_s : String
