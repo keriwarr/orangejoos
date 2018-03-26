@@ -4,7 +4,8 @@ set -v
 
 ./tester.sh
 mv failed_tests.tmp failed_tests_pr.tmp
-git checkout remotes/origin/master
+git fetch origin
+git checkout origin/master
 ./tester.sh
 diff failed_tests.tmp failed_tests_pr.tmp | grep "✗"
 if [[ $? = 0 ]]; then
