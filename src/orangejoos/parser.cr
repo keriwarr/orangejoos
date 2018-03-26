@@ -76,7 +76,11 @@ class Parser
       end
     end
 
-    # FIXME(joey): Make sure there is only one parse item and it is a parse tree.
+    # Check that there are only two items on the stack. The second should be an EOF.
+    # TODO: (joey) actually check for an EOF.
+    if @stack.size != 2
+      raise Exception.new("parsing error: more than one item on the stack. size=#{@stack.size} stack=#{@stack}")
+    end
     node = @stack[0][0]
     if !node.is_a?(ParseTree)
       raise ParseStageError.new("Huzza")
