@@ -58,6 +58,13 @@ do_test() {
   should_pass=$2
   args=$3
   stdlib="$4"
+  assn="$5"
+  test="$6"
+  using_stdlib="true"
+
+  if [ -z "$stdlib" ]; then
+    using_stdlib="false"
+  fi
 
   if [[ $files != *"$file_name_test"* ]]; then
     return
@@ -70,7 +77,7 @@ do_test() {
   if [[ $result = 42 && $should_pass = true ]]; then
     description="== ${RED}FAIL${NC}: ${files}"
     bad_fail=$((bad_fail + 1))
-    echo "== ${RED}FAIL${NC}: ./joosc $args -v $files $stdlib" >> $failed_test_descr_file
+    echo "== ${RED}FAIL${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
     description="== ${GREEN}PASS${NC}: ${files}"
     correct_pass=$((correct_pass + 1))
@@ -80,11 +87,11 @@ do_test() {
   elif [[ $result = 0  && $should_pass = false ]]; then
     description="== ${RED}PASS${NC}: ${files}"
     bad_pass=$((bad_pass + 1))
-    echo "== ${RED}PASS${NC}: ./joosc $args -v $files $stdlib" >> $failed_test_descr_file
+    echo "== ${RED}PASS${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
   else
     description="== ${RED}EROR${NC}: ${files}"
     errors=$((errors + 1))
-    echo "== ${RED}EROR${NC}: ./joosc $args -v $files $stdlib" >> $failed_test_descr_file
+    echo "== ${RED}EROR${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
   fi
 
   echo $description
@@ -99,13 +106,13 @@ PASS_FILES=$(find ${TEST_FOLDER}/parser/valid -type f | sort)
 FAIL_FILES=$(find ${TEST_FOLDER}/parser/bad -type f | sort)
 
 for filename in $PASS_FILES; do
-  do_test $filename true "-s weed"
-  do_test $filename true "-s nameresolution" "$stdlib2"
+  do_test $filename true "-s weed" "" 1 $filename
+  do_test $filename true "-s nameresolution" "$stdlib2" 2 $filename
 done
 
 for filename in $FAIL_FILES; do
-  do_test $filename false "-s weed"
-  do_test $filename false "-s nameresolution" "$stdlib2"
+  do_test $filename false "-s weed" "" 1 $filename
+  do_test $filename false "-s nameresolution" "$stdlib2" 2 $filename
 done
 
 # ----------------------------------------------------------------------------
@@ -119,7 +126,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a1 -name "*.java" -type
     should_pass=false;
   fi
 
-  do_test $filename $should_pass "-s weed"
+  do_test $filename $should_pass "-s weed" "" 1 $filename
 done
 
 for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
@@ -129,10 +136,10 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
   fi
 
   if [[ -f $filename && $filename == *.java ]]; then
-    do_test $filename $should_pass "-s nameresolution" "$stdlib2"
+    do_test $filename $should_pass "-s nameresolution" "$stdlib2" 2 $filename
     elif [[ -d $filename ]]; then
     files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
-    do_test "$files" $should_pass "-s nameresolution" "$stdlib2"
+    do_test "$files" $should_pass "-s nameresolution" "$stdlib2" 2 $filename
   fi
 done
 
@@ -143,10 +150,10 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -depth 1 | sort`; do
   fi
 
   if [[ -f $filename && $filename == *.java ]]; then
-    do_test $filename $should_pass "-s typecheck" "$stdlib3"
+    do_test $filename $should_pass "-s typecheck" "$stdlib3" 3 $filename
     elif [[ -d $filename ]]; then
     files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
-    do_test "$files" $should_pass "-s typecheck" "$stdlib3"
+    do_test "$files" $should_pass "-s typecheck" "$stdlib3" 3 $filename
   fi
 done
 
@@ -157,10 +164,10 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
   fi
 
   if [[ -f $filename && $filename == *.java ]]; then
-    do_test $filename $should_pass "-s staticanalysis" "$stdlib4"
+    do_test $filename $should_pass "-s staticanalysis" "$stdlib4" 4 $filename
     elif [[ -d $filename ]]; then
     files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
-    do_test "$files" $should_pass "-s staticanalysis" "$stdlib4"
+    do_test "$files" $should_pass "-s staticanalysis" "$stdlib4" 4 $filename
   fi
 done
 
@@ -171,9 +178,9 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type
   fi
 
   if [[ -f $filename && $filename == *.java ]]; then
-    do_test $filename $should_pass "-s all" "$stdlib5"
+    do_test $filename $should_pass "-s all" "$stdlib5" 5 $filename
     elif [[ -d $filename ]]; then
     files=$(find ${filename} -name "*.java" -type f -exec echo -n '{} ' \;)
-    do_test "$files" $should_pass "-s all" "$stdlib5"
+    do_test "$files" $should_pass "-s all" "$stdlib5" 5 $filename
   fi
 done
