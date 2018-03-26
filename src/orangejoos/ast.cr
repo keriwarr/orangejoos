@@ -27,6 +27,7 @@ NUM_CMP_OPS    = Set(String).new([">", "<", "<=", ">=", "!=", "=="])
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
+
   class MethodSignature
     getter name : String
     getter params : Array(Typing::Type)
@@ -64,20 +65,28 @@ module AST
     end
   end
 
-  module Modifiers
-    getter modifiers : Set(String) = Set(String).new
+  enum Modifier
+    PUBLIC
+    PROTECTED
+    STATIC
+    ABSTRACT
+    FINAL
+    NATIVE
+  end
 
-    def modifiers=(mods : Array(Modifier))
-      @modifiers = Set(String).new(mods.map(&.name))
+  module ModifierSet
+    getter modifiers : Set(Modifier) = Set(Modifier).new
+
+    def modifiers=(mods : Array(Identifier))
+      mods = mods.map {|m| Modifier.parse(m.val)}
+      @modifiers = Set(Modifier).new(mods)
     end
 
-    def add(mod : String)
+    def add(mod : Modifier)
       @modifiers = @modifiers.add(mod)
     end
 
-    # FIXME(joey): For maximum correctness, the parameter type should be
-    # an ENUM of all correct modifiers.
-    def has_mod?(modifier : String)
+    def has_mod?(modifier : Modifier)
       modifiers.includes?(modifier)
     end
   end
@@ -318,24 +327,6 @@ module AST
     end
   end
 
-  # `Modifier` represents modifier keywords. This includes:
-  # - public
-  # - protected
-  # - static
-  # - abstract
-  # - final
-  # - native
-  class Modifier < Node
-    property name : String
-
-    def initialize(@name : String)
-    end
-
-    def ast_children : Array(Node)
-      [] of Node
-    end
-  end
-
   # `TypeDecl` is type declaration, either a `InterfaceDecl` or a
   # `ClassDecl`.
   # FIXME(joey): Interface and Class could maybe be squashed into one
@@ -343,7 +334,7 @@ module AST
   abstract class TypeDecl < Node
     # NOTE: Interfaces are implicitly abstract, and are explicitly given the abstract modifier
     # during simplification
-    include Modifiers
+    include ModifierSet
 
     property! name : String
     property! qualified_name : String
@@ -378,7 +369,7 @@ module AST
 
     property is_inherited : Bool = false
 
-    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Identifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
 
@@ -397,19 +388,19 @@ module AST
     end
 
     def non_static_fields : Array(FieldDecl)
-      fields.reject &.has_mod?("static")
+      fields.reject &.has_mod?(Modifier::STATIC)
     end
 
     def static_fields : Array(FieldDecl)
-      fields.select &.has_mod?("static")
+      fields.select &.has_mod?(Modifier::STATIC)
     end
 
     def all_non_static_fields : Array(FieldDecl)
-      all_fields.reject &.has_mod?("static")
+      all_fields.reject &.has_mod?(Modifier::STATIC)
     end
 
     def all_static_fields : Array(FieldDecl)
-      all_fields.select &.has_mod?("static")
+      all_fields.select &.has_mod?(Modifier::STATIC)
     end
 
     def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
@@ -482,7 +473,7 @@ module AST
     getter extensions : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Identifier), @extensions : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
 
@@ -629,7 +620,7 @@ module AST
   # `MemberDecl` represents declarations which are members of an object
   # (either `InterfaceDecl` or `ClassDecl`).
   abstract class MemberDecl < Node
-    include Modifiers
+    include ModifierSet
 
     property! parent : TypeDecl
 
@@ -637,7 +628,7 @@ module AST
 
     def check_access(current_class : ClassDecl, source_class : ClassDecl)
       # If the class member is not protected, no access problems.
-      return if !self.has_mod?("protected")
+      return if !self.has_mod?(Modifier::PROTECTED)
       # If the member's class is in the same package as the current
       # class, no access problems.
       return if source_class.package == current_class.package
@@ -663,7 +654,7 @@ module AST
     property typ : Typ
     property var : VariableDecl
 
-    def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
+    def initialize(modifiers : Array(Identifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
     end
 
@@ -990,7 +981,7 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       class_decl = typ.name.ref.as(ClassDecl)
-      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?("abstract")
+      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?(Modifier::ABSTRACT)
 
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
       constructor = class_decl.constructor?(arg_types)
@@ -999,7 +990,7 @@ module AST
 
       # Check if the constructor is protected, and if it is check if the
       # class is inside the same package.
-      if constructor.has_mod?("protected") && class_decl.package != namespace.current_class.package
+      if constructor.has_mod?(Modifier::PROTECTED) && class_decl.package != namespace.current_class.package
         raise TypeCheckStageError.new("cannot access protected constructor inside #{class_decl.qualified_name}")
       end
 
@@ -1253,9 +1244,9 @@ module AST
       end
 
       if instance_type.is_static?
-        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?("static")
+        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?(Modifier::STATIC)
       else
-        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?("static")
+        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?(Modifier::STATIC)
       end
 
       if method.typ?
@@ -1409,7 +1400,7 @@ module AST
   # `MethodDecl` is a method declaration. It includes `name`, `typ,`
   # `modifiers`, `params` for the method signature, and the `body`.
   class MethodDecl < MemberDecl
-    include Modifiers
+    include ModifierSet
 
     property name : String
     # `typ` is Nil if the method has a void return type.
@@ -1419,7 +1410,7 @@ module AST
     # type signature needs to include `Nil`.
     property! body : Array(Stmt)?
 
-    def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, @typ : Typ?, modifiers : Array(Identifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 
@@ -1464,13 +1455,13 @@ module AST
   # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
   # with a flag denoting it's a constructor with no type.
   class ConstructorDecl < MemberDecl
-    include Modifiers
+    include ModifierSet
 
     property name : String
     property params : Array(Param)
     property body : Array(Stmt) = [] of Stmt
 
-    def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, modifiers : Array(Identifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 

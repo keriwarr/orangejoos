@@ -626,7 +626,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::FieldDecl) : Nil
-    if node.has_mod?("static")
+    if node.has_mod?(AST::Modifier::STATIC)
       @field_namespace = @type_decl_static_fields[type_decl_node.name]
     else
       @field_namespace = @type_decl_instance_fields[type_decl_node.name]
@@ -640,7 +640,7 @@ class MethodEnvironmentVisitor < Visitor::GenericVisitor
   def visit(node : AST::MethodDecl | AST::ConstructorDecl) : Nil
     @current_method_name = node.name
     # Set up the field namespace.
-    if node.has_mod?("static")
+    if node.has_mod?(AST::Modifier::STATIC)
       @field_namespace = [] of NamedTuple(name: String, decl: DeclWrapper)
     else
       @field_namespace = @type_decl_instance_fields[type_decl_node.name]
@@ -757,7 +757,7 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
     methods = node.methods
     if methods.size > 1
       methods.each_with_index do |method, idx|
-        if node.is_a?(AST::ClassDecl) && !node.has_mod?("abstract") && method.has_mod?("abstract")
+        if node.is_a?(AST::ClassDecl) && !node.has_mod?(AST::Modifier::ABSTRACT) && method.has_mod?(AST::Modifier::ABSTRACT)
           raise NameResolutionStageError.new("Abstract method \"#{method.name}\" within non-abstract class \"#{node.name}\"")
         end
 
@@ -787,17 +787,17 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
     if super_methods.size > 0
       super_methods.each do |s_method|
         is_overridden_s_method? = true
-        if s_method.has_mod?("abstract") && !node.has_mod?("abstract")
+        if s_method.has_mod?(AST::Modifier::ABSTRACT) && !node.has_mod?(AST::Modifier::ABSTRACT)
           is_overridden_s_method? = false
           super_methods.each do |other_s_method|
-            if !other_s_method.has_mod?("abstract") && other_s_method.equiv(s_method)
+            if !other_s_method.has_mod?(AST::Modifier::ABSTRACT) && other_s_method.equiv(s_method)
               is_overridden_s_method? = true
             end
           end
         end
 
         methods.each do |method|
-          if !method.has_mod?("abstract") && method.equiv(s_method)
+          if !method.has_mod?(AST::Modifier::ABSTRACT) && method.equiv(s_method)
             is_overridden_s_method? = true
           end
         end
@@ -812,19 +812,19 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
     if all_super_methods.size > 0
       all_super_methods.each do |s_method|
         methods.each do |method|
-          if s_method.has_mod?("public") && method.has_mod?("protected") && method.equiv(s_method)
+          if s_method.has_mod?(AST::Modifier::PUBLIC) && method.has_mod?(AST::Modifier::PROTECTED) && method.equiv(s_method)
             raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
           end
 
-          if s_method.has_mod?("final") && method.signature.equiv(s_method.signature)
+          if s_method.has_mod?(AST::Modifier::STATIC) && method.signature.equiv(s_method.signature)
             raise NameResolutionStageError.new("Method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a final method")
           end
 
-          if s_method.has_mod?("static") && !method.has_mod?("static") && method.equiv(s_method)
+          if s_method.has_mod?(AST::Modifier::STATIC) && !method.has_mod?(AST::Modifier::STATIC) && method.equiv(s_method)
             raise NameResolutionStageError.new("Instance method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a static method")
           end
 
-          if !s_method.has_mod?("static") && method.has_mod?("static") && method.equiv(s_method)
+          if !s_method.has_mod?(AST::Modifier::STATIC) && method.has_mod?(AST::Modifier::STATIC) && method.equiv(s_method)
             raise NameResolutionStageError.new("Static method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding an instance method")
           end
         end
@@ -846,7 +846,7 @@ end
 
 class InheritanceCheckingVisitor < Visitor::GenericVisitor
   def visit(node : AST::ClassDecl) : Nil
-    if node.super_class? && node.super_class.ref.is_a?(AST::ClassDecl) && node.super_class.ref.as(AST::ClassDecl).has_mod?("final")
+    if node.super_class? && node.super_class.ref.is_a?(AST::ClassDecl) && node.super_class.ref.as(AST::ClassDecl).has_mod?(AST::Modifier::STATIC)
       raise NameResolutionStageError.new("Class \"#{node.name}\" extends final class \"#{node.super_class.ref.as(AST::ClassDecl).name}\"")
     end
   end
