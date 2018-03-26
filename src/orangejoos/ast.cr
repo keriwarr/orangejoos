@@ -27,7 +27,6 @@ NUM_CMP_OPS    = Set(String).new([">", "<", "<=", ">=", "!=", "=="])
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
-
   class MethodSignature
     getter name : String
     getter params : Array(Typing::Type)
@@ -78,7 +77,7 @@ module AST
     getter modifiers : Set(Modifier) = Set(Modifier).new
 
     def modifiers=(mods : Array(Identifier))
-      mods = mods.map {|m| Modifier.parse(m.val)}
+      mods = mods.map { |m| Modifier.parse(m.val) }
       @modifiers = Set(Modifier).new(mods)
     end
 
@@ -88,6 +87,30 @@ module AST
 
     def has_mod?(modifier : Modifier)
       modifiers.includes?(modifier)
+    end
+
+    def is_public?
+      modifiers.includes?(Modifier::PUBLIC)
+    end
+
+    def is_protected?
+      modifiers.includes?(Modifier::PROTECTED)
+    end
+
+    def is_static?
+      modifiers.includes?(Modifier::STATIC)
+    end
+
+    def is_abstract?
+      modifiers.includes?(Modifier::ABSTRACT)
+    end
+
+    def is_final?
+      modifiers.includes?(Modifier::FINAL)
+    end
+
+    def is_native?
+      modifiers.includes?(Modifier::NATIVE)
     end
   end
 
@@ -372,19 +395,19 @@ module AST
     end
 
     def non_static_fields : Array(FieldDecl)
-      fields.reject &.has_mod?(Modifier::STATIC)
+      fields.reject &.is_static?
     end
 
     def static_fields : Array(FieldDecl)
-      fields.select &.has_mod?(Modifier::STATIC)
+      fields.select &.is_static?
     end
 
     def all_non_static_fields : Array(FieldDecl)
-      all_fields.reject &.has_mod?(Modifier::STATIC)
+      all_fields.reject &.is_static?
     end
 
     def all_static_fields : Array(FieldDecl)
-      all_fields.select &.has_mod?(Modifier::STATIC)
+      all_fields.select &.is_static?
     end
 
     def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
@@ -614,7 +637,7 @@ module AST
 
     def check_access(current_class : ClassDecl, source_class : ClassDecl)
       # If the class member is not protected, no access problems.
-      return if !self.has_mod?(Modifier::PROTECTED)
+      return if !self.is_protected?
       # If the member's class is in the same package as the current
       # class, no access problems.
       return if source_class.package == current_class.package
@@ -959,7 +982,7 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       class_decl = typ.name.ref.as(ClassDecl)
-      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?(Modifier::ABSTRACT)
+      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.is_abstract?
 
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
       constructor = class_decl.constructor?(arg_types)
@@ -968,7 +991,7 @@ module AST
 
       # Check if the constructor is protected, and if it is check if the
       # class is inside the same package.
-      if constructor.has_mod?(Modifier::PROTECTED) && class_decl.package != namespace.current_class.package
+      if constructor.is_protected? && class_decl.package != namespace.current_class.package
         raise TypeCheckStageError.new("cannot access protected constructor inside #{class_decl.qualified_name}")
       end
 
@@ -1219,9 +1242,9 @@ module AST
       end
 
       if instance_type.is_static?
-        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?(Modifier::STATIC)
+        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.is_static?
       else
-        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?(Modifier::STATIC)
+        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.is_static?
       end
 
       if method.typ?

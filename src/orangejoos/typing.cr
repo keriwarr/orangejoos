@@ -301,7 +301,7 @@ class StaticThisCheckVisitor < Visitor::GenericVisitor
   def visit(node : AST::FieldDecl | AST::MethodDecl)
     current_parent_name = node.name
     # Only check static fields or methods.
-    super if node.has_mod?(AST::Modifier::STATIC)
+    super if node.is_static?
   end
 
   # We only traverse down static bodies, meaning we will only encounter
@@ -357,7 +357,7 @@ class FieldInitCheckVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::FieldDecl) : Nil
     self.field_name = node.name
-    if !node.has_mod?(AST::Modifier::STATIC)
+    if !node.is_static?
       super
       self.accessible_fields.push(node.name)
     end
