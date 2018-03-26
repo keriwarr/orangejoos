@@ -31,36 +31,22 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
       op2 = node.operands[1].as(AST::ConstBool).val
 
       case node.op
-      when "||"
-        AST::ConstBool.new(op1 || op2)
-      when "&&"
-        AST::ConstBool.new(op1 && op2)
-      when "=="
-        AST::ConstBool.new(op1 == op2)
-      else
-        node
+      when "||" then AST::ConstBool.new(op1 || op2)
+      when "&&" then AST::ConstBool.new(op1 && op2)
+      when "==" then AST::ConstBool.new(op1 == op2)
+      else           node
       end
     when {AST::ConstInteger, AST::ConstInteger}
-      begin
-        op1 = node.operands[0].as(AST::ConstInteger).try(&.val.to_i32)
-        op2 = node.operands[1].as(AST::ConstInteger).try(&.val.to_i32)
-      rescue ArgumentError
-        raise Exception.new("Const integer contains invalid value")
-      end
+      op1 = node.operands[0].as(AST::ConstInteger).val
+      op2 = node.operands[1].as(AST::ConstInteger).val
 
       case node.op
-      when "=="
-        AST::ConstBool.new(op1 == op2)
-      when "+"
-        AST::ConstInteger.new((op1 + op2).to_s)
-      when "-"
-        AST::ConstInteger.new((op1 - op2).to_s)
-      when "*"
-        AST::ConstInteger.new((op1 * op2).to_s)
-      when "/"
-        AST::ConstInteger.new((op1 / op2).to_s)
-      else
-        node
+      when "==" then AST::ConstBool.new(op1 == op2)
+      when "+"  then AST::ConstInteger.new(op1 + op2)
+      when "-"  then AST::ConstInteger.new(op1 - op2)
+      when "*"  then AST::ConstInteger.new(op1 * op2)
+      when "/"  then AST::ConstInteger.new(op1 / op2)
+      else           node
       end
     else
       node
@@ -172,11 +158,11 @@ module Reachability
     def visit(node : AST::ForStmt | AST::WhileStmt) : Nil
       expr = node.expr.as?(AST::ConstBool)
 
-      if node.responds_to?(:init?) && node.init?
-        in_set[node.init] = in_set[node]
+      if node.as?(AST::ForStmt).try &.init?
+        in_set[node.as(AST::ForStmt).init] = in_set[node]
       end
-      if node.responds_to?(:update?) && node.update?
-        in_set[node.update] = in_set[node]
+      if node.as?(AST::ForStmt).try &.update?
+        in_set[node.as(AST::ForStmt).update] = in_set[node]
       end
 
       if expr.try &.val == true

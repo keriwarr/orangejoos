@@ -1268,14 +1268,13 @@ module AST
   end
 
   class ConstInteger < Const
-    # FIXME(joey): Make this a proper int val.
-    property val : String
+    property val : Int32 = 0
 
-    def initialize(@val : String)
+    def initialize(@val : Int32)
     end
 
     def to_s : String
-      val
+      val.to_s
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type

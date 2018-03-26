@@ -15,7 +15,6 @@ class Weeding
     @root.accept(ClassDeclVisitor.new)
     @root.accept(PublicDeclVisitor.new)
     @root.accept(CheckPublicDeclNameVisitor.new(@public_class_name))
-    @root.accept(LiteralRangeCheckerVisitor.new)
     @root.accept(InvalidInstanceOfExpressionVisitor.new)
   end
 end
@@ -133,16 +132,6 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
     # TODO(keri): implement .is_public? ??
     if node.has_mod?("public") && node.name != @public_class_name
       raise WeedingStageError.new("class declared was \"#{node.name}\" but to match the file name it must be \"#{@public_class_name}\"")
-    end
-  end
-end
-
-class LiteralRangeCheckerVisitor < Visitor::GenericVisitor
-  def visit(node : AST::ConstInteger) : Nil
-    begin
-      node.val.to_i32
-    rescue ArgumentError
-      raise WeedingStageError.new("Integer out of bounds")
     end
   end
 end
