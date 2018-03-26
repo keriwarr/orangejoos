@@ -86,11 +86,6 @@ module AST
       super
     end
 
-    def visit(node : AST::Keyword) : Nil
-      print "Keyword: #{node.val}"
-      super
-    end
-
     def visit(node : AST::PackageDecl) : Nil
       print "Package: #{node.path.name}"
       super

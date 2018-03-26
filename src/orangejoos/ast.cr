@@ -255,21 +255,6 @@ module AST
     end
   end
 
-  # FIXME(joey): Not quite sure where keywords appear in the parse tree,
-  # or if it even matters. These will appear in the parse tree in place
-  # of words such as "if", "else", etc. but should not be used in the
-  # AST.
-  class Keyword < Node
-    getter val : String
-
-    def initialize(@val : String)
-    end
-
-    def ast_children : Array(Node)
-      [] of Node
-    end
-  end
-
   # `PackageDecl` represents the package declaration at the top of the
   # file. For example:
   #
