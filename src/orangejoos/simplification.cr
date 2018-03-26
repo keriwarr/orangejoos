@@ -72,11 +72,11 @@ class Simplification
       return type_decls
     when "Modifiers"
       modifiers = tree.tokens.get_tree("Modifiers")
-      modifiers_decls = [] of AST::Modifier
-      modifiers_decls = simplify_tree(modifiers).as(Array(AST::Modifier)) unless modifiers.nil?
+      modifiers_decls = [] of AST::Identifier
+      modifiers_decls = simplify_tree(modifiers).as(Array(AST::Identifier)) unless modifiers.nil?
 
       mod = simplify(tree.tokens.get_tree!("Modifier"))
-      modifiers_decls.push(mod.as(AST::Modifier)) unless mod.nil?
+      modifiers_decls.push(mod.as(AST::Identifier)) unless mod.nil?
       return modifiers_decls
     when "InterfaceMemberDeclarations"
       members = tree.tokens.get_tree("InterfaceMemberDeclarations")
@@ -295,7 +295,7 @@ class Simplification
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
       end
-      return AST::Modifier.new(tree.tokens.first.as(Lexeme).sem)
+      return AST::Identifier.new(tree.tokens.first.as(Lexeme).sem)
     when "ImportDeclaration"
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
@@ -685,7 +685,7 @@ class Simplification
       decl.body = body
       return decl
     when "ConstructorDeclaration"
-      mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Modifier))
+      mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Identifier))
       name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
 
       params = [] of AST::Param
@@ -717,8 +717,8 @@ class Simplification
       raise Exception.new("unexpected ParseNode \"MethodDeclarator\". See the comment above for why.")
     when "MethodHeader"
       t = tree.tokens.get_tree("Modifiers")
-      mods = [] of AST::Modifier
-      mods = simplify_tree(t).as(Array(AST::Modifier)) unless t.nil?
+      mods = [] of AST::Identifier
+      mods = simplify_tree(t).as(Array(AST::Identifier)) unless t.nil?
 
       typ_tree = tree.tokens.get_tree("Type")
       typ = typ_tree.try { |t| simplify(t.as(ParseTree)).as(AST::Typ) }
@@ -748,10 +748,10 @@ class Simplification
     when "VariableInitializer"
       return simplify(tree.tokens.first.as(ParseTree))
     when "FieldDeclaration"
-      modifiers = [] of AST::Modifier
+      modifiers = [] of AST::Identifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers"))
         !modifiers_tree.nil?
-        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Identifier))
       end
 
       typ = simplify(tree.tokens.get_tree!("Type")).as(AST::Typ)
@@ -762,10 +762,10 @@ class Simplification
     when "ClassDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
-      modifiers = [] of AST::Modifier
+      modifiers = [] of AST::Identifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers"))
         !modifiers_tree.nil?
-        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Identifier))
       end
 
       super_class = nil
@@ -792,10 +792,10 @@ class Simplification
     when "InterfaceDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
-      modifiers = [] of AST::Modifier
+      modifiers = [] of AST::Identifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers"))
         !modifiers_tree.nil?
-        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Identifier))
       end
 
       extensions = [] of AST::Name
@@ -814,10 +814,10 @@ class Simplification
       member_decls.each do |m|
         m.parent = iface_decl
         if m.is_a?(AST::MethodDecl)
-          m.modifiers.add("abstract")
+          m.modifiers.add(AST::Modifier::ABSTRACT)
         end
       end
-      iface_decl.modifiers.add("abstract")
+      iface_decl.modifiers.add(AST::Modifier::ABSTRACT)
       return iface_decl
     else
       raise UnexpectedNodeException.new("unexepected node name=#{tree.name}")
