@@ -477,7 +477,7 @@ class Simplification
           else
             # i.e. we're maybe between the unary minus operator and the number,
             # pass the exception upwards
-            ex.is_inside_unary_expr = true
+            ex.is_inside_unary_expr = false
             raise ex
           end
         end
