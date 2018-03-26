@@ -3,6 +3,12 @@ at_exit { Crystal.restore_blocking_state }
 require "./orangejoos/*"
 require "./argparser"
 
+# TODO: (joey) to support more RAM, we should change this to Int64.
+def download_more_ram(size : Int32)
+end
+
+download_more_ram
+
 # This entrypoint is provided just to provide the interface as desired
 # for CS444. That is, only take filenames as input without any further
 # arguments.
