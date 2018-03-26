@@ -140,6 +140,8 @@ module AST
   abstract class Expr < Stmt
     include Typing::Typed
 
+    property! original : ExprOp
+
     abstract def to_s : String
   end
 

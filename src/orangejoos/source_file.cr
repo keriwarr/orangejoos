@@ -19,8 +19,6 @@ class SourceFile
 
   property! import_namespace : ImportNamespace
 
-  property! code : CodeFile
-
   def initialize(@path : String)
   end
 

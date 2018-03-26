@@ -23,6 +23,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
 
   def visit(node : AST::ExprOp) : AST::Expr
     initial_type = node.get_type(@namespace)
+    original_node = node
 
     # We execute `super` immediately so that folding occurs from the leaves of
     # the AST up to the root of an expression sub-tree. Thus if an apparently
@@ -62,7 +63,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
         when "+"  then AST::ConstInteger.new(op1 + op2)
         when "-"  then AST::ConstInteger.new(op1 - op2)
         when "*"  then AST::ConstInteger.new(op1 * op2)
-        when "/"  then AST::ConstInteger.new(op1 / op2)
+        when "/"  then AST::ConstInteger.new(op1.tdiv(op2))
         when "%"  then AST::ConstInteger.new(op1 % op2)
         else           node
         end
@@ -94,6 +95,7 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
       )
     end
 
+    new_node.original = original_node
     return new_node
   end
 end
