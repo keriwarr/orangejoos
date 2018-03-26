@@ -6,11 +6,10 @@ require "./mutating_visitor"
 require "./typing"
 
 # Type checking constants.
-# FIXME(joey): Change these to sets.
-BOOLEAN_OPS    = ["==", "!=", "&", "|", "^", "&&", "||"]
-BINARY_NUM_OPS = ["+", "-", "/", "*", "%"]
-UNARY_NUM_OPS  = ["+", "-"]
-NUM_CMP_OPS    = [">", "<", "<=", ">=", "!=", "=="]
+BOOLEAN_OPS    = Set(String).new(["==", "!=", "&", "|", "^", "&&", "||"])
+BINARY_NUM_OPS = Set(String).new(["+", "-", "/", "*", "%"])
+UNARY_NUM_OPS  = Set(String).new(["+", "-"])
+NUM_CMP_OPS    = Set(String).new([">", "<", "<=", ">=", "!=", "=="])
 
 # `AST` is the abstract syntax tree for Joos1W. There are 3 primary
 # categories of nodes:
@@ -22,15 +21,6 @@ NUM_CMP_OPS    = [">", "<", "<=", ">=", "!=", "=="]
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
-  # FIXME(joey): Move this to a better place. This was done to simplify
-  # the code that refers to the not built-in String types.
-  def self.get_string_type(namespace)
-    string_class = namespace.fetch(QualifiedName.new(["java", "lang", "String"]))
-    if string_class.nil?
-      raise Exception.new("could not find java.lang.String to resolve for String literal")
-    end
-    return Typing::Type.new(Typing::Types::INSTANCE, string_class.not_nil!)
-  end
 
   class MethodSignature
     getter name : String
@@ -69,20 +59,28 @@ module AST
     end
   end
 
-  module Modifiers
-    getter modifiers : Set(String) = Set(String).new
+  enum Modifier
+    PUBLIC
+    PROTECTED
+    STATIC
+    ABSTRACT
+    FINAL
+    NATIVE
+  end
 
-    def modifiers=(mods : Array(Modifier))
-      @modifiers = Set(String).new(mods.map(&.name))
+  module ModifierSet
+    getter modifiers : Set(Modifier) = Set(Modifier).new
+
+    def modifiers=(mods : Array(Identifier))
+      mods = mods.map {|m| Modifier.parse(m.val)}
+      @modifiers = Set(Modifier).new(mods)
     end
 
-    def add(mod : String)
+    def add(mod : Modifier)
       @modifiers = @modifiers.add(mod)
     end
 
-    # FIXME(joey): For maximum correctness, the parameter type should be
-    # an ENUM of all correct modifiers.
-    def has_mod?(modifier : String)
+    def has_mod?(modifier : Modifier)
       modifiers.includes?(modifier)
     end
   end
@@ -228,21 +226,6 @@ module AST
     end
   end
 
-  # FIXME(joey): Not quite sure where keywords appear in the parse tree,
-  # or if it even matters. These will appear in the parse tree in place
-  # of words such as "if", "else", etc. but should not be used in the
-  # AST.
-  class Keyword < Node
-    getter val : String
-
-    def initialize(@val : String)
-    end
-
-    def ast_children : Array(Node)
-      [] of Node
-    end
-  end
-
   # `PackageDecl` represents the package declaration at the top of the
   # file. For example:
   #
@@ -300,32 +283,12 @@ module AST
     end
   end
 
-  # `Modifier` represents modifier keywords. This includes:
-  # - public
-  # - protected
-  # - static
-  # - abstract
-  # - final
-  # - native
-  class Modifier < Node
-    property name : String
-
-    def initialize(@name : String)
-    end
-
-    def ast_children : Array(Node)
-      [] of Node
-    end
-  end
-
   # `TypeDecl` is type declaration, either a `InterfaceDecl` or a
   # `ClassDecl`.
-  # FIXME(joey): Interface and Class could maybe be squashed into one
-  # node.
   abstract class TypeDecl < Node
     # NOTE: Interfaces are implicitly abstract, and are explicitly given the abstract modifier
     # during simplification
-    include Modifiers
+    include ModifierSet
 
     property! name : String
     property! qualified_name : String
@@ -360,12 +323,13 @@ module AST
 
     property is_inherited : Bool = false
 
-    def initialize(@name : String, modifiers : Array(Modifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Identifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
 
     def all_fields : Array(FieldDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
+      # NOTE: visible fields does not discriminate. Protection is
+      # checking in `FieldAccess#resolve_type`.
       visible_fields = fields
       # TODO: (keri/joey) Find a general solution for representing hierarchies
       # of members. Shadowed members shouldn't be removed entirely because we
@@ -379,19 +343,19 @@ module AST
     end
 
     def non_static_fields : Array(FieldDecl)
-      fields.reject &.has_mod?("static")
+      fields.reject &.has_mod?(Modifier::STATIC)
     end
 
     def static_fields : Array(FieldDecl)
-      fields.select &.has_mod?("static")
+      fields.select &.has_mod?(Modifier::STATIC)
     end
 
     def all_non_static_fields : Array(FieldDecl)
-      all_fields.reject &.has_mod?("static")
+      all_fields.reject &.has_mod?(Modifier::STATIC)
     end
 
     def all_static_fields : Array(FieldDecl)
-      all_fields.select &.has_mod?("static")
+      all_fields.select &.has_mod?(Modifier::STATIC)
     end
 
     def super_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
@@ -408,7 +372,8 @@ module AST
     end
 
     def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
+      # NOTE: visible methods does not discriminate. Protection is
+      # checking in `MethodInvoc#resolve_type`.
       visible_methods = methods(objectMethodDecls)
       visible_methods += super_methods(objectMethodDecls)
       return visible_methods
@@ -464,7 +429,7 @@ module AST
     getter extensions : Array(Name) = [] of Name
     getter body : Array(MemberDecl) = [] of MemberDecl
 
-    def initialize(@name : String, modifiers : Array(Modifier), @extensions : Array(Name), @body : Array(MemberDecl))
+    def initialize(@name : String, modifiers : Array(Identifier), @extensions : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
     end
 
@@ -489,7 +454,8 @@ module AST
     # names in Interfaces
     # Passing in objectMethodDecls will attempt to add those methods to the returned methods
     def all_methods(objectMethodDecls : Array(MethodDecl) = [] of MethodDecl) : Array(MethodDecl)
-      # FIXME(joey): Modifier rules, for name resolution.
+      # NOTE: visible methods does not discriminate. Protection is
+      # checking in `MethodInvoc#resolve_type`.
       visible_methods = (
         if extensions.size > 0
           methods
@@ -611,7 +577,7 @@ module AST
   # `MemberDecl` represents declarations which are members of an object
   # (either `InterfaceDecl` or `ClassDecl`).
   abstract class MemberDecl < Node
-    include Modifiers
+    include ModifierSet
 
     property! parent : TypeDecl
 
@@ -619,7 +585,7 @@ module AST
 
     def check_access(current_class : ClassDecl, source_class : ClassDecl)
       # If the class member is not protected, no access problems.
-      return if !self.has_mod?("protected")
+      return if !self.has_mod?(Modifier::PROTECTED)
       # If the member's class is in the same package as the current
       # class, no access problems.
       return if source_class.package == current_class.package
@@ -645,7 +611,7 @@ module AST
     property typ : Typ
     property var : VariableDecl
 
-    def initialize(modifiers : Array(Modifier), @typ : Typ, @var : VariableDecl)
+    def initialize(modifiers : Array(Identifier), @typ : Typ, @var : VariableDecl)
       self.modifiers = modifiers
     end
 
@@ -849,14 +815,7 @@ module AST
     property operands : Array(Expr) = [] of Expr
 
     def initialize(@op : String, *ops)
-      ops.each do |operand|
-        # FIXME: (keri) this is gross
-        if operand.is_a?(Expr)
-          @operands.push(operand)
-        else
-          raise Exception.new("unexpected type, got operand: #{operand.inspect}")
-        end
-      end
+      self.operands = ops.to_a.map(&.as?(Expr)).compact
     end
 
     def to_s : String
@@ -935,11 +894,10 @@ module AST
       # type is casted to a String using `toString()` or converting the
       # primitive type.
       if op == "+" && operands.size == 2 &&
-         (operand_typs[0] == AST.get_string_type(namespace) || operand_typs[1] == AST.get_string_type(namespace))
-        return AST.get_string_type(namespace)
+         (operand_typs[0] == Typing.get_string_type(namespace) || operand_typs[1] == Typing.get_string_type(namespace))
+        return Typing.get_string_type(namespace)
       end
 
-      # FIXME(joey): Add exhaustive operators.
       types = operand_typs.map &.to_s
       raise TypeCheckStageError.new("unhandled operation: op=\"#{op}\" types=#{types} #{self}")
     end
@@ -972,7 +930,7 @@ module AST
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
       class_decl = typ.name.ref.as(ClassDecl)
-      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?("abstract")
+      raise TypeCheckStageError.new("cannot initialize the abstract class #{class_decl.qualified_name}") if class_decl.has_mod?(Modifier::ABSTRACT)
 
       arg_types = args.map &.get_type(namespace).as(Typing::Type)
       constructor = class_decl.constructor?(arg_types)
@@ -981,7 +939,7 @@ module AST
 
       # Check if the constructor is protected, and if it is check if the
       # class is inside the same package.
-      if constructor.has_mod?("protected") && class_decl.package != namespace.current_class.package
+      if constructor.has_mod?(Modifier::PROTECTED) && class_decl.package != namespace.current_class.package
         raise TypeCheckStageError.new("cannot access protected constructor inside #{class_decl.qualified_name}")
       end
 
@@ -1077,9 +1035,6 @@ module AST
 
   # `ExprArrayInit` represents an array creation.
   class ExprArrayInit < Expr
-    # FIXME: (joey) Specialize the node type used here. Maybe if we
-    # create a Type interface that multiple AST nodes can implement,
-    # such as Name (or Class/Interface) and PrimitiveTyp.
     property arr : Typ
     property dim : Expr
 
@@ -1137,8 +1092,8 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): If the namespace is a static namespace, this should
-      # be different.
+      # NOTE: `StaticThisCheckVisitor` checks for invalid uses of
+      # `ExprThis` inside static methods.
       return Typing::Type.new(Typing::Types::INSTANCE, namespace.current_class)
     end
 
@@ -1228,16 +1183,16 @@ module AST
       raise TypeCheckStageError.new("no method {#{name}}(#{arg_types.map &.to_s}) on #{typ.qualified_name}") if method.nil?
       method = method.not_nil!
 
-      # FIXME(joey): We only check access rules for class method calls,
+      # FIXME: (joey) We only check access rules for class method calls,
       # not interfaces.
       if typ.is_a?(AST::ClassDecl)
         method.check_access(namespace.current_class, typ)
       end
 
       if instance_type.is_static?
-        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?("static")
+        raise TypeCheckStageError.new("non-static method call {#{method.name}} with class #{instance_type.to_s}") unless method.has_mod?(Modifier::STATIC)
       else
-        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?("static")
+        raise TypeCheckStageError.new("static method call {#{method.name}} with instance of #{instance_type.to_s}") if method.has_mod?(Modifier::STATIC)
       end
 
       if method.typ?
@@ -1274,9 +1229,6 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation. I think constants evaluated to the
-      # smallest type they can.
       return Typing::Type.new(Typing::Types::INT)
     end
   end
@@ -1292,18 +1244,14 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation.
-      # I think constants evaluated to the smallest type they can.
       return Typing::Type.new(Typing::Types::BOOLEAN)
     end
   end
 
   class ConstChar < Const
-    # FIXME(joey): Make this a proper char val.
-    property val : String
+    property val : Char
 
-    def initialize(@val : String)
+    def initialize(@val : Char)
     end
 
     def to_s : String
@@ -1311,9 +1259,6 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      # FIXME(joey): We may require more specific number types, or only
-      # as a result of computation.
-      # I think constants evaluated to the smallest type they can.
       return Typing::Type.new(Typing::Types::CHAR)
     end
   end
@@ -1329,7 +1274,7 @@ module AST
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
-      return AST.get_string_type(namespace)
+      return Typing.get_string_type(namespace)
     end
   end
 
@@ -1391,7 +1336,7 @@ module AST
   # `MethodDecl` is a method declaration. It includes `name`, `typ,`
   # `modifiers`, `params` for the method signature, and the `body`.
   class MethodDecl < MemberDecl
-    include Modifiers
+    include ModifierSet
 
     property name : String
     # `typ` is Nil if the method has a void return type.
@@ -1401,20 +1346,11 @@ module AST
     # type signature needs to include `Nil`.
     property! body : Array(Stmt)?
 
-    def initialize(@name : String, @typ : Typ?, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, @typ : Typ?, modifiers : Array(Identifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 
     def signature : MethodSignature
-      # FIXME(joey): Parameters in the method signature use the string
-      # in the source tree. Both of the arguments have the same type,
-      # but their signature will not match. This is incorrect, and
-      # depends on resolving names in Typ to fix:
-      #
-      # ```java
-      # foo(a java.lang.Object)
-      # foo(a Object)
-      # ```
       return MethodSignature.new(self)
     end
 
@@ -1443,16 +1379,17 @@ module AST
 
   # `ConstructorDecl` is a special method declaration. It includes
   # `name`, `modifiers`, `params` for the method signature, and the
-  # `body`. FIXME(joey): This can probably be squashed into `MethodDecl`
-  # with a flag denoting it's a constructor with no type.
+  # `body`.
+  # FIXME: (joey) Make ConstructorDecl a similar type to MethoDecl. Maybe
+  # a sub-type?
   class ConstructorDecl < MemberDecl
-    include Modifiers
+    include ModifierSet
 
     property name : String
     property params : Array(Param)
     property body : Array(Stmt) = [] of Stmt
 
-    def initialize(@name : String, modifiers : Array(Modifier), @params : Array(Param), @body : Array(Stmt))
+    def initialize(@name : String, modifiers : Array(Identifier), @params : Array(Param), @body : Array(Stmt))
       self.modifiers = modifiers
     end
 

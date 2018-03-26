@@ -8,7 +8,6 @@ module Visitor
     abstract def visit(node : AST::PrimativeTyp) : Nil
     abstract def visit(node : AST::ClassTyp) : Nil
     abstract def visit(node : AST::Identifier) : Nil
-    abstract def visit(node : AST::Keyword) : Nil
     abstract def visit(node : AST::PackageDecl) : Nil
     abstract def visit(node : AST::ImportDecl) : Nil
     abstract def visit(node : AST::Modifier) : Nil
@@ -101,10 +100,6 @@ module Visitor
     end
 
     def visit(node : AST::Identifier) : Nil
-      visit(node.ast_children)
-    end
-
-    def visit(node : AST::Keyword) : Nil
       visit(node.ast_children)
     end
 

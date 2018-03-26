@@ -86,11 +86,6 @@ module AST
       super
     end
 
-    def visit(node : AST::Keyword) : Nil
-      print "Keyword: #{node.val}"
-      super
-    end
-
     def visit(node : AST::PackageDecl) : Nil
       print "Package: #{node.path.name}"
       super
@@ -238,7 +233,6 @@ module AST
       end
       last_child = node.body.empty? && node.params.empty?
       print_child("Modifiers: #{node.modifiers.join(", ")}", last_child)
-      # FIXME: params aren't printing
       last_child = node.body.empty?
       print_child("Params: #{(node.params.map { |i| i.to_s }).join(", ")}", last_child) if !node.params.empty?
       if !node.body.empty?

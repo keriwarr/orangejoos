@@ -72,11 +72,11 @@ class Simplification
       return type_decls
     when "Modifiers"
       modifiers = tree.tokens.get_tree("Modifiers")
-      modifiers_decls = [] of AST::Modifier
-      modifiers_decls = simplify_tree(modifiers).as(Array(AST::Modifier)) unless modifiers.nil?
+      modifiers_decls = [] of AST::Identifier
+      modifiers_decls = simplify_tree(modifiers).as(Array(AST::Identifier)) unless modifiers.nil?
 
       mod = simplify(tree.tokens.get_tree!("Modifier"))
-      modifiers_decls.push(mod.as(AST::Modifier)) unless mod.nil?
+      modifiers_decls.push(mod.as(AST::Identifier)) unless mod.nil?
       return modifiers_decls
     when "InterfaceMemberDeclarations"
       members = tree.tokens.get_tree("InterfaceMemberDeclarations")
@@ -148,7 +148,6 @@ class Simplification
       return var_inits
     when "BlockStatements"
       blocks = [] of AST::Stmt
-      # FIXME (Simon) changed block -> block_tree here, which I think is correct.
       if (block_tree = tree.tokens.get_tree("BlockStatements"))
         !block_tree.nil?
         blocks = simplify_tree(block_tree).as(Array(AST::Stmt))
@@ -242,14 +241,7 @@ class Simplification
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
       end
-      # FIXME(joey): This should not be a Literal but instead be an
-      # Identifier maybe?
       return AST::Identifier.new(tree.tokens.first.as(Lexeme).sem)
-    when "Keyword"
-      if tree.tokens.size != 1
-        raise Exception.new("unexpected token count: #{tree.tokens.size}")
-      end
-      return AST::Keyword.new(tree.tokens.first.as(Lexeme).sem)
     when "Type"
       return simplify(tree.tokens.first.as(ParseTree))
     when "ReferenceType"
@@ -295,7 +287,7 @@ class Simplification
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
       end
-      return AST::Modifier.new(tree.tokens.first.as(Lexeme).sem)
+      return AST::Identifier.new(tree.tokens.first.as(Lexeme).sem)
     when "ImportDeclaration"
       if tree.tokens.size != 1
         raise Exception.new("unexpected token count: #{tree.tokens.size}")
@@ -323,9 +315,8 @@ class Simplification
         stmts = simplify_tree(tree.tokens.first.as(ParseTree)).as(Array(AST::Stmt))
         return AST::Block.new(stmts)
       elsif tree.tokens.first.as(ParseTree).name == "EmptyStatement"
-        # FIXME(joey): I believe this is the easiest or only way to
-        # represent EmptyStatement. Is this easy for the later parts of
-        # the pipeline?
+        # FIXME: (joey) This may be the easiest way to represent a
+        # EmptyStatement.
         return AST::Block.new([] of AST::Stmt)
       end
       return simplify(tree.tokens.first.as(ParseTree))
@@ -519,8 +510,6 @@ class Simplification
       return AST::ParenExpr.new(simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)) if tree.tokens.size == 3
       # else
       case tree.tokens.first
-      # FIXME(joey): Seems weird to special case this. We may also not need to support
-      # this and can remove it in the grammar.
       when Lexeme then return AST::ExprThis.new
       else             return simplify(tree.tokens.first.as(ParseTree))
       end
@@ -575,7 +564,7 @@ class Simplification
     when "ArrayAccess"
       arr = simplify(tree.tokens.to_a[0].as(ParseTree)).as(AST::Expr | AST::Name)
       index_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
-      # FIXME(joey): This is done to handle hacky type specificness for
+      # FIXME: (joey) This is done to handle hacky type specificness for
       # the different ways of accessing an array.
       if arr.is_a?(AST::Expr)
         return AST::ExprArrayAccess.new(arr, index_expr)
@@ -613,7 +602,6 @@ class Simplification
         return AST::CastExpr.new(rhs, typ)
       end
     when "ArrayCreationExpression"
-      # FIXME(joey): Specialize the node type used here.
       if !tree.tokens.get_tree("PrimitiveType").nil?
         typ = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::PrimitiveTyp)
         dim_expr = simplify(tree.tokens.to_a[2].as(ParseTree)).as(AST::Expr)
@@ -649,7 +637,7 @@ class Simplification
         end
       end
     when "BooleanLiteral"   then return AST::ConstBool.new(tree.tokens.first.as(Lexeme).sem == "true")
-    when "CharacterLiteral" then return AST::ConstChar.new(tree.tokens.first.as(Lexeme).sem)
+    when "CharacterLiteral" then return AST::ConstChar.new(tree.tokens.first.as(Lexeme).sem[0])
     when "StringLiteral"    then return AST::ConstString.new(tree.tokens.first.as(Lexeme).sem)
     when "NullLiteral"      then return AST::ConstNull.new
       # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -657,12 +645,12 @@ class Simplification
       # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Super" then return simplify(tree.tokens.to_a[1].as(ParseTree))
     when "ClassType"
-      # FIXME(joey): A marker should be added to the Name node here to
-      # signify that the Name must resolve to a Class type.
+      # TODO: (joey) a flag should be added to the Name node to signify
+      # that the Name must resolve to a Class type.
       return simplify(tree.tokens.first.as(ParseTree))
     when "InterfaceType"
-      # FIXME(joey): A marker should be added to the Name node here to
-      # signify that the Name must resolve to an Interface type.
+      # TODO: (joey) a flag should be added to the Name node to signify
+      # that the Name must resolve to an Interfacetype.
       return simplify(tree.tokens.first.as(ParseTree))
     when "ClassOrInterfaceType", "InterfaceMemberDeclaration",
          "ConstantDeclaration", "AbstractMethodDeclaration",
@@ -685,7 +673,7 @@ class Simplification
       decl.body = body
       return decl
     when "ConstructorDeclaration"
-      mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Modifier))
+      mods = simplify_tree(tree.tokens.get_tree!("Modifiers")).as(Array(AST::Identifier))
       name = simplify(tree.tokens.to_a[1].as(ParseTree).tokens.to_a[0].as(ParseTree)).as(AST::SimpleName)
 
       params = [] of AST::Param
@@ -717,8 +705,8 @@ class Simplification
       raise Exception.new("unexpected ParseNode \"MethodDeclarator\". See the comment above for why.")
     when "MethodHeader"
       t = tree.tokens.get_tree("Modifiers")
-      mods = [] of AST::Modifier
-      mods = simplify_tree(t).as(Array(AST::Modifier)) unless t.nil?
+      mods = [] of AST::Identifier
+      mods = simplify_tree(t).as(Array(AST::Identifier)) unless t.nil?
 
       typ_tree = tree.tokens.get_tree("Type")
       typ = typ_tree.try { |t| simplify(t.as(ParseTree)).as(AST::Typ) }
@@ -748,10 +736,10 @@ class Simplification
     when "VariableInitializer"
       return simplify(tree.tokens.first.as(ParseTree))
     when "FieldDeclaration"
-      modifiers = [] of AST::Modifier
+      modifiers = [] of AST::Identifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers"))
         !modifiers_tree.nil?
-        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Identifier))
       end
 
       typ = simplify(tree.tokens.get_tree!("Type")).as(AST::Typ)
@@ -762,10 +750,10 @@ class Simplification
     when "ClassDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
-      modifiers = [] of AST::Modifier
+      modifiers = [] of AST::Identifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers"))
         !modifiers_tree.nil?
-        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Identifier))
       end
 
       super_class = nil
@@ -792,10 +780,10 @@ class Simplification
     when "InterfaceDeclaration"
       name = simplify(tree.tokens.get_tree!("Identifier")).as(AST::Identifier)
 
-      modifiers = [] of AST::Modifier
+      modifiers = [] of AST::Identifier
       if (modifiers_tree = tree.tokens.get_tree("Modifiers"))
         !modifiers_tree.nil?
-        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Modifier))
+        modifiers = simplify_tree(modifiers_tree).as(Array(AST::Identifier))
       end
 
       extensions = [] of AST::Name
@@ -814,10 +802,10 @@ class Simplification
       member_decls.each do |m|
         m.parent = iface_decl
         if m.is_a?(AST::MethodDecl)
-          m.modifiers.add("abstract")
+          m.modifiers.add(AST::Modifier::ABSTRACT)
         end
       end
-      iface_decl.modifiers.add("abstract")
+      iface_decl.modifiers.add(AST::Modifier::ABSTRACT)
       return iface_decl
     else
       raise UnexpectedNodeException.new("unexepected node name=#{tree.name}")
