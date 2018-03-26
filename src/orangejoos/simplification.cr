@@ -8,6 +8,12 @@ require "./lexeme.cr"
 class UnexpectedNodeException < Exception
 end
 
+# This exception is used to signal when an Integer with apparent value
+# of excatly INT_MAX + 1 was encountered.
+class IntMaxPlusOneExcuption < Exception
+  property is_inside_unary_expr = false
+end
+
 # I am sorry for this mess :(
 # In short, the simplify functions take parse rules and flattent them.
 # Along the way, they generate AST nodes.
@@ -457,20 +463,49 @@ class Simplification
       # encountered, it is a bug.
       raise Exception.new("unexpected ParseNode \"Dims\", this node should not be traversed")
     when "UnaryExpression", "UnaryExpressionNotPlusMinus"
+      # This node is a little tricky, but the complexity has been moved here so
+      # that the value inside of an AST::CosntInteger can always be exactly an
+      # Int32.
+      # It works like this: The case that we want to look out for is when you
+      # have a unary minus operator applied to a "2147483648". The code which
+      # handles the integer literal can't koow whether the unary minus operator
+      # is being applied, so it signals with a IntMaxPlusOneExcuption, whenever
+      # it sees a "2147483648".
+      # When a number is inside of an operator, the number itself is actually
+      # wrapped in a UnaryExpression, thus in this case there is actually a
+      # second UnaryExpression node between the one with the minus operator and
+      # the integer. This is why we set the flag "is_inside_unary_expr" and re-raise.
       if tree.tokens.size == 1
-        return simplify(tree.tokens.first.as(ParseTree))
-      end
-      op = tree.tokens.to_a[0].as(Lexeme).sem
-      lhs = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)
-
-      if op == "-" && lhs.is_a?(AST::ConstInteger)
-        const_int = lhs.as(AST::ConstInteger)
-        if const_int.val.starts_with?("-")
-          const_int.val = const_int.val.strip("-")
-        else
-          const_int.val = "-" + const_int.val
+        begin
+          return simplify(tree.tokens.first.as(ParseTree))
+        rescue ex : IntMaxPlusOneExcuption
+          if ex.is_inside_unary_expr
+            # There is more than one UnaryExpression between the minus operaotr
+            # and the Integer, so this is not an INT_MIN literal
+            raise Exception.new("Integer out of bounds")
+          elsif tree.name == "UnaryExpressionNotPlusMinus"
+            # i.e. we're maybe between the unary minus operator and the number,
+            # pass the exception upwards
+            raise ex
+          else
+            # i.e. we're maybe between the unary minus operator and the number,
+            # pass the exception upwards
+            ex.is_inside_unary_expr = true
+            raise ex
+          end
         end
-        return const_int
+      end
+
+      op = tree.tokens.to_a[0].as(Lexeme).sem
+
+      begin
+        lhs = simplify(tree.tokens.to_a[1].as(ParseTree)).as(AST::Expr)
+      rescue IntMaxPlusOneExcuption
+        if op = "-"
+          lhs = AST::ConstInteger.new(-2_147_483_648)
+        else
+          raise Exception.new("Integer out of bounds")
+        end
       end
       return AST::ExprOp.new(op, lhs)
     when "PostfixExpression"
@@ -607,8 +642,17 @@ class Simplification
       # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     when "Literal"
       return simplify(tree.tokens.first.as(ParseTree))
-    when "IntegerLiteral"   then return AST::ConstInteger.new(tree.tokens.first.as(Lexeme).sem)
-    when "BooleanLiteral"   then return AST::ConstBool.new(tree.tokens.first.as(Lexeme).sem)
+    when "IntegerLiteral"
+      begin
+        return AST::ConstInteger.new(tree.tokens.first.as(Lexeme).sem.to_i32)
+      rescue ex : ArgumentError
+        if tree.tokens.first.as(Lexeme).sem == "2147483648"
+          raise IntMaxPlusOneExcuption.new
+        else
+          raise Exception.new("Integer out of bounds")
+        end
+      end
+    when "BooleanLiteral"   then return AST::ConstBool.new(tree.tokens.first.as(Lexeme).sem == "true")
     when "CharacterLiteral" then return AST::ConstChar.new(tree.tokens.first.as(Lexeme).sem)
     when "StringLiteral"    then return AST::ConstString.new(tree.tokens.first.as(Lexeme).sem)
     when "NullLiteral"      then return AST::ConstNull.new

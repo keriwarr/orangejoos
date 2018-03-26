@@ -10,6 +10,7 @@ require "./stage"
 require "./typing"
 require "./weeding"
 require "./vtable"
+require "./static_analysis"
 
 # The Pipeline executes the compiler pipeline.
 class Pipeline
@@ -117,6 +118,13 @@ class Pipeline
     raise ex
   end
 
+  def self.do_static_analysis!(file : SourceFile)
+    StaticAnalysis.new(file).analyze
+  rescue ex : CompilerError
+    ex.file = file.path
+    raise ex
+  end
+
   # do_code_gen generates .s assembly files for the file
   def do_code_gen!(file : SourceFile, vtable : VTable, verbose : Bool)
     CodeGenerator.new(file, vtable, verbose).generate
@@ -184,6 +192,16 @@ class Pipeline
     @sources.map &.debug_print(Stage::TYPE_CHECK) if @verbose
     return true if @end_stage == Stage::TYPE_CHECK
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    #                              STATIC ANALYSIS                            #
+    #                                                                         #
+    # Find any remaining errors that we can without actually running the      #
+    # code. Note that this stage manipulates the AST by removing ParenExprs,  #
+    # and by folding constants expressions.                                       #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    @sources.each { |file| Pipeline.do_static_analysis!(file) }
+    @sources.map &.debug_print(Stage::STATIC_ANALYSIS) if @verbose
+    return true if @end_stage == Stage::STATIC_ANALYSIS
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     #                              CODE GENERATION                            #

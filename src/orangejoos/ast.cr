@@ -1293,14 +1293,13 @@ module AST
   end
 
   class ConstInteger < Const
-    # FIXME(joey): Make this a proper int val.
-    property val : String
+    property val : Int32
 
-    def initialize(@val : String)
+    def initialize(@val : Int32)
     end
 
     def to_s : String
-      val
+      val.to_s
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type
@@ -1312,14 +1311,13 @@ module AST
   end
 
   class ConstBool < Const
-    # FIXME(joey): Make this a proper bool val.
-    property val : String
+    property val : Bool
 
-    def initialize(@val : String)
+    def initialize(@val : Bool)
     end
 
     def to_s : String
-      val
+      val.to_s
     end
 
     def resolve_type(namespace : ImportNamespace) : Typing::Type

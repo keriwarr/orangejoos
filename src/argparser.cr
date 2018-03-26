@@ -5,7 +5,7 @@ END_STAGE = Stage::NAME_RESOLUTION
 {% elsif flag?(:A3) %}
 END_STAGE = Stage::TYPE_CHECK
 {% elsif flag?(:A4) %}
-END_STAGE = Stage::ALL
+END_STAGE = Stage::STATIC_ANALYSIS
 {% elsif flag?(:A1) %}
 END_STAGE = Stage::WEED
 {% elsif flag?(:A_NONE) %}
