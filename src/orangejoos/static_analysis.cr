@@ -5,18 +5,25 @@ class StaticAnalysis
   end
 
   def analyze
-    @file.ast = @file.ast.accept(ConstantFoldingVisitor.new)
+    @file.ast = @file.ast.accept(ConstantFoldingVisitor.new(@file.import_namespace))
     @file.ast.accept(Reachability::ReachabilityVisitor.new)
   end
 end
 
 class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
+  def initialize(@namespace : ImportNamespace)
+  end
+
   # Remove parenthesization
   def visit(node : AST::ParenExpr) : AST::Expr
     return node.expr.accept(self)
+
+    # no super
   end
 
   def visit(node : AST::ExprOp) : AST::Expr
+    initial_type = node.get_type(@namespace)
+
     # We execute `super` immediately so that folding occurs from the leaves of
     # the AST up to the root of an expression sub-tree. Thus if an apparently
     # reducible expression contains sub-expressions which can't be reduced,
@@ -25,32 +32,44 @@ class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
     # If super doesn't return an ExprOp, something very strange has happened.
     node = super.as(AST::ExprOp)
 
-    case {node.operands[0]?, node.operands[1]?}
-    when {AST::ConstBool, AST::ConstBool}
-      op1 = node.operands[0].as(AST::ConstBool).val
-      op2 = node.operands[1].as(AST::ConstBool).val
+    new_node = (
+      case {node.operands[0]?, node.operands[1]?}
+      when {AST::ConstBool, AST::ConstBool}
+        op1 = node.operands[0].as(AST::ConstBool).val
+        op2 = node.operands[1].as(AST::ConstBool).val
 
-      case node.op
-      when "||" then AST::ConstBool.new(op1 || op2)
-      when "&&" then AST::ConstBool.new(op1 && op2)
-      when "==" then AST::ConstBool.new(op1 == op2)
-      else           node
-      end
-    when {AST::ConstInteger, AST::ConstInteger}
-      op1 = node.operands[0].as(AST::ConstInteger).val
-      op2 = node.operands[1].as(AST::ConstInteger).val
+        case node.op
+        when "||" then AST::ConstBool.new(op1 || op2)
+        when "&&" then AST::ConstBool.new(op1 && op2)
+        when "==" then AST::ConstBool.new(op1 == op2)
+        else           node
+        end
+      when {AST::ConstInteger, AST::ConstInteger}
+        op1 = node.operands[0].as(AST::ConstInteger).val
+        op2 = node.operands[1].as(AST::ConstInteger).val
 
-      case node.op
-      when "==" then AST::ConstBool.new(op1 == op2)
-      when "+"  then AST::ConstInteger.new(op1 + op2)
-      when "-"  then AST::ConstInteger.new(op1 - op2)
-      when "*"  then AST::ConstInteger.new(op1 * op2)
-      when "/"  then AST::ConstInteger.new(op1 / op2)
-      else           node
+        case node.op
+        when "==" then AST::ConstBool.new(op1 == op2)
+        when "+"  then AST::ConstInteger.new(op1 + op2)
+        when "-"  then AST::ConstInteger.new(op1 - op2)
+        when "*"  then AST::ConstInteger.new(op1 * op2)
+        when "/"  then AST::ConstInteger.new(op1 / op2)
+        else           node
+        end
+      else
+        node
       end
-    else
-      node
+    )
+
+    new_type = new_node.get_type(@namespace)
+
+    if initial_type != new_type
+      raise StaticAnalysisError.new(
+        "Type of Expr node changed during constant folding: #{node.inspect}"
+      )
     end
+
+    return new_node
   end
 end
 
@@ -132,7 +151,7 @@ module Reachability
       # no super
     end
 
-    # ------------------- STATEMENT VISITORS -------------------
+    # -------------------- STATEMENT VISITORS --------------------
     # Each of the below visit methods handles a distinct class of Statement.
     # All Classes of Statements must be explicitly handled.
     # Each such visit method has the guarantee that in_set[node] is
@@ -140,7 +159,7 @@ module Reachability
     # all of it's child Statements before calling super.
     # Furthermore each such visit method MUST set out_set[node] for itself
     # before returning.
-    # ----------------------------------------------------------
+    # ------------------------------------------------------------
 
     def visit(node : AST::Block) : Nil
       if node.stmts.size == 0
@@ -187,7 +206,6 @@ module Reachability
     # If statements are a weird case and defy expectation. See JLS 14.20 for
     # more details.
     def visit(node : AST::IfStmt) : Nil
-      # Not a mistake
       in_set[node.if_body] = in_set[node]
       in_set[node.else_body] = in_set[node] if node.else_body?
 
@@ -196,7 +214,6 @@ module Reachability
       if node.else_body?
         out_set[node] = out_set[node.if_body] | out_set[node.else_body]
       else
-        # Not a mistake
         out_set[node] = in_set[node]
       end
     end
