@@ -1,5 +1,5 @@
 language: crystal
 crystal:
-  - 0.24.1
+  - latest
 before_script: make
 script: ./travis-tests.sh
