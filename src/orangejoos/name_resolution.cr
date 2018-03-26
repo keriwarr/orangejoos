@@ -808,7 +808,7 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
             raise NameResolutionStageError.new("Protected method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a public method")
           end
 
-          if s_method.is_static? && method.signature.equiv(s_method.signature)
+          if s_method.is_final? && method.signature.equiv(s_method.signature)
             raise NameResolutionStageError.new("Method \"#{method.name}\" in type decl \"#{node.name}\" is illegally overriding a final method")
           end
 
@@ -838,7 +838,7 @@ end
 
 class InheritanceCheckingVisitor < Visitor::GenericVisitor
   def visit(node : AST::ClassDecl) : Nil
-    if node.super_class? && node.super_class.ref.is_a?(AST::ClassDecl) && node.super_class.ref.as(AST::ClassDecl).is_static?
+    if node.super_class? && node.super_class.ref.is_a?(AST::ClassDecl) && node.super_class.ref.as(AST::ClassDecl).is_final?
       raise NameResolutionStageError.new("Class \"#{node.name}\" extends final class \"#{node.super_class.ref.as(AST::ClassDecl).name}\"")
     end
   end
