@@ -212,7 +212,7 @@ module Reachability
       if expr.try &.val == true
         in_set[node.body] = in_set[node]
       elsif expr.try &.val == false
-        in_set[node.body] = Reachability::NO
+        in_set[node.body] = Reachability::MAYBE
       else
         in_set[node.body] = in_set[node]
       end
