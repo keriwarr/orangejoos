@@ -11,6 +11,7 @@ fi
 failed_test_descr_file="failed_tests.tmp"
 
 rm $failed_test_descr_file 2> /dev/null
+touch $failed_test_descr_file
 
 
 TEST_FOLDER="test"
@@ -75,23 +76,23 @@ do_test() {
   description=""
 
   if [[ $result = 42 && $should_pass = true ]]; then
-    description="== ${RED}FAIL${NC}: ${files}"
+    description="== ${RED}✗ FAIL${NC}: ${files}"
     bad_fail=$((bad_fail + 1))
-    echo "== ${RED}FAIL${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
+    echo "== ${RED}✗ FAIL${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
   elif [[ $result = 0 && $should_pass = true ]]; then
-    description="== ${GREEN}PASS${NC}: ${files}"
+    description="== ${GREEN}✔ PASS${NC}: ${files}"
     correct_pass=$((correct_pass + 1))
   elif [[ $result = 42 && $should_pass = false ]]; then
-    description="== ${GREEN}FAIL${NC}: ${files}"
+    description="== ${GREEN}✔ FAIL${NC}: ${files}"
     correct_fail=$((correct_fail + 1))
   elif [[ $result = 0  && $should_pass = false ]]; then
-    description="== ${RED}PASS${NC}: ${files}"
+    description="== ${RED}✗ PASS${NC}: ${files}"
     bad_pass=$((bad_pass + 1))
-    echo "== ${RED}PASS${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
+    echo "== ${RED}✗ PASS${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
   else
-    description="== ${RED}EROR${NC}: ${files}"
+    description="== ${RED}✗ EROR${NC}: ${files}"
     errors=$((errors + 1))
-    echo "== ${RED}EROR${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
+    echo "== ${RED}✗ EROR${NC}: ./c $using_stdlib $assn $test" >> $failed_test_descr_file
   fi
 
   echo $description
@@ -129,7 +130,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a1 -name "*.java" -type
   do_test $filename $should_pass "-s weed" "" 1 $filename
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -maxdepth 1 -mindepth 1| sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -143,7 +144,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a2 -depth 1 | sort`; do
   fi
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -maxdepth 1 -mindepth 1| sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -157,7 +158,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a3 -depth 1 | sort`; do
   fi
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -maxdepth 1 -mindepth 1| sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
@@ -171,7 +172,7 @@ for filename in `find ${PUB_FOLDER}/assignment_testcases/a4 -depth 1 | sort`; do
   fi
 done
 
-for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f -depth 1 | sort`; do
+for filename in `find ${PUB_FOLDER}/assignment_testcases/a5 -name "*.java" -type f -maxdepth 1 -mindepth 1| sort`; do
   should_pass=true;
   if [[ $(basename $filename) == Je* ]]; then
     should_pass=false;
