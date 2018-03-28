@@ -10,7 +10,7 @@ module ASM
     @command : String
     @args : String
 
-    def initialize(@command : String, @args : String)
+    def initialize(@command : String, @args : String = "")
     end
 
     def to_s : String
