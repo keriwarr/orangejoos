@@ -22,6 +22,7 @@ endif
 # TODO(joey): Check that `ASSN` is valid.
 
 CRYSTAL_SRCS := $(shell find ./src -name '*.cr')
+CRYSTAL_SRCS += $(shell find ./lib -name '*.cr')
 JLALR_SRCS := $(shell find tools/jlalr -name '*.java')
 
 default: joosc

@@ -1,6 +1,8 @@
+require "file_utils"
+
 require "./ast"
 require "./compiler_errors"
-require "./code_gen"
+require "./codegen"
 require "./lalr1_table"
 require "./lexeme"
 require "./name_resolution"
@@ -19,6 +21,7 @@ class Pipeline
   @end_stage = Stage::CODE_GEN
   @use_stdlib = true
   @verbose = false
+  property! output_dir : String
 
   # initialize creates the pipeline and checks all arguments for validity, raising an ArgumentError
   # if given an invalid parameter.
@@ -49,7 +52,7 @@ class Pipeline
   end
 
   # overloaded constructor
-  def initialize(table_file : String, paths : Array(String), @end_stage : Stage, @verbose : Bool, @use_stdlib : Bool)
+  def initialize(table_file : String, paths : Array(String), @end_stage : Stage, @verbose : Bool, @use_stdlib : Bool, @output_dir : String)
     initialize(table_file, paths) # call main constructor
   end
 
@@ -126,8 +129,8 @@ class Pipeline
   end
 
   # do_code_gen generates .s assembly files for the file
-  def do_code_gen!(file : SourceFile, vtable : VTable, verbose : Bool)
-    CodeGenerator.new(file, vtable, verbose).generate
+  def do_code_gen!(file : SourceFile, vtable : VTable, verbose : Bool, output_dir : String)
+    CodeGenerator.new(file, vtable, verbose, output_dir).generate
   rescue ex : CompilerError
     ex.file = file.path
     raise ex
@@ -208,10 +211,20 @@ class Pipeline
     #                                                                         #
     #                                                                         #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Remove existing output content.
+    if Dir.exists?(output_dir)
+      FileUtils.rm_r(output_dir)
+    end
+    Dir.mkdir(output_dir)
+
     # create the magic big vtable for method calling
     vtable = VTable.new(@sources)
-    # generate all the codes
-    @sources.each { |file| do_code_gen!(file, vtable, @verbose) }
+    # generate the code
+    code_gen = CodeGenerator.new(vtable, @verbose, output_dir)
+    @sources.each do |file|
+      file.attempt {|f| code_gen.generate(f) }
+    end
+    code_gen.generate_entry(@sources)
     @sources.map &.debug_print(Stage::CODE_GEN) if @verbose
     return true
   end

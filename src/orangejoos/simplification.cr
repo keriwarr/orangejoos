@@ -25,9 +25,6 @@ end
 # It transforms the parse tree into a proper AST that for use in later
 # compiler stages.
 class Simplification
-  def initialize
-  end
-
   def simplify(root : ParseTree) : AST::Node
     # We can safely assume the structure of the parse tree is correct
     # otherwise it would fail during the parse stage. During

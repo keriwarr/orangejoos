@@ -27,6 +27,13 @@ class SourceFile
     return contents
   end
 
+  def attempt
+    yield(self)
+  rescue ex : CompilerError
+    ex.file = self.path
+    raise ex
+  end
+
   # The type name that this file is allowed to export.
   # - If the file has a hyphen or any special characters, they become
   #   underscores.

@@ -4,6 +4,8 @@
 require "./visitor"
 require "./mutating_visitor"
 require "./typing"
+require "./codegen/labelled"
+require "asm/label"
 
 # Type checking constants.
 BOOLEAN_OPS    = Set(String).new(["==", "!=", "&", "|", "^", "&&", "||"])
@@ -138,8 +140,7 @@ module AST
   abstract class Expr < Stmt
     include Typing::Typed
 
-    def initialize
-    end
+    property! original : ExprOp
 
     abstract def to_s : String
   end
@@ -334,6 +335,11 @@ module AST
     def ==(other : TypeDecl) : Bool
       return self.qualified_name == other.qualified_name
     end
+
+    # Get the full package name of the class.
+    def package
+      qualified_name.split(".")[0...-1].join(".")
+    end
   end
 
   # `ClassDecl` is a top-level declaration for classes. Classes contain
@@ -434,11 +440,6 @@ module AST
       end
       return true if super_class? && super_class.ref.as(ClassDecl).implements?(node)
       return false
-    end
-
-    # Get the full package name of the class.
-    def package
-      qualified_name.split(".")[0...-1].join(".")
     end
 
     def ast_children : Array(Node)
@@ -601,6 +602,7 @@ module AST
   # (either `InterfaceDecl` or `ClassDecl`).
   abstract class MemberDecl < Node
     include ModifierSet
+    include Codegen::Labelled
 
     property! parent : TypeDecl
 
@@ -640,6 +642,11 @@ module AST
 
     def name : String
       var.name
+    end
+
+    def label : ASM::Label
+      raise Exception.new("attempting to access label for non-static field #{parent.package}.#{parent.name} {#{var.name}}") unless self.has_mod?("static")
+      return ASM::Label.from_field(parent.package, parent.name, var.name)
     end
 
     def ast_children : Array(Node)
@@ -1103,9 +1110,6 @@ module AST
   # `ExprThis` represents the `this` expression, which will return the
   # currently scoped `this` instance.
   class ExprThis < Expr
-    def initialize
-    end
-
     def to_s : String
       "this"
     end
@@ -1302,9 +1306,6 @@ module AST
   end
 
   class ConstNull < Const
-    def initialize
-    end
-
     def to_s : String
       "null"
     end
@@ -1391,6 +1392,11 @@ module AST
       return self.typ.to_type.equiv(other.typ.to_type)
     end
 
+    def label : ASM::Label
+      types = params.map { |p| p.typ.to_type.to_s }
+      return ASM::Label.from_method(parent.package, parent.name, name, types)
+    end
+
     def ast_children : Array(Node)
       [
         typ?.as?(Node),
@@ -1418,6 +1424,11 @@ module AST
 
     def signature : MethodSignature
       return MethodSignature.constructor(params.map(&.typ.to_type))
+    end
+
+    def label : ASM::Label
+      types = params.map { |p| p.typ.to_type.to_s }
+      return ASM::Label.from_ctor(parent.package, parent.name, types)
     end
 
     def ast_children : Array(Node)

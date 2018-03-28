@@ -8,7 +8,7 @@ require "./argparser"
 # arguments.
 begin
   args = ArgParser.new(ARGV)
-  Pipeline.new(args.table_file, args.paths, args.end_stage, args.verbose, args.use_stdlib).exec
+  Pipeline.new(args.table_file, args.paths, args.end_stage, args.verbose, args.use_stdlib, args.output_dir).exec
 rescue ex : ArgumentError
   STDERR.puts ex
   exit 42

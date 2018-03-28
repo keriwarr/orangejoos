@@ -238,7 +238,14 @@ module Typing
         # the user forgets to return, it accidentally becomes
         # `Type?`.
         typ : Type = resolve_type(namespace)
-        evaluated_typ = typ
+        self.evaluated_typ = typ
+      end
+      return evaluated_typ.not_nil!
+    end
+
+    def get_type : Type
+      if !evaluated_typ?
+        raise Exception.new("attempted get_type on un-evaluated type without namespace")
       end
       return evaluated_typ.not_nil!
     end
