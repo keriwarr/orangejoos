@@ -2,7 +2,6 @@ require "asm/instruction"
 
 module ASM
   module FileDSL
-
     @buf : String::Builder = String::Builder.new
     @annotating : Bool = true
     @indentation : Int32 = 0
@@ -10,7 +9,7 @@ module ASM
     def write_to_file(path : String)
       file = File.open(path, "w")
       file << @buf.to_s
-      file.close()
+      file.close
     end
 
     def annotate(s : String) : Nil

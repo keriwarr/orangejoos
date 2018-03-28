@@ -21,7 +21,7 @@ class CodeGenerator
     entry_path = File.join(output_dir, "__entry.s")
     f = File.open(entry_path, "w")
     f << "" \
-"; === Joos1W program entry
+         "; === Joos1W program entry
 
   SECTION .text
   GLOBAL start ; MacOS (macho) entry point
@@ -52,7 +52,7 @@ _exit:
   %error unimplemented for output format __OUTPUT_FORMAT__
 %endif
 "
-    f.close()
+    f.close
   end
 
   def find_entry_fcn(files : Array(SourceFile)) : AST::MethodDecl
@@ -138,7 +138,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     node.accept(LocalVariableCollector.new(variables))
     # Pretend everything takes up 32bits, lazy because our test is
     # J1_random_arithmetic.
-    self.stack_size = variables.sum {|i| 4 }
+    self.stack_size = variables.sum { |i| 4 }
 
     comment "static method #{node.parent.name}.#{node.name}"
     method(node.label) do
@@ -239,7 +239,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     label if_end_label
   end
 
-
   def visit(node : AST::ExprOp) : Nil
     op_types = node.operands.map &.get_type
     op_sig = {node.op, node.operands[0].get_type, node.operands[1].get_type}
@@ -278,8 +277,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       when {"+", .is_number?, .is_number?} then asm_add Register::EAX, Register::EBX
       when {"-", .is_number?, .is_number?} then asm_sub Register::EAX, Register::EBX
       when {"*", .is_number?, .is_number?} then asm_imult Register::EAX, Register::EBX
-      # IDIV: divide EAX by the parameter and put the quotient in EAX
-      # and remainder in EDX.
+        # IDIV: divide EAX by the parameter and put the quotient in EAX
+        # and remainder in EDX.
       when {"/", .is_number?, .is_number?} then asm_idiv Register::EBX
       when {"%", .is_number?, .is_number?}
         asm_idiv Register::EBX
@@ -314,7 +313,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstInteger) : Nil
-      comment "load int(#{node.val})"
+    comment "load int(#{node.val})"
     asm_mov Register::EAX, node.val
   end
 
@@ -356,12 +355,12 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   # def visit(node : AST::ExprRef) : Nil
-    # case node.name.ref
-    # when AST::VarDeclStmt
-    #   comment "would be var #{node.name}"
-    #   # instr
-    # else raise Exception.new("unimplemented: #{node.inspect}")
-    # end
+  # case node.name.ref
+  # when AST::VarDeclStmt
+  #   comment "would be var #{node.name}"
+  #   # instr
+  # else raise Exception.new("unimplemented: #{node.inspect}")
+  # end
   # end
 
 end
