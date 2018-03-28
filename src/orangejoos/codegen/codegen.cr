@@ -334,8 +334,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       comment "fetch localvar {#{node.name}}"
       offset = stack_offset(ref)
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
-    else
-      raise Exception.new("unhandled: #{node.name}")
+      # else
+      #   raise Exception.new("unhandled: #{node.name}")
     end
   end
 
@@ -347,6 +347,13 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       offset = stack_offset(node)
       asm_mov Register::EBP.as_address_offset(offset), Register::EAX
     end
+  end
+
+  def visit(node : AST::MethodInvoc) : Nil
+    typ = node.expr.get_type.ref.as(AST::TypeDecl)
+    method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
+    label = ASM::Label.from_method(method.parent.package, method.parent.name, method.name, method.params.map { |p| p.typ.to_type.to_s })
+    asm_call label
   end
 
   def stack_offset(node : AST::VarDeclStmt) : Int32

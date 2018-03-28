@@ -161,5 +161,10 @@ module ASM
       i = Instruction.new("RET #{bytes}")
       self.instr i
     end
+
+    def asm_call(lbl : Label) : Nil
+      i = Instruction.new("CALL #{lbl.to_s}")
+      self.instr i
+    end
   end
 end
