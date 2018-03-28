@@ -12,7 +12,7 @@ class CodeGenerator
   end
 
   def generate(file : SourceFile)
-    file.ast.accept(CodeGenerationVisitor.new(output_dir, file))
+    file.ast.accept(CodeGenerationVisitor.new(output_dir, file, @verbose))
   end
 
   def generate_entry(files : Array(SourceFile))
@@ -102,7 +102,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property printed = false
 
-  def initialize(@output_dir : String, @file : SourceFile)
+  def initialize(@output_dir : String, @file : SourceFile, @verbose : Bool)
   end
 
   def visit(node : AST::ClassDecl) : Nil
@@ -129,7 +129,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::MethodDecl) : Nil
     unless node.is_static?
-      STDERR.puts "unimplemented: non-static methods. not compiling #{node.parent.qualified_name} {#{node.name}}"
+      STDERR.puts "unimplemented: non-static methods. not compiling #{node.parent.qualified_name} {#{node.name}}" if @verbose
       return
     end
 
