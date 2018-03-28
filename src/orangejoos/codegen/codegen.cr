@@ -328,6 +328,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::SimpleName) : Nil
+    if node.ref?.nil?
+      return
+    end
     ref = node.ref
     case ref
     when AST::VarDeclStmt

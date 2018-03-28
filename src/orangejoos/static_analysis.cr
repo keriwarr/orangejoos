@@ -138,7 +138,7 @@ module Reachability
 
     def visit(node : AST::MethodDecl) : Nil
       # Edge case, where the body is absent or empty.
-      if node.body? && node.body.size == 0 && node.typ?
+      if node.body? && node.body.size == 0 && node.typ? && !node.is_abstract?
         raise StaticAnalysisError.new(
           "Method #{node.name} missing return statment of type " \
           "#{node.typ.to_s}"
