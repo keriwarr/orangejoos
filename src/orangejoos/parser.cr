@@ -88,3 +88,127 @@ class Parser
     return node
   end
 end
+
+
+FLATTEN_EXPR_TREES = Set.new(["ConditionalOrExpression",
+         "ConditionalAndExpression",
+         "InclusiveOrExpression",
+         "AndExpression",
+         "EqualityExpression",
+         "RelationalExpression",
+         "AdditiveExpression",
+         "MultiplicativeExpression"])
+
+# For flattening.
+enum Marker
+  START, STOP
+end
+
+module ParseSimplification
+  # Flattens structures that contain no information. Examples of this
+  # include the following:
+  #
+  # TODO: (joey) 1) Trees representing lists of items.
+  #
+  #    ClassBodyDeclarations
+  #      ClassBodyDeclarations
+  #        ClassBodyDeclarations
+  #          ClassBodyDeclarations
+  #            ClassBodyDeclarations
+  #
+  # 2) Intermediary Expressions nodes only for parsing precedence.
+  #
+  #    AndExpression
+  #      EqualityExpression
+  #        RelationalExpression
+  #          AdditiveExpression
+  #            AdditiveExpression
+  #              MultiplicativeExpression
+  #                UnaryExpression
+  #
+  def self.flatten_tree(tree : ParseTree) : ParseTree
+    # The structure of the stacks is the follow, if we have expanded a
+    # node _parent_ into 3 children:
+    #
+    #   working_stack:
+    #     Marker::START, child 1, child 2, child 2, Marker::END
+    #
+    #   waiting_stack:
+    #     parent
+    #
+    # We process the nodes from the working stack to the waiting stack,
+    # expanding it if possible and pushing it to the waiting stack.
+    working_stack = Deque(ParseNode | Marker).new([tree])
+    waiting_stack = Deque(ParseNode | Marker).new()
+
+    # Go through items in a stack-like manner. Either:
+    # 1) Process the `working_stack` which contains nodes that need
+    #    to be processed.
+    # 2) Process the `waiting_stack` which has fully processed nodes,
+    #    re-packaging the trees. It is only processed once there is a
+    #    `Marker::START` at the end of the stack. Note that it is START
+    #    as everything has been reversed.
+    while working_stack.size > 0 || waiting_stack.size > 1
+      # See if we can process the `waiting_stack`, i.e. if the last
+      # token is an end.
+      if waiting_stack.size > 0 && waiting_stack.last == Marker::START
+        # Pop off Marker::START.
+        waiting_stack.pop
+        children = [] of ParseNode
+        while waiting_stack.last != Marker::STOP
+          children.push(waiting_stack.pop.as(ParseNode))
+        end
+        # Pop off Marker::STOP.
+        waiting_stack.pop
+        # Pop off the parent, replace its children, and put it back on
+        # the stack.
+        parent = waiting_stack.pop.as(ParseTree)
+        parent.tokens = ParseNodes.new(children)
+        waiting_stack.push(parent)
+        next
+      end
+
+      next_item = working_stack.pop
+      if next_item.is_a?(Marker)
+        waiting_stack.push(next_item)
+      elsif next_item.is_a?(Lexeme)
+        waiting_stack.push(next_item.as(ParseNode))
+      elsif next_item.is_a?(ParseTree)
+        # Check if this node can be reduced.
+        if can_reduce(next_item)
+           # Instead of adding the item to the `waiting_stack` we reduce
+           # it and place the reduced result back onto the
+           # `working_stack` to continue processing it.
+          item = reduce_tree(next_item)
+          working_stack.push(item)
+        else
+          # Put the current item onto the `waiting_stack`.
+          waiting_stack.push(next_item)
+          # Add the children onto the `working_stack`. Additionally,
+          # put start and end markers around them.
+          # NOTE: after processing them, they will be in reverse order.
+          # This is desirable, because we then go through the
+          # waiting_stack in reverse order.
+          working_stack.push(Marker::START)
+          next_item.tokens.to_a.each {|i| working_stack.push(i)}
+          working_stack.push(Marker::STOP)
+        end
+      else raise Exception.new("unexpected case: node=#{next_item}")
+      end
+    end
+
+    return waiting_stack.pop.as(ParseTree)
+  end
+
+  def self.can_reduce(tree : ParseTree) : Bool
+    FLATTEN_EXPR_TREES.includes?(tree.name) && tree.tokens.size == 1
+  end
+
+  def self.reduce_tree(tree : ParseTree) : ParseTree
+    if FLATTEN_EXPR_TREES.includes?(tree.name)
+      return tree.tokens.first.as(ParseTree)
+    else
+      raise Exception.new("unhandled")
+    end
+  end
+end

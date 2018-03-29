@@ -60,7 +60,7 @@ end
 # A ParseTree is a parse node that represents a non-terminal rule.
 # It consists of a list of *tokens* that are the RHS of the rule.
 class ParseTree < ParseNode
-  getter tokens : ParseNodes
+  property tokens : ParseNodes
   getter name : String
 
   def initialize(@name : String, tokens : Array(ParseNode))

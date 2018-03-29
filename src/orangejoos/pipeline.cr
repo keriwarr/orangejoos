@@ -156,6 +156,8 @@ class Pipeline
     # Load LALR(1) prediction table and parse tokens of each source file.     #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     @sources.each { |file| do_parse!(@table, file) }
+    # Flatten the parse trees.
+    @sources.each { |f| f.parse_tree = ParseSimplification.flatten_tree(f.parse_tree) }
     @sources.map &.debug_print(Stage::PARSE) if @verbose
     return true if @end_stage == Stage::PARSE
 
