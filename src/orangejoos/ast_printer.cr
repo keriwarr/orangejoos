@@ -104,7 +104,7 @@ module AST
     end
 
     def visit(node : AST::InterfaceDecl) : Nil
-      print "Interface: node.name"
+      print "Interface: #{node.name}"
       last_child = node.ast_children.empty?
       print_child("Modifiers: #{node.modifiers.join(", ")}", last_child)
       super

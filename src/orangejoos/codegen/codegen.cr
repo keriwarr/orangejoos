@@ -4,6 +4,8 @@ require "asm/register"
 include ASM
 
 class CodeGenerator
+  include ASM::FileDSL
+
   property vtable : VTable
   property verbose : Bool
   property output_dir : String
@@ -17,42 +19,71 @@ class CodeGenerator
 
   def generate_entry(files : Array(SourceFile))
     entry_fcn = find_entry_fcn(files)
-    entry_label = entry_fcn.label.to_s
+    entry_label = entry_fcn.label
+
+    macos_start_lbl = Label.new("start")
+    linux_start_lbl = Label.new("_start")
+    exit_lbl = Label.new("_exit")
+
+    annotate "Joos1W program entry"
+    indent {
+      section_text
+      newline
+      newline
+      extern entry_label
+      newline
+      comment_next_line "MacOS (macho) entry point"
+      global macos_start_lbl
+      comment_next_line "Linux (elf_i386) entry point"
+      global linux_start_lbl
+    }
+
+    label macos_start_lbl
+    label linux_start_lbl
+    indent {
+      asm_call entry_label
+      comment_next_line "The status code is returned into EAX, which exit() uses."
+      asm_call exit_lbl
+    }
+    newline
+
+    comment_next_line "exit(status : Int) - status is stored in EAX"
+    label exit_lbl
+    indent {
+      comment "Call the syscall sys_exit(status)."
+      newline
+      raw "%ifidn __OUTPUT_FORMAT__, macho\n"
+      newline
+      comment "The BSD semantics for syscalls is that arguments are pushed to the stack."
+      comment_next_line "push the exit static code for the syscall arg."
+      asm_push Register::EAX
+      comment_next_line "denotes syscall 1, sys_exit(status)."
+      asm_mov Register::EAX, 1
+      comment_next_line "?? not sure what this is for and why. it is part of how systcall work."
+      asm_push Register::EAX
+      comment_next_line "enter the syscall interrupt."
+      asm_int 128
+      newline
+      raw "%elifidn __OUTPUT_FORMAT__, elf\n"
+      newline
+      comment "exit code. Linux semantics is arguments are put into registers on syscalls."
+      comment_next_line "Move the argument (status) to EBX"
+      asm_mov Register::EBX, Register::EAX
+      comment_next_line "syscall 1, exit(status)"
+      asm_mov Register::EAX, 1
+      comment_next_line "enter the syscall interrupt."
+      asm_int 128
+      newline
+      raw "%else\n"
+      newline
+      raw "  %error unimplemented for output format __OUTPUT_FORMAT__\n"
+      newline
+      raw "%endif\n"
+      newline
+    }
+
     entry_path = File.join(output_dir, "__entry.s")
-    f = File.open(entry_path, "w")
-    f << "" \
-"; === Joos1W program entry
-
-  SECTION .text
-  GLOBAL start ; MacOS (macho) entry point
-  GLOBAL _start ; Linux (elf_i386) entry point
-  EXTERN #{entry_label}
-start:
-_start:
-  CALL #{entry_label}
-  ; Call exit. The status code is returned into EAX, which exit() uses.
-  CALL _exit
-
-; exit(status : Int)
-; status is in EAX
-_exit:
-  ; Call the syscall sys_exit(status).
-%ifidn __OUTPUT_FORMAT__, macho
-  ; The BSD semantics for syscalls is that arguments are pushed to the stack.
-  PUSH EAX ; push the exit static code for the syscall arg.
-  MOV EAX, 1 ; denotes syscall 1, sys_exit(status).
-  PUSH EAX ; ??? not sure what this is for and why. it is part of how systcall work.
-  INT 0x80 ; enter the syscall interrupt.
-%elifidn __OUTPUT_FORMAT__, elf
-  ; exit code. Linux semantics is arguments are put into registers on syscalls.
-  MOV EBX, EAX ; Move the argument (status) to EBX
-  MOV EAX, 1 ; syscall 1, exit(status)
-  INT 0x80 ; enter the syscall interrupt
-%else
-  %error unimplemented for output format __OUTPUT_FORMAT__
-%endif
-"
-    f.close()
+    write_to_file(entry_path)
   end
 
   def find_entry_fcn(files : Array(SourceFile)) : AST::MethodDecl
@@ -138,22 +169,16 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     node.accept(LocalVariableCollector.new(variables))
     # Pretend everything takes up 32bits, lazy because our test is
     # J1_random_arithmetic.
-    self.stack_size = variables.sum {|i| 4 }
+    self.stack_size = variables.sum { |i| 4 }
 
-    comment "static method #{node.parent.name}.#{node.name}"
     method(node.label) do
-      comment "save old base pointer"
-      asm_push Register::EBP
-      comment "set the new base pointer value"
-      asm_mov Register::EBP, Register::ESP
-
       # Initialize the stack frame of the method. This involves:
       # 1) Shifting ESP by the stack size.
       # 2) Initializing the stack data.
       variables.each do |var|
         # FIXME: (joey) for now, we push zeros for everything. To support
         # non-word sized types, we should be smarter about it.
-        comment "init space for localvar {#{var[:name]}}"
+        comment_next_line "init space for localvar {#{var[:name]}}"
         asm_push 0
       end
       super
@@ -176,10 +201,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # TODO: (joey) if we change calling convention so caller saves and
     # restores EBP, then we should instead use "RET n" to de-allocate
     # the stack in one instruction.
-    comment "de-allocate local variables by recovering callers ESP"
-    asm_mov Register::ESP, Register::EBP
-    comment "restore callers base pointer"
-    asm_pop Register::EBP
     asm_ret 0
   end
 
@@ -239,7 +260,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     label if_end_label
   end
 
-
   def visit(node : AST::ExprOp) : Nil
     op_types = node.operands.map &.get_type
     op_sig = {node.op, node.operands[0].get_type, node.operands[1].get_type}
@@ -278,8 +298,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       when {"+", .is_number?, .is_number?} then asm_add Register::EAX, Register::EBX
       when {"-", .is_number?, .is_number?} then asm_sub Register::EAX, Register::EBX
       when {"*", .is_number?, .is_number?} then asm_imult Register::EAX, Register::EBX
-      # IDIV: divide EAX by the parameter and put the quotient in EAX
-      # and remainder in EDX.
+        # IDIV: divide EAX by the parameter and put the quotient in EAX
+        # and remainder in EDX.
       when {"/", .is_number?, .is_number?} then asm_idiv Register::EBX
       when {"%", .is_number?, .is_number?}
         asm_idiv Register::EBX
@@ -305,7 +325,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       else raise Exception.new("unhandled: #{node.inspect}")
       end
     when AST::VarDeclStmt
-      comment "address for localvar {#{node.var.name}}"
+      comment_next_line "address for localvar {#{node.var.name}}"
       # Get pointer location of the variable.
       asm_mov Register::EAX, Register::EBP
       asm_add Register::EAX, stack_offset(node)
@@ -314,29 +334,32 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstInteger) : Nil
-      comment "load int(#{node.val})"
+    comment_next_line "load int(#{node.val})"
     asm_mov Register::EAX, node.val
   end
 
   def visit(node : AST::ConstBool) : Nil
     if node.val
-      comment "load bool(true)"
+      comment_next_line "load bool(true)"
       asm_mov Register::EAX, 1
     else
-      comment "load bool(false)"
+      comment_next_line "load bool(false)"
       asm_mov Register::EAX, 0
     end
   end
 
   def visit(node : AST::SimpleName) : Nil
+    if node.ref?.nil?
+      return
+    end
     ref = node.ref
     case ref
     when AST::VarDeclStmt
-      comment "fetch localvar {#{node.name}}"
+      comment_next_line "fetch localvar {#{node.name}}"
       offset = stack_offset(ref)
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
-    else
-      raise Exception.new("unhandled: #{node.name}")
+      # else
+      #   raise Exception.new("unhandled: #{node.name}")
     end
   end
 
@@ -344,10 +367,31 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     if node.var.init?
       comment "compute init for {#{node.var.name}}"
       node.var.init.accept(self)
-      comment "store value into {#{node.var.name}}"
+      comment_next_line "store value into {#{node.var.name}}"
       offset = stack_offset(node)
       asm_mov Register::EBP.as_address_offset(offset), Register::EAX
     end
+  end
+
+  def visit(node : AST::MethodInvoc) : Nil
+    typ = node.expr.get_type.ref.as(AST::TypeDecl)
+    method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
+    label = ASM::Label.from_method(method.parent.package, method.parent.name, method.name, method.params.map { |p| p.typ.to_type.to_s })
+
+    comment_next_line "save old base pointer"
+    asm_push Register::EBP
+    comment_next_line "set the new base pointer value"
+    asm_mov Register::EBP, Register::ESP
+
+    asm_call label
+
+    # TODO: (joey) if we change calling convention so caller saves and
+    # restores EBP, then we should instead use "RET n" to de-allocate
+    # the stack in one instruction.
+    comment_next_line "de-allocate local variables by recovering callers ESP"
+    asm_mov Register::ESP, Register::EBP
+    comment_next_line "restore callers base pointer"
+    asm_pop Register::EBP
   end
 
   def stack_offset(node : AST::VarDeclStmt) : Int32
@@ -356,12 +400,12 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   # def visit(node : AST::ExprRef) : Nil
-    # case node.name.ref
-    # when AST::VarDeclStmt
-    #   comment "would be var #{node.name}"
-    #   # instr
-    # else raise Exception.new("unimplemented: #{node.inspect}")
-    # end
+  # case node.name.ref
+  # when AST::VarDeclStmt
+  #   comment "would be var #{node.name}"
+  #   # instr
+  # else raise Exception.new("unimplemented: #{node.inspect}")
+  # end
   # end
 
 end
