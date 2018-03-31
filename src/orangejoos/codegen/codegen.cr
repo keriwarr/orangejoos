@@ -312,7 +312,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         asm_mov Register::EAX, Register::EDX
       when {"==", .is_number?, .is_number?}
         asm_cmp Register::EAX, Register::EBX
-        asm_setc Register::EAX
+        asm_setcc Condition::Equal, Register::AL
       else
         raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
       end

@@ -168,8 +168,31 @@ module ASM
       self.instr i
     end
 
-    def asm_setc(dest : Register) : Nil
-      i = Instruction.new("SETC", "#{dest}")
+    enum Condition
+      # Set byte if carry (CF=1).
+      Carry
+      # Set byte if equal (ZF=1).
+      Equal
+      # Set byte if not above or equal (CF=1).
+      NotAboveOrEqual
+
+      def instr_suffix : String
+        case self
+        when Carry then "c"
+        when Equal then "e"
+        when NotAboveOrEqual then "nae"
+        else raise Exception.new("unimplemented for: #{self}")
+        end
+      end
+    end
+
+    # Generates SETcc instructions: Set Byte on Condition.
+    def asm_setcc(cond : Condition, dest : Register) : Nil
+      # TODO: (joey) it would be nice to have either an assertion to
+      # make sure dest is a 8-bit register, whether at compile-time or
+      # run-time. SETcc instructions can only write to an 8-bit
+      # register.
+      i = Instruction.new("SET#{cond.instr_suffix}", "#{dest}")
       i.write_registers.add(dest)
       i.read_registers.add(Register::FLAGS)
       i.destination = dest
