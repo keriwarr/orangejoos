@@ -426,6 +426,30 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # asm_popad
   end
 
+  def visit(node : AST::CastExpr) : Nil
+    cast_typ = node.typ.to_type
+    if node.rhs.get_type.equiv(cast_typ)
+      # Elide the cast and just emit the expression logic because this
+      # is a same-type cast which will contain no logic.
+      node.rhs.accept(self)
+    elsif cast_typ.is_number?
+      # load the RHS expr
+      node.rhs.accept(self)
+      if cast_typ.typ == Typing::Types::BYTE || node.rhs.get_type.typ == Typing::Types::BYTE
+        # Truncate to 1 byte. Not actually sure what this magical
+        # constant does or how.
+        asm_and Register::EAX, 0xFF
+      elsif cast_typ.typ == Typing::Types::SHORT || node.rhs.get_type.typ == Typing::Types::SHORT
+        # Truncate to 2 bytes.
+        asm_and Register::EAX, 0xFFFF
+      else
+        # Do nothing. Casting from an INT to INT will do nothing.
+      end
+    else
+      raise Exception.new("unimplemented, cast for non-number: #{node.inspect}")
+    end
+  end
+
   def stack_offset(node : AST::VarDeclStmt) : Int32
     # FIXME: (joey) support multiple locals
     -4

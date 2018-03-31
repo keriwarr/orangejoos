@@ -119,7 +119,7 @@ module ASM
       self.instr i
     end
 
-    def asm_basic_math(op : String, r1 : Register, imm : Int32) : Nil
+    def asm_basic_math(op : String, r1 : Register, imm : Int32 | String) : Nil
       i = Instruction.new("#{op}", "#{r1}, #{imm.to_s}")
       i.write_registers.add(r1)
       i.read_registers.add(r1)
@@ -133,6 +133,10 @@ module ASM
 
     def asm_sub(r1 : Register, r2 : Register | Int32) : Nil
       asm_basic_math("SUB", r1, r2)
+    end
+
+    def asm_and(r1 : Register, r2 : Register | Int32 | String) : Nil
+      asm_basic_math("AND", r1, r2)
     end
 
     def asm_imul(r1 : Register, r2 : Register) : Nil
