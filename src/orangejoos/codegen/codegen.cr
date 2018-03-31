@@ -240,7 +240,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # Write code for evaluting if-stmt.
     label if_cond_label
     node.expr.accept(self)
-    asm_cmp Register::EAX, 1
+    asm_cmp Register::AL, 1
 
     if node.else_body?
       asm_jne if_else_label
