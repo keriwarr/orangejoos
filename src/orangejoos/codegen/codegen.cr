@@ -148,6 +148,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property if_counter : Int32 = 0
   property while_counter : Int32 = 0
+  property for_counter : Int32 = 0
 
   property! current_method : AST::MethodDecl
 
@@ -238,7 +239,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     if_end_label = ASM::Label.new("if_end_#{if_counter}")
     self.if_counter += 1
 
-    comment "if-stmt with original expr=#{node.expr.original.to_s}"
+    if node.expr.original?
+      comment "if-stmt with original expr=#{node.expr.original.to_s}"
+    else
+      comment "if-stmt with expr=#{node.expr.to_s}"
+    end
 
     expr = node.expr
     if expr.is_a?(AST::ConstBool)
@@ -283,7 +288,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     label if_end_label
   end
 
-    def visit(node : AST::WhileStmt) : Nil
+  def visit(node : AST::WhileStmt) : Nil
     # while-expr-label
     while_expr_label = ASM::Label.new("while_expr_#{while_counter}")
     # while-body-label
@@ -324,6 +329,41 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
     asm_jmp while_expr_label
     label while_end_label
+  end
+
+  def visit(node : AST::ForStmt) : Nil
+    # for-label
+    for_label = ASM::Label.new("for_#{for_counter}")
+    # for-expr-label
+    for_expr_label = ASM::Label.new("for_expr_#{for_counter}")
+    # for-body-label
+    for_body_label = ASM::Label.new("for_body_#{for_counter}")
+    # for-update-label
+    for_update_label = ASM::Label.new("for_update_#{for_counter}")
+    # for-end-label
+    for_end_label = ASM::Label.new("for_end_#{for_counter}")
+    self.for_counter += 1
+
+    # Write code for init stmt.
+    label for_label
+    node.init.accept(self) if node.init?
+    # Write comparison expression.
+    label for_expr_label
+    node.expr.accept(self) if node.expr?
+    asm_cmp Register::EAX, 1
+    asm_jne for_end_label
+
+    # Write for-body.
+    label for_body_label
+    node.body.accept(self)
+
+    # Write for-update.
+    label for_update_label
+    node.update.accept(self) if node.update?
+
+    # Jump back to the cmp expression.
+    asm_jmp for_expr_label
+    label for_end_label
   end
 
   def visit(node : AST::ExprOp) : Nil
