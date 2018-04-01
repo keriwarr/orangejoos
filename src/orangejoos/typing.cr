@@ -225,7 +225,11 @@ module Typing
     end
 
     def to_s : String
-      return "<Type \"#{typ} #{ref?.try &.qualified_name} #{is_array} \">"
+      if ref?
+        "#{ref.qualified_name}#{is_array ? "[]" : ""}"
+      else
+        "#{typ.to_s.downcase}#{is_array ? "[]" : ""}"
+      end
     end
   end
 

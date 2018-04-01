@@ -133,6 +133,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property printed = false
 
+  property! current_method : AST::MethodDecl
+
   def initialize(@output_dir : String, @file : SourceFile, @verbose : Bool)
   end
 
@@ -164,6 +166,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       return
     end
 
+    self.current_method = node
+
     # Collect all stack variables.
     variables = [] of NamedTuple(name: String, typ: Typing::Type)
     node.accept(LocalVariableCollector.new(variables))
@@ -173,8 +177,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
     method(node.label) do
       # Initialize the stack frame of the method. This involves:
-      # 1) Shifting ESP by the stack size.
-      # 2) Initializing the stack data.
+      # 1) Initializing the stack data.
       variables.each do |var|
         # FIXME: (joey) for now, we push zeros for everything. To support
         # non-word sized types, we should be smarter about it.
@@ -284,20 +287,23 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     elsif node.operands.size == 2
       # Add code for LHS.
       node.operands[0].accept(self)
-      # Push the LHS result (EAX) to the stack.
       # TODO: (joey) if the operand is a constant, we can alide the load
       # and embed it into the push.
+      comment_next_line "store result of first arguments"
       asm_push Register::EAX
-      # Add code for RHS.
+
       node.operands[1].accept(self)
-      # Compute LHS + RHS into EAX
-      asm_pop Register::EBX
+      comment_next_line "move result of second argument"
+      asm_mov Register::EBX, Register::EAX
+
+      comment_next_line "load first result"
+      asm_pop Register::EAX
 
       # Do operations.
       case {node.op, node.operands[0].get_type, node.operands[1].get_type}
       when {"+", .is_number?, .is_number?} then asm_add Register::EAX, Register::EBX
       when {"-", .is_number?, .is_number?} then asm_sub Register::EAX, Register::EBX
-      when {"*", .is_number?, .is_number?} then asm_imult Register::EAX, Register::EBX
+      when {"*", .is_number?, .is_number?} then asm_imul Register::EAX, Register::EBX
         # IDIV: divide EAX by the parameter and put the quotient in EAX
         # and remainder in EDX.
       when {"/", .is_number?, .is_number?} then asm_idiv Register::EBX
@@ -360,6 +366,14 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
       # else
       #   raise Exception.new("unhandled: #{node.name}")
+    when AST::Param
+      comment_next_line "fetch parameter {#{node.name}}"
+      index = current_method.params.index(&.== ref)
+      if (index.nil?)
+        raise CodegenError.new("Could not find parameter #{node.name} in list")
+      end
+      param_count = current_method.params.size
+      asm_mov Register::EAX, Address.new(Register::EBP, (param_count - index) * 4)
     end
   end
 
@@ -378,6 +392,17 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
     label = ASM::Label.from_method(method.parent.package, method.parent.name, method.name, method.params.map { |p| p.typ.to_type.to_s })
 
+    # TODO: register allocation
+    # comment_next_line "Save all the registers. This is lazy and can be optimized"
+    # asm_pushad
+
+    node.args.each_with_index do |arg, idx|
+      # TODO: support different argument sizes
+      arg.accept(self)
+      comment_next_line "Argument ##{idx}"
+      asm_push Register::EAX
+    end
+
     comment_next_line "save old base pointer"
     asm_push Register::EBP
     comment_next_line "set the new base pointer value"
@@ -392,6 +417,13 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     asm_mov Register::ESP, Register::EBP
     comment_next_line "restore callers base pointer"
     asm_pop Register::EBP
+
+    comment_next_line "remove arguments from stack"
+    asm_add Register::ESP, node.args.size * 4
+
+    # TODO: register allocation
+    # comment_next_line "Restore all the registers"
+    # asm_popad
   end
 
   def stack_offset(node : AST::VarDeclStmt) : Int32

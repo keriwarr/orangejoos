@@ -73,11 +73,11 @@ module ASM
     end
 
     def global(lbl : Label) : Nil
-      print_line "GLOBAL #{lbl.to_s}"
+      print_line "GLOBAL  #{lbl.to_s}"
     end
 
     def extern(lbl : Label) : Nil
-      print_line "EXTERN #{lbl.to_s}"
+      print_line "EXTERN  #{lbl.to_s}"
     end
 
     def section(s : String) : Nil
@@ -135,8 +135,8 @@ module ASM
       asm_basic_math("SUB", r1, r2)
     end
 
-    def asm_imult(r1 : Register, r2 : Register) : Nil
-      asm_basic_math("IMULT", r1, r2)
+    def asm_imul(r1 : Register, r2 : Register) : Nil
+      asm_basic_math("IMUL", r1, r2)
     end
 
     def asm_idiv(divisor : Register) : Nil
@@ -218,6 +218,16 @@ module ASM
 
     def asm_int(id : Int) : Nil
       i = Instruction.new("INT", "0x" + id.to_s(16, true))
+      self.instr i
+    end
+
+    def asm_pushad : Nil
+      i = Instruction.new("PUSHAD")
+      self.instr i
+    end
+
+    def asm_popad : Nil
+      i = Instruction.new("POPAD")
       self.instr i
     end
   end
