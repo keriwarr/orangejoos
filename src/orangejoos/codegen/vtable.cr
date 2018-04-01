@@ -3,12 +3,6 @@ require "../ast"
 require "asm/label"
 require "ordered_hash"
 
-def put_class(node : AST::ClassDecl)
-  puts label.to_s
-  node.all_methods.each { |method| puts "\t" + method.label.to_s}
-end
-
-
 # A set of VTableColumns.
 class VTable
   @table = {} of AST::ClassDecl => VTableColumn
