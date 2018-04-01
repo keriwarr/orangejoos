@@ -333,6 +333,10 @@ module AST
       return result
     end
 
+    def method?(method : MethodDecl) : MethodDecl?
+      return all_methods.find { |m| m.equiv(method) }
+    end
+
     def ==(other : TypeDecl) : Bool
       return self.qualified_name == other.qualified_name
     end
@@ -368,6 +372,11 @@ module AST
       # want to later check the relationship between shadower and shadowee.
       visible_fields += super_class.ref.as(ClassDecl).all_fields if super_class?
       return visible_fields
+    end
+
+    # returns true if this class declaration is java.lang.Object
+    def is_java_object? : Bool
+      return qualified_name == "java.lang.Object"
     end
 
     def fields : Array(FieldDecl)
@@ -1405,6 +1414,9 @@ module AST
 
     def label : ASM::Label
       types = params.map { |p| p.typ.to_type.to_s }
+      if parent.as?(InterfaceDecl)
+        return ASM::Label.from_interface(parent.package, parent.name, name, types)
+      end
       return ASM::Label.from_method(parent.package, parent.name, name, types)
     end
 

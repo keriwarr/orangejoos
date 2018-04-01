@@ -11,17 +11,17 @@ NULL_CONST = "0xDEADBEEF"
 class CodeGenerator
   include ASM::FileDSL
 
-  property vtable : VTable
+  property vtables : VTableMap
   property verbose : Bool
   property output_dir : String
 
-  def initialize(@vtable : VTable, @verbose : Bool, @output_dir : String)
+  def initialize(@vtables : VTableMap, @verbose : Bool, @output_dir : String)
   end
 
   def generate(file : SourceFile)
     # Skip all stdlib files for now.
     return if file.ast.package? && file.ast.package.path.name.includes?("java")
-    file.ast.accept(CodeGenerationVisitor.new(output_dir, file, @verbose))
+    file.ast.accept(CodeGenerationVisitor.new(vtables, output_dir, file, @verbose))
   end
 
   def generate_entry(files : Array(SourceFile))
@@ -146,6 +146,7 @@ end
 class CodeGenerationVisitor < Visitor::GenericVisitor
   include ASM::FileDSL
 
+  property vtables : VTableMap
   property output_dir : String
   property file : SourceFile
 
@@ -160,7 +161,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property! current_class : AST::ClassDecl
   property! current_method : AST::MethodDecl
 
-  def initialize(@output_dir : String, @file : SourceFile, @verbose : Bool)
+  def initialize(@vtables : VTableMap, @output_dir : String, @file : SourceFile, @verbose : Bool)
   end
 
   def visit(node : AST::ClassDecl) : Nil
@@ -174,7 +175,10 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # FIXME(joey): This path is often munged, e.g. multiple //.
     annotate "source: #{source_path}"
     extern ASM::Label::MALLOC
-    raw "  SECTION .text\n\n\n"
+    newline
+
+    indent{ section_text }
+    newline
 
     # Generate code field initialization, used in all constructors.
     # field initializers. This creates an internal fcn and label.
@@ -201,6 +205,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
     # Generate code for all methods.
     node.methods.each &.accept(self)
+
+    # Generate class VTable
+    indent { section_data }
+    newline
+    @vtables.asm(self, node)
 
     file_name = node.qualified_name.split(".").join("_") + ".s"
     path = File.join(output_dir, file_name)
