@@ -203,6 +203,10 @@ module Typing
       return NUMBERS.includes?(typ)
     end
 
+    def is_number_or_char? : Bool
+      return typ == Types::CHAR || NUMBERS.includes?(typ)
+    end
+
     def ==(other : Type) : Bool
       # When both are not arrays, instatly false.
       return false if other.is_array != self.is_array
