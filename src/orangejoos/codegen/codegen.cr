@@ -41,6 +41,8 @@ class CodeGenerator
     label macos_start_lbl
     label linux_start_lbl
     indent {
+      comment_next_line "set up initial EBP"
+      asm_mov Register::EBP, Register::ESP
       asm_call entry_label
       comment_next_line "The status code is returned into EAX, which exit() uses."
       asm_call exit_lbl
@@ -195,15 +197,15 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # Calculate the return expression. It will end up in EAX, our
     # convention for returning values.
     super
-    # We return with the stack_size as it discards items on the stack
-    # that have not yet been popped, i.e. localvars, so that the top
-    # item on the stack is EIP for returning.
+    # When we return we discard the localvars on the stack so that the
+    # top item on the stack is EIP for returning.
+    asm_add Register::ESP, self.stack_size
     # TODO: (joey) we can add one "method$...$ret" label at the end of
     # the method where we only need to have the common end instructions
     # once.
-    # TODO: (joey) if we change calling convention so caller saves and
-    # restores EBP, then we should instead use "RET n" to de-allocate
-    # the stack in one instruction.
+    # TODO: (joey) we can change the "ret" call to also pop off
+    # arguments passed in if the arguments are the last thing pushed.
+    # Right now, EBP is after them.
     asm_ret 0
   end
 
@@ -364,8 +366,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       comment_next_line "fetch localvar {#{node.name}}"
       offset = stack_offset(ref)
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
-      # else
-      #   raise Exception.new("unhandled: #{node.name}")
     when AST::Param
       comment_next_line "fetch parameter {#{node.name}}"
       index = current_method.params.index(&.== ref)
@@ -373,7 +373,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         raise CodegenError.new("Could not find parameter #{node.name} in list")
       end
       param_count = current_method.params.size
-      asm_mov Register::EAX, Address.new(Register::EBP, (param_count - index) * 4)
+      offset = (param_count - index) * 4
+      asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
     end
   end
 
@@ -428,7 +429,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def stack_offset(node : AST::VarDeclStmt) : Int32
     # FIXME: (joey) support multiple locals
-    -4
+    # NOTE: the offset is shifted by -4 as the first item on the EBP is
+    # the caller's EIP, as the caller sets up the EBP prior to calling.
+    -4 + -4
   end
 
   # def visit(node : AST::ExprRef) : Nil
