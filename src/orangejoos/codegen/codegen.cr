@@ -147,8 +147,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property! stack_size : Int32
 
   property if_counter : Int32 = 0
-
-  property printed = false
+  property while_counter : Int32 = 0
+  property for_counter : Int32 = 0
 
   property! current_method : AST::MethodDecl
 
@@ -239,11 +239,15 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     if_end_label = ASM::Label.new("if_end_#{if_counter}")
     self.if_counter += 1
 
-    comment "if-stmt with original expr=#{node.expr.original.to_s}"
+    if node.expr.original?
+      comment "if-stmt with original expr=#{node.expr.original.to_s}"
+    else
+      comment "if-stmt with expr=#{node.expr.to_s}"
+    end
 
     expr = node.expr
     if expr.is_a?(AST::ConstBool)
-      if expr.val == true
+      if expr.val
         comment "elided if-stmt with expr=bool(true)"
         node.if_body.accept(self)
         return
@@ -284,6 +288,84 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     label if_end_label
   end
 
+  def visit(node : AST::WhileStmt) : Nil
+    # while-expr-label
+    while_expr_label = ASM::Label.new("while_expr_#{while_counter}")
+    # while-body-label
+    while_body_label = ASM::Label.new("while_body_#{while_counter}")
+    # while-end-label
+    while_end_label = ASM::Label.new("while_end_#{while_counter}")
+    self.while_counter += 1
+
+    if node.expr.original?
+      comment "while-stmt with original expr=#{node.expr.original.to_s}"
+    else
+      comment "while-stmt with expr=#{node.expr.to_s}"
+    end
+
+    expr = node.expr
+    if expr.is_a?(AST::ConstBool)
+      if expr.val
+        comment "elided while-stmt expr with expr=bool(true)"
+        label while_body_label
+        node.body.accept(self)
+        asm_jmp while_body_label
+        return
+      else
+        comment "elided while-stmt with expr=bool(false)"
+        return
+      end
+    end
+
+    # Write code for evaluting if-stmt.
+    label while_expr_label
+    node.expr.accept(self)
+    asm_cmp Register::AL, 1
+    asm_jne while_end_label
+
+    label while_body_label
+    indent do
+      node.body.accept(self)
+    end
+    asm_jmp while_expr_label
+    label while_end_label
+  end
+
+  def visit(node : AST::ForStmt) : Nil
+    # for-label
+    for_label = ASM::Label.new("for_#{for_counter}")
+    # for-expr-label
+    for_expr_label = ASM::Label.new("for_expr_#{for_counter}")
+    # for-body-label
+    for_body_label = ASM::Label.new("for_body_#{for_counter}")
+    # for-update-label
+    for_update_label = ASM::Label.new("for_update_#{for_counter}")
+    # for-end-label
+    for_end_label = ASM::Label.new("for_end_#{for_counter}")
+    self.for_counter += 1
+
+    # Write code for init stmt.
+    label for_label
+    node.init.accept(self) if node.init?
+    # Write comparison expression.
+    label for_expr_label
+    node.expr.accept(self) if node.expr?
+    asm_cmp Register::EAX, 1
+    asm_jne for_end_label
+
+    # Write for-body.
+    label for_body_label
+    node.body.accept(self)
+
+    # Write for-update.
+    label for_update_label
+    node.update.accept(self) if node.update?
+
+    # Jump back to the cmp expression.
+    asm_jmp for_expr_label
+    label for_end_label
+  end
+
   def visit(node : AST::ExprOp) : Nil
     op_types = node.operands.map &.get_type
     op_sig = {node.op, node.operands[0].get_type, node.operands[1].get_type}
@@ -313,11 +395,12 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       comment_next_line "store result of first arguments"
       asm_push Register::EAX
 
+      comment_next_line "compute RHS: #{node.operands[1].to_s}"
       node.operands[1].accept(self)
       comment_next_line "move result of second argument"
       asm_mov Register::EBX, Register::EAX
 
-      comment_next_line "load first result"
+      comment_next_line "recover LHS: #{node.operands[0].to_s}"
       asm_pop Register::EAX
 
       # Do operations.
@@ -332,8 +415,25 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         asm_idiv Register::EBX
         asm_mov Register::EAX, Register::EDX
       when {"==", .is_number?, .is_number?}
+        comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::Equal, Register::AL
+      when {"<", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::LessThan, Register::AL
+      when {"<=", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::LessThanEQ, Register::AL
+      when {">", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::GreaterThan, Register::AL
+      when {">=", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::GreaterThanEQ, Register::AL
       else
         raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
       end

@@ -177,14 +177,23 @@ module ASM
       Carry
       # Set byte if equal (ZF=1).
       Equal
-      # Set byte if not above or equal (CF=1).
-      NotAboveOrEqual
+      # Set byte if less (SF<>OF).
+      LessThan
+      # Set byte if less or equal (ZF=1 or SF<>OF).
+      LessThanEQ
+      # Set byte if greater (ZF=0 and SF=OF).
+      GreaterThan
+      # Set byte if greater or equal (SF=OF).
+      GreaterThanEQ
 
       def instr_suffix : String
         case self
         when Carry then "c"
         when Equal then "e"
-        when NotAboveOrEqual then "nae"
+        when LessThan then "l"
+        when LessThanEQ then "le"
+        when GreaterThan then "g"
+        when GreaterThanEQ then "ge"
         else raise Exception.new("unimplemented for: #{self}")
         end
       end
@@ -255,6 +264,11 @@ module ASM
 
     def asm_popad : Nil
       i = Instruction.new("POPAD")
+      self.instr i
+    end
+
+    def asm_jmp(lbl : Label) : Nil
+      i = Instruction.new("JMP", lbl.to_s)
       self.instr i
     end
   end
