@@ -1,4 +1,6 @@
 class OrderedHash(K, V)
+  include Enumerable(K)
+
   def initialize
     @arr = [] of K
     @dict = Hash(K, V).new
@@ -30,6 +32,10 @@ class OrderedHash(K, V)
     return @dict[k]?
   end
 
+  def []=(k : K, v : V)
+    @dict[k] = v
+  end
+
   def fetch(k : K, default) : V
     return @dict.fetch(k, default)
   end
@@ -51,5 +57,22 @@ class OrderedHash(K, V)
 
   def size : Int32
     @dict.size
+  end
+
+  def clone
+    hash = OrderedHash(K, V).new
+    each do |k, v|
+      if v.responds_to?(:clone)
+        hash.push(k, v.clone)
+      else
+        hash.push(k, v)
+      end
+    end
+    hash
+  end
+
+  def each
+    @arr.each { |e|
+      yield e, self.fetch(e) }
   end
 end
