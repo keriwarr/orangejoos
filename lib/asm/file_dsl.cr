@@ -111,7 +111,7 @@ module ASM
 
     # Instructions.
 
-    def asm_basic_math(op : String, r1 : Register, r2 : Register) : Nil
+    def asm_binary_math(op : String, r1 : Register, r2 : Register) : Nil
       i = Instruction.new("#{op}", "#{r1}, #{r2}")
       i.write_registers.add(r1)
       i.read_registers.add(r1).add(r2)
@@ -119,7 +119,15 @@ module ASM
       self.instr i
     end
 
-    def asm_basic_math(op : String, r1 : Register, imm : Int32 | String) : Nil
+    def asm_unary_math(op : String, r1 : Register) : Nil
+      i = Instruction.new("#{op}", "#{r1}")
+      i.write_registers.add(r1)
+      i.read_registers.add(r1)
+      i.destination = r1
+      self.instr i
+    end
+
+    def asm_binary_math(op : String, r1 : Register, imm : Int32 | String) : Nil
       i = Instruction.new("#{op}", "#{r1}, #{imm.to_s}")
       i.write_registers.add(r1)
       i.read_registers.add(r1)
@@ -128,19 +136,23 @@ module ASM
     end
 
     def asm_add(r1 : Register, r2 : Register | Int32) : Nil
-      asm_basic_math("ADD", r1, r2)
+      asm_binary_math("ADD", r1, r2)
     end
 
     def asm_sub(r1 : Register, r2 : Register | Int32) : Nil
-      asm_basic_math("SUB", r1, r2)
+      asm_binary_math("SUB", r1, r2)
     end
 
     def asm_and(r1 : Register, r2 : Register | Int32 | String) : Nil
-      asm_basic_math("AND", r1, r2)
+      asm_binary_math("AND", r1, r2)
+    end
+
+    def asm_neg(r1 : Register) : Nil
+      asm_unary_math("NEG", r1)
     end
 
     def asm_imul(r1 : Register, r2 : Register) : Nil
-      asm_basic_math("IMUL", r1, r2)
+      asm_binary_math("IMUL", r1, r2)
     end
 
     def asm_idiv(divisor : Register) : Nil

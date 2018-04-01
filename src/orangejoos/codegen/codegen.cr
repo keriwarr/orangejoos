@@ -368,26 +368,38 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ExprOp) : Nil
     op_types = node.operands.map &.get_type
-    op_sig = {node.op, node.operands[0].get_type, node.operands[1].get_type}
 
-    # FIXME: (joey) when the LHS is for an address, we need to do
-    # something specific to either keep it as an address or get the
-    # value. Hence the separation between assignment and the rest.
-    if op_sig[0] == "=" && op_sig[1].is_number? && op_sig[2].is_number?
-      # Add code for LHS.
-      calculate_address(node.operands[0])
-      # Push the LHS address (EAX) to the stack.
-      asm_push Register::EAX
-      # Compute RHS.
-      node.operands[1].accept(self)
-      # Get LHS address.
-      asm_pop Register::EBX
-      # Put result into address.
-      # TODO: (joey) in the case of a Param or VarDeclStmt, we can elide
-      # the address computation and embed the offset directly here.
-      asm_mov Register::EBX.as_address, Register::EAX
-      # NOTE: the result is in EAX, as desired as '=' is an expression.
+    if node.operands.size == 1
+      # Compute sub-expression.
+      node.operands[0].accept(self)
+      case {node.op, node.operands[0].get_type}
+      when {"-", .is_number_or_char?} then asm_neg Register::EAX
+      else
+        raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
+      end
     elsif node.operands.size == 2
+      op_sig = {node.op, node.operands[0].get_type, node.operands[1].get_type}
+
+      # FIXME: (joey) when the LHS is for an address, we need to do
+      # something specific to either keep it as an address or get the
+      # value. Hence the separation between assignment and the rest.
+      if op_sig[0] == "=" && op_sig[1]?.try &.is_number? && op_sig[2]?.try &.is_number?
+        # Add code for LHS.
+        calculate_address(node.operands[0])
+        # Push the LHS address (EAX) to the stack.
+        asm_push Register::EAX
+        # Compute RHS.
+        node.operands[1].accept(self)
+        # Get LHS address.
+        asm_pop Register::EBX
+        # Put result into address.
+        # TODO: (joey) in the case of a Param or VarDeclStmt, we can elide
+        # the address computation and embed the offset directly here.
+        asm_mov Register::EBX.as_address, Register::EAX
+        # NOTE: the result is in EAX, as desired as '=' is an expression.
+        return
+      end
+
       # Add code for LHS.
       node.operands[0].accept(self)
       # TODO: (joey) if the operand is a constant, we can alide the load
@@ -405,32 +417,32 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
       # Do operations.
       case {node.op, node.operands[0].get_type, node.operands[1].get_type}
-      when {"+", .is_number?, .is_number?} then asm_add Register::EAX, Register::EBX
-      when {"-", .is_number?, .is_number?} then asm_sub Register::EAX, Register::EBX
-      when {"*", .is_number?, .is_number?} then asm_imul Register::EAX, Register::EBX
+      when {"+", .is_number_or_char?, .is_number_or_char?} then asm_add Register::EAX, Register::EBX
+      when {"-", .is_number_or_char?, .is_number_or_char?} then asm_sub Register::EAX, Register::EBX
+      when {"*", .is_number_or_char?, .is_number_or_char?} then asm_imul Register::EAX, Register::EBX
         # IDIV: divide EAX by the parameter and put the quotient in EAX
         # and remainder in EDX.
-      when {"/", .is_number?, .is_number?} then asm_idiv Register::EBX
-      when {"%", .is_number?, .is_number?}
+      when {"/", .is_number_or_char?, .is_number_or_char?} then asm_idiv Register::EBX
+      when {"%", .is_number_or_char?, .is_number_or_char?}
         asm_idiv Register::EBX
         asm_mov Register::EAX, Register::EDX
-      when {"==", .is_number?, .is_number?}
+      when {"==", .is_number_or_char?, .is_number_or_char?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::Equal, Register::AL
-      when {"<", .is_number?, .is_number?}
+      when {"<", .is_number_or_char?, .is_number_or_char?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::LessThan, Register::AL
-      when {"<=", .is_number?, .is_number?}
+      when {"<=", .is_number_or_char?, .is_number_or_char?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::LessThanEQ, Register::AL
-      when {">", .is_number?, .is_number?}
+      when {">", .is_number_or_char?, .is_number_or_char?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::GreaterThan, Register::AL
-      when {">=", .is_number?, .is_number?}
+      when {">=", .is_number_or_char?, .is_number_or_char?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::GreaterThanEQ, Register::AL
@@ -463,6 +475,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::ConstInteger) : Nil
     comment_next_line "load int(#{node.val})"
     asm_mov Register::EAX, node.val
+  end
+
+  def visit(node : AST::ConstChar) : Nil
+    comment_next_line "load char(#{node.val})"
+    asm_mov Register::EAX, node.val.ord
   end
 
   def visit(node : AST::ConstBool) : Nil
@@ -548,25 +565,32 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::CastExpr) : Nil
     cast_typ = node.typ.to_type
-    if node.rhs.get_type.equiv(cast_typ)
+    from_typ = node.rhs.get_type
+    if from_typ.equiv(cast_typ)
       # Elide the cast and just emit the expression logic because this
       # is a same-type cast which will contain no logic.
       node.rhs.accept(self)
-    elsif cast_typ.is_number?
+    elsif cast_typ.is_array || from_typ.is_array
+      # Unhandled: casts involving arrays
+      raise Exception.new("unimplemented, casts involving arrays: cast=#{cast_typ.to_s} from=#{from_typ.to_s}")
+    elsif cast_typ.typ == Typing::Types::CHAR && from_typ.typ == Typing::Types::INT
+      # Truncate to 1 byte.
+      node.rhs.accept(self)
+      asm_and Register::EAX, 0xFF
+    elsif cast_typ.is_number? &&
       # load the RHS expr
       node.rhs.accept(self)
-      if cast_typ.typ == Typing::Types::BYTE || node.rhs.get_type.typ == Typing::Types::BYTE
-        # Truncate to 1 byte. Not actually sure what this magical
-        # constant does or how.
+      if cast_typ.typ == Typing::Types::BYTE || from_typ.typ == Typing::Types::BYTE
+        # Truncate to 1 byte.
         asm_and Register::EAX, 0xFF
-      elsif cast_typ.typ == Typing::Types::SHORT || node.rhs.get_type.typ == Typing::Types::SHORT
+      elsif cast_typ.typ == Typing::Types::SHORT || from_typ.typ == Typing::Types::SHORT
         # Truncate to 2 bytes.
         asm_and Register::EAX, 0xFFFF
       else
         # Do nothing. Casting from an INT to INT will do nothing.
       end
     else
-      raise Exception.new("unimplemented, cast for non-number: #{node.inspect}")
+      raise Exception.new("unimplemented, casts for: cast=#{cast_typ.to_s} from=#{from_typ.to_s}")
     end
   end
 
