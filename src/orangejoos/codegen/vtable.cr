@@ -31,7 +31,7 @@ class VTable
 
   # prints the table all pretty like
   def pprint
-    @table.each &.pprint
+    @table.each { |_, column| column.pprint }
   end
 
   # TODO(slnt) add interface for getting correct vtable offsets
