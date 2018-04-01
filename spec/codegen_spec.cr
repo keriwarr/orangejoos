@@ -19,7 +19,7 @@ def get_test_cases : Array(String)
   if ENV.has_key?("TESTS")
     accepting_cases = ENV["TESTS"].split(",")
     accepting_cases.map {|t| Regex.escape(t) }
-    accepting_cases = accepting_cases.join(",")
+    accepting_cases = accepting_cases.join("|")
     accepting_regex = Regex.new("(#{accepting_cases})[/\\.]", Regex::Options::IGNORE_CASE)
 
     cases = cases.select {|c| accepting_regex.match(c) }
@@ -118,40 +118,42 @@ describe "Codegen" do
     test_files = get_test_files(test_case)
     test_case_name = File.basename(test_case, ".java")
 
-    it "#{test_case_name} compiles" do
-      # 1. compile the Joos1W program.
-      # NOTE: this will clear the output directory on each pipeline run.
-      # TODO: (joey) can we omit stdlib for tests that do not require
-      # it. we would need to manually mark tests.
-      # TODO: (joey) can we pre-compile the stdlib once for all tests.
-      # unfortunately, that means the tests need to reach into the pipeline.
-      Pipeline.new(TABLE_FILE, test_files, END_STAGE, VERBOSE, USE_STDLIB, COMPILATION_OUTPUT_DIR).exec
+    describe test_case_name do
+      it "compiles" do
+        # 1. compile the Joos1W program.
+        # NOTE: this will clear the output directory on each pipeline run.
+        # TODO: (joey) can we omit stdlib for tests that do not require
+        # it. we would need to manually mark tests.
+        # TODO: (joey) can we pre-compile the stdlib once for all tests.
+        # unfortunately, that means the tests need to reach into the pipeline.
+        Pipeline.new(TABLE_FILE, test_files, END_STAGE, VERBOSE, USE_STDLIB, COMPILATION_OUTPUT_DIR).exec
 
-      # 1.b compile the asm to object files.
-      asm_files = Dir.glob("#{COMPILATION_OUTPUT_DIR}/*.s")
-      asm_files.each {|f| compile_asm(f) }
-      # 1.c link the object files to a binary.
-      link_object_files
+        # 1.b compile the asm to object files.
+        asm_files = Dir.glob("#{COMPILATION_OUTPUT_DIR}/*.s")
+        asm_files.each {|f| compile_asm(f) }
+        # 1.c link the object files to a binary.
+        link_object_files
 
-      it "is executes" do
-        # 2. execute the Joos1W program, recording:
-        # - stdout
-        # - status code
-        # - any exception (how?)
-        result = run_compiled_binary
+        it "executes" do
+          # 2. execute the Joos1W program, recording:
+          # - stdout
+          # - status code
+          # - any exception (how?)
+          result = run_compiled_binary
 
-        it "is correct" do
-          # 3. compile the Java program
-          compile_java_test(test_files)
+          it "is correct" do
+            # 3. compile the Java program
+            compile_java_test(test_files)
 
-          # 4. execute the Java program
-          is_dir = File.directory?(test_case)
-          java_result = run_java_binary(test_case_name, is_dir)
+            # 4. execute the Java program
+            is_dir = File.directory?(test_case)
+            java_result = run_java_binary(test_case_name, is_dir)
 
-          result.should eq java_result
+            result.should eq java_result
 
-          # optimization: cache the results of the java programs, as they are
-          # unchanging. They can be storing... somewhere.
+            # optimization: cache the results of the java programs, as they are
+            # unchanging. They can be storing... somewhere.
+          end
         end
       end
     end
