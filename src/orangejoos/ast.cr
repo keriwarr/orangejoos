@@ -527,6 +527,12 @@ module AST
       return false
     end
 
+    # contains? returns true if the given method
+    def contains?(method : MethodDecl) : Bool
+      methods.each { |m| return true if m.equiv(method) }
+      return false
+    end
+
     def non_static_fields : Array(FieldDecl)
       [] of FieldDecl
     end
@@ -1405,6 +1411,9 @@ module AST
 
     def label : ASM::Label
       types = params.map { |p| p.typ.to_type.to_s }
+      if parent.as?(InterfaceDecl)
+        return ASM::Label.from_interface(parent.package, parent.name, name, types)
+      end
       return ASM::Label.from_method(parent.package, parent.name, name, types)
     end
 
