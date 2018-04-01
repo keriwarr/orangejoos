@@ -1,0 +1,12 @@
+#!/bin/bash
+
+FLAGS=""
+if [ $1 == 'true' ]; then
+  STDLIB=$(find ./pub/stdlib/5.0/java -type f -name '*.java' -exec echo -n '{} ' \;)
+else
+  FLAGS="--no-stdlib"
+fi
+
+SRCS=$(find $2 -type f -name '*.java')
+
+./joosc $FLAGS $STDLIB $SRCS

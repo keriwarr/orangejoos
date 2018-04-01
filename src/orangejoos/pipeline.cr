@@ -2,7 +2,8 @@ require "file_utils"
 
 require "./ast"
 require "./compiler_errors"
-require "./codegen"
+require "./codegen/*"
+require "./codegen/vtable"
 require "./lalr1_table"
 require "./lexeme"
 require "./name_resolution"
@@ -14,7 +15,6 @@ require "./simplification"
 require "./stage"
 require "./typing"
 require "./weeding"
-require "./vtable"
 require "./static_analysis"
 
 # The Pipeline executes the compiler pipeline.
