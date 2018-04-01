@@ -266,5 +266,10 @@ module ASM
       i = Instruction.new("POPAD")
       self.instr i
     end
+
+    def asm_jmp(lbl : Label) : Nil
+      i = Instruction.new("JMP", lbl.to_s)
+      self.instr i
+    end
   end
 end

@@ -147,6 +147,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property! stack_size : Int32
 
   property if_counter : Int32 = 0
+  property while_counter : Int32 = 0
 
   property! current_method : AST::MethodDecl
 
@@ -241,7 +242,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
     expr = node.expr
     if expr.is_a?(AST::ConstBool)
-      if expr.val == true
+      if expr.val
         comment "elided if-stmt with expr=bool(true)"
         node.if_body.accept(self)
         return
@@ -280,6 +281,49 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
 
     label if_end_label
+  end
+
+    def visit(node : AST::WhileStmt) : Nil
+    # while-expr-label
+    while_expr_label = ASM::Label.new("while_expr_#{while_counter}")
+    # while-body-label
+    while_body_label = ASM::Label.new("while_body_#{while_counter}")
+    # while-end-label
+    while_end_label = ASM::Label.new("while_end_#{while_counter}")
+    self.while_counter += 1
+
+    if node.expr.original?
+      comment "while-stmt with original expr=#{node.expr.original.to_s}"
+    else
+      comment "while-stmt with expr=#{node.expr.to_s}"
+    end
+
+    expr = node.expr
+    if expr.is_a?(AST::ConstBool)
+      if expr.val
+        comment "elided while-stmt expr with expr=bool(true)"
+        label while_body_label
+        node.body.accept(self)
+        asm_jmp while_body_label
+        return
+      else
+        comment "elided while-stmt with expr=bool(false)"
+        return
+      end
+    end
+
+    # Write code for evaluting if-stmt.
+    label while_expr_label
+    node.expr.accept(self)
+    asm_cmp Register::AL, 1
+    asm_jne while_end_label
+
+    label while_body_label
+    indent do
+      node.body.accept(self)
+    end
+    asm_jmp while_expr_label
+    label while_end_label
   end
 
   def visit(node : AST::ExprOp) : Nil
