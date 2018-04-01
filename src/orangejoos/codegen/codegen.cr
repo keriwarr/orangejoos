@@ -148,8 +148,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property if_counter : Int32 = 0
 
-  property printed = false
-
   property! current_method : AST::MethodDecl
 
   def initialize(@output_dir : String, @file : SourceFile, @verbose : Bool)
@@ -313,11 +311,12 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       comment_next_line "store result of first arguments"
       asm_push Register::EAX
 
+      comment_next_line "compute RHS: #{node.operands[1].to_s}"
       node.operands[1].accept(self)
       comment_next_line "move result of second argument"
       asm_mov Register::EBX, Register::EAX
 
-      comment_next_line "load first result"
+      comment_next_line "recover LHS: #{node.operands[0].to_s}"
       asm_pop Register::EAX
 
       # Do operations.
@@ -332,8 +331,25 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         asm_idiv Register::EBX
         asm_mov Register::EAX, Register::EDX
       when {"==", .is_number?, .is_number?}
+        comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::Equal, Register::AL
+      when {"<", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::LessThan, Register::AL
+      when {"<=", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::LessThanEQ, Register::AL
+      when {">", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::GreaterThan, Register::AL
+      when {">=", .is_number?, .is_number?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::GreaterThanEQ, Register::AL
       else
         raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
       end
