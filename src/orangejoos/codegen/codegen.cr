@@ -373,7 +373,16 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # Compute sub-expression.
       node.operands[0].accept(self)
       case {node.op, node.operands[0].get_type}
+        # === Numbers ===
       when {"-", .is_number_or_char?} then asm_neg Register::EAX
+        # === Booleans ===
+      when {"!", .is_boolean?}
+        comment_next_line node.to_s
+        # The ASM NOT cannot be used because it will change upper bits,
+        # so this is a nice one-liner NOT:
+        #   0x01 ^ 0x01 => 0x00
+        #   0x00 ^ 0x01 => 0x01
+        asm_xor Register::AL, 0x01
       else
         raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
       end
@@ -416,7 +425,10 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       asm_pop Register::EAX
 
       # Do operations.
+      # FIXME: (joey) not sure how arrays are supposed to be handled
+      # here, if at all.
       case {node.op, node.operands[0].get_type, node.operands[1].get_type}
+        # === Numbers ===
       when {"+", .is_number_or_char?, .is_number_or_char?} then asm_add Register::EAX, Register::EBX
       when {"-", .is_number_or_char?, .is_number_or_char?} then asm_sub Register::EAX, Register::EBX
       when {"*", .is_number_or_char?, .is_number_or_char?} then asm_imul Register::EAX, Register::EBX
@@ -430,6 +442,10 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::Equal, Register::AL
+      when {"!=", .is_number_or_char?, .is_number_or_char?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::NotEqual, Register::AL
       when {"<", .is_number_or_char?, .is_number_or_char?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
@@ -446,6 +462,15 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::GreaterThanEQ, Register::AL
+        # === Booleans ===
+      when {"==", .is_boolean?, .is_boolean?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::Equal, Register::AL
+      when {"!=", .is_boolean?, .is_boolean?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::Equal, Register::AL
       else
         raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
       end

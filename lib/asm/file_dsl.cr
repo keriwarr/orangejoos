@@ -128,6 +128,8 @@ module ASM
     end
 
     def asm_binary_math(op : String, r1 : Register, imm : Int32 | String) : Nil
+      # FIXME: (joey) it would be great to have static checking for the
+      # size of IMM with respect to the size of the register used.
       i = Instruction.new("#{op}", "#{r1}, #{imm.to_s}")
       i.write_registers.add(r1)
       i.read_registers.add(r1)
@@ -145,6 +147,10 @@ module ASM
 
     def asm_and(r1 : Register, r2 : Register | Int32 | String) : Nil
       asm_binary_math("AND", r1, r2)
+    end
+
+    def asm_xor(r1 : Register, r2 : Register | Int32) : Nil
+      asm_binary_math("XOR", r1, r2)
     end
 
     def asm_neg(r1 : Register) : Nil
@@ -189,6 +195,8 @@ module ASM
       Carry
       # Set byte if equal (ZF=1).
       Equal
+      # Set byte if not equal (ZF=0).
+      NotEqual
       # Set byte if less (SF<>OF).
       LessThan
       # Set byte if less or equal (ZF=1 or SF<>OF).
@@ -202,6 +210,7 @@ module ASM
         case self
         when Carry then "c"
         when Equal then "e"
+        when NotEqual then "ne"
         when LessThan then "l"
         when LessThanEQ then "le"
         when GreaterThan then "g"
