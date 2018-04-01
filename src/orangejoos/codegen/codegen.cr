@@ -133,7 +133,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property printed = false
 
-  @current_method : AST::MethodDecl?
+  property! current_method : AST::MethodDecl
 
   def initialize(@output_dir : String, @file : SourceFile, @verbose : Bool)
   end
@@ -166,7 +166,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       return
     end
 
-    @current_method = node
+    self.current_method = node
 
     # Collect all stack variables.
     variables = [] of NamedTuple(name: String, typ: Typing::Type)
@@ -303,7 +303,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       case {node.op, node.operands[0].get_type, node.operands[1].get_type}
       when {"+", .is_number?, .is_number?} then asm_add Register::EAX, Register::EBX
       when {"-", .is_number?, .is_number?} then asm_sub Register::EAX, Register::EBX
-      when {"*", .is_number?, .is_number?} then asm_imult Register::EAX, Register::EBX
+      when {"*", .is_number?, .is_number?} then asm_imul Register::EAX, Register::EBX
         # IDIV: divide EAX by the parameter and put the quotient in EAX
         # and remainder in EDX.
       when {"/", .is_number?, .is_number?} then asm_idiv Register::EBX
@@ -368,14 +368,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       #   raise Exception.new("unhandled: #{node.name}")
     when AST::Param
       comment_next_line "fetch parameter {#{node.name}}"
-      if @current_method.nil?
-        raise CodegenError.new("Current method not defined when generating name #{node.name}")
-      end
-      index = @current_method.not_nil!.params.index(&.== ref)
+      index = current_method.params.index(&.== ref)
       if (index.nil?)
         raise CodegenError.new("Could not find parameter #{node.name} in list")
       end
-      param_count = @current_method.not_nil!.params.size
+      param_count = current_method.params.size
       asm_mov Register::EAX, Address.new(Register::EBP, (param_count - index) * 4)
     end
   end
