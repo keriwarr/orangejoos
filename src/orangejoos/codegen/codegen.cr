@@ -112,11 +112,24 @@ end
 
 # Collects all variables for determining the stack layout.
 class LocalVariableCollector < Visitor::GenericVisitor
-  def initialize(@variables : Array(NamedTuple(name: String, typ: Typing::Type)))
+  property variables : Array(AST::VarDeclStmt) = Array(AST::VarDeclStmt).new
+
+  def initialize(@variable_offsets : Hash(String, Int32))
   end
 
   def visit(node : AST::VarDeclStmt) : Nil
-    @variables.push(NamedTuple.new(name: node.var.name, typ: node.typ.to_type))
+    self.variables.push(node)
+  end
+
+  def on_completion
+    offset = 0
+    self.variables.each do |decl|
+      # TODO: (joey) for now every type supported is a double-word
+      # (32bits). For Joos1W, we may not need to support other sized
+      # types.
+      @variable_offsets[decl.var.name] = offset
+      offset += 4
+    end
   end
 end
 
@@ -129,6 +142,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property output_dir : String
   property file : SourceFile
 
+  # A map of localvar name to stack offset.
+  property! stack_variables : Hash(String, Int32)
   property! stack_size : Int32
 
   property if_counter : Int32 = 0
@@ -170,20 +185,24 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
     self.current_method = node
 
-    # Collect all stack variables.
-    variables = [] of NamedTuple(name: String, typ: Typing::Type)
-    node.accept(LocalVariableCollector.new(variables))
-    # Pretend everything takes up 32bits, lazy because our test is
-    # J1_random_arithmetic.
-    self.stack_size = variables.sum { |i| 4 }
+    # Collect all stack variables and their stack offsets.
+    self.stack_variables = Hash(String, Int32).new
+    node.accept(LocalVariableCollector.new(stack_variables))
+    # TODO: (joey) this assumes every variale is a double-word size.
+    self.stack_size = self.stack_variables.sum { |_| 4 }
 
     method(node.label) do
-      # Initialize the stack frame of the method. This involves:
-      # 1) Initializing the stack data.
-      variables.each do |var|
-        # FIXME: (joey) for now, we push zeros for everything. To support
-        # non-word sized types, we should be smarter about it.
-        comment_next_line "init space for localvar {#{var[:name]}}"
+      # Initialize the stack frame of the method. This involves
+      # initializing the stack data for local variables.
+      stack_variables.each do |var, size|
+        # TODO: (joey) for now every type supported is a double-word
+        # (32bits). For Joos1W, we may not need to support other sized
+        # types.
+        # TODO: (joey) we may not need to `PUSH 0`, and we may just be
+        # able to do a one-shot SUB offset as memory may not need to be
+        # zero'd. Realistically, all variables require an initializer so
+        # it will be initialized on the block entry.
+        comment_next_line "init space for localvar {#{var}}"
         asm_push 0
       end
       super
@@ -452,10 +471,12 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def stack_offset(node : AST::VarDeclStmt) : Int32
-    # FIXME: (joey) support multiple locals
-    # NOTE: the offset is shifted by -4 as the first item on the EBP is
-    # the caller's EIP, as the caller sets up the EBP prior to calling.
-    -4 + -4
+    # NOTE: the offset is shifted by -8, _BASE_OFFSET_, as the first
+    # item on the EBP is the caller's EIP. This is a byproduct of the
+    # caller setting the EBP prior to calling without offsetting it.
+    # FIXME: (joey) not sure why it's -8 instead of -4...
+    base_offset = -8
+    return base_offset - stack_variables[node.var.name]
   end
 
   # def visit(node : AST::ExprRef) : Nil
