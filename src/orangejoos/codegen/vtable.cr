@@ -76,13 +76,15 @@ class VTableColumn
     # so that its actually useful
   end
 
+  # check_interface_impl! checks to see if the passed method impements any interfaces, adding
+  # the method as an implementation for any interface that @node implements.
   def check_interface_impl!(method : AST::MethodDecl) : Bool
     implemented? = false
     # Check for all interfaces that the method implements.
     @interfaces.each do |interface, methods|
       if @node.implements?(interface) && interface.contains?(method)
-        # search for the method it implements and add implementation, overriding whatever
-        # was there before
+        # Search for the method it implements and add implementation.
+        # If a superclass implemented this already, override it.
         implemented? = true
         methods.each do |m, _|
           if method.equiv(m)
@@ -96,6 +98,8 @@ class VTableColumn
     implemented?
   end
 
+  # check_super_override! checks if the given method overrides one of the node's superclass's methods,
+  # and adds it as an override if it does.
   def check_super_override!(method : AST::MethodDecl) : Bool
     @methods.each do |clas, methods|
       methods.each do |clas_method, _|
