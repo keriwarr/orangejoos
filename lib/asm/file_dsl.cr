@@ -2,12 +2,12 @@ require "asm/instruction"
 
 module ASM
   module FileDSL
-    COMMENT_START_COLUMN = 30
+    COMMENT_START_COLUMN = 40
 
-    @buf : String::Builder = String::Builder.new
-    @next_comment : String = ""
-    @annotating : Bool = true
-    @indentation : Int32 = 0
+    getter buf : String::Builder = String::Builder.new
+    getter next_comment : String = ""
+    getter annotating : Bool = true
+    getter indentation : Int32 = 0
 
     def write_to_file(path : String)
       file = File.open(path, "w")
@@ -110,6 +110,10 @@ module ASM
     end
 
     # Instructions.
+
+    def asm_dd(data : Label | Int32) : Nil
+      self.instr Instruction.new("DD", "#{data.to_s}")
+    end
 
     def asm_binary_math(op : String, r1 : Register, r2 : Register) : Nil
       i = Instruction.new("#{op}", "#{r1}, #{r2}")

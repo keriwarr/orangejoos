@@ -1,5 +1,5 @@
 class OrderedHash(K, V)
-  include Enumerable(K)
+  include Enumerable({K,V})
 
   def initialize
     @arr = [] of K

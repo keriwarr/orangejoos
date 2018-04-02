@@ -3,7 +3,6 @@ require "file_utils"
 require "./ast"
 require "./compiler_errors"
 require "./codegen/*"
-require "./codegen/vtable"
 require "./lalr1_table"
 require "./lexeme"
 require "./name_resolution"
@@ -223,9 +222,9 @@ class Pipeline
     Dir.mkdir(output_dir)
 
     # create the magic big vtable for method calling
-    vtable = VTable.new(@sources)
+    vtables = VTableMap.new(@sources)
     # generate the code
-    code_gen = CodeGenerator.new(vtable, @verbose, output_dir)
+    code_gen = CodeGenerator.new(vtables, @verbose, output_dir)
     @sources.each do |file|
       file.attempt {|f| code_gen.generate(f) }
     end

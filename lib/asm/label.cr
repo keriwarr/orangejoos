@@ -11,7 +11,7 @@ class ASM::Label
     return val
   end
 
-  def self.vtable_column(path : String, class_name : String) : Label
+  def self.vtable(path : String, class_name : String) : Label
     return Label.new("VTABLE$#{path}$#{class_name}")
   end
 
@@ -22,7 +22,7 @@ class ASM::Label
   def self.from_method(path : String, class_name : String, method : String, types : Array(String)) : Label
     return Label.new("METHOD$#{path}$#{class_name}$#{method}##{types.join("#")}")
   end
-q
+
   def self.from_ctor(path : String, class_name : String, types : Array(String)) : Label
     return Label.new("CTOR$#{path}$#{class_name}##{types.join("#")}")
   end

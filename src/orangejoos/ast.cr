@@ -333,6 +333,10 @@ module AST
       return result
     end
 
+    def method?(method : MethodDecl) : MethodDecl?
+      return all_methods.find { |m| m.equiv(method) }
+    end
+
     def ==(other : TypeDecl) : Bool
       return self.qualified_name == other.qualified_name
     end
@@ -524,12 +528,6 @@ module AST
         return true if interface.qualified_name == node.qualified_name
         return true if interface.extends?(node)
       end
-      return false
-    end
-
-    # contains? returns true if the given method
-    def contains?(method : MethodDecl) : Bool
-      methods.each { |m| return true if m.equiv(method) }
       return false
     end
 
