@@ -526,6 +526,14 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::Equal, Register::AL
+      when {"==", .is_object?, .is_object?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::Equal, Register::AL
+      when {"!=", .is_object?, .is_object?}
+        comment_next_line node.to_s
+        asm_cmp Register::EAX, Register::EBX
+        asm_setcc Condition::NotEqual, Register::AL
       else
         raise Exception.new("unimplemented: op=\"#{node.op}\" types=#{op_types.map &.to_s}")
       end
