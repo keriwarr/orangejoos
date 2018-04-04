@@ -14,6 +14,8 @@ class CodeGenerator
   end
 
   def generate(file : SourceFile)
+    # Skip all stdlib files for now.
+    return if file.ast.package? && file.ast.package.path.name.includes?("java")
     file.ast.accept(CodeGenerationVisitor.new(output_dir, file, @verbose))
   end
 
@@ -157,8 +159,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ClassDecl) : Nil
     source_path = @file.path
-    # Skip all stdlib files for now.
-    return if node.package.includes?("java")
 
     annotate "orangejoos generated Joos1W x86-32"
     annotate "interface: #{node.package}.#{node.name}" if node.is_a?(AST::InterfaceDecl)
@@ -167,13 +167,18 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     annotate "source: #{source_path}"
     raw "  SECTION .text\n\n\n"
 
-    super
+    # Generate code for all methods, static fields initializers, and
+    # field initializers.
+    node.body.each &.accept(self)
 
     file_name = node.qualified_name.split(".").join("_") + ".s"
     path = File.join(output_dir, file_name)
     write_to_file(path)
   rescue ex : CompilerError
     ex.register("class_name", node.name)
+    raise ex
+  rescue ex : Exception
+    STDERR.puts "exception in #{node.qualified_name}"
     raise ex
   end
 
@@ -205,7 +210,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line "init space for localvar {#{var}}"
         asm_push 0
       end
-      super
+      # Only traverse down the body. Ignore typ and params, as they do
+      # not need code generation.
+      # NOTE: only methods with bodies should be generated, hence the
+      # `not_nil!` assert.
+      node.body.each &.accept(self)
     end
   rescue ex : CompilerError
     ex.register("method_name", node.name)
@@ -517,21 +526,22 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
   end
 
-  def visit(node : AST::SimpleName) : Nil
-    if node.ref?.nil?
+  def visit(node : AST::ExprRef) : Nil
+    name = node.name
+    if name.ref?.nil?
       return
     end
-    ref = node.ref
+    ref = name.ref
     case ref
     when AST::VarDeclStmt
-      comment_next_line "fetch localvar {#{node.name}}"
+      comment_next_line "fetch localvar {#{name.name}}"
       offset = stack_offset(ref)
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
     when AST::Param
-      comment_next_line "fetch parameter {#{node.name}}"
+      comment_next_line "fetch parameter {#{name.name}}"
       index = current_method.params.index(&.== ref)
       if (index.nil?)
-        raise CodegenError.new("Could not find parameter #{node.name} in list")
+        raise CodegenError.new("Could not find parameter #{name.name} in list")
       end
       param_count = current_method.params.size
       offset = (param_count - index) * 4
@@ -628,13 +638,106 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     return base_offset - stack_variables[node.var.name]
   end
 
-  # def visit(node : AST::ExprRef) : Nil
-  # case node.name.ref
-  # when AST::VarDeclStmt
-  #   comment "would be var #{node.name}"
-  #   # instr
-  # else raise Exception.new("unimplemented: #{node.inspect}")
-  # end
-  # end
+  def visit(node : AST::File) : Nil
+    # Do not visit packages or imports.
+    node.decls.each &.accept(self)
+  end
+
+  def visit(node : AST::ConstructorDecl) : Nil
+    method(node.label) do
+      # TODO: (joey) implement constructor declarations.
+      comment "TODO implement constructors"
+    end
+  end
+
+  def visit(node : AST::InterfaceDecl) : Nil
+    # We do not want to traverse through any content of an InterfaceDecl.
+    # no super
+  end
+
+  # These are all the nodes that we do not require an implementation
+  # for.
+
+  # abstract def visit(node : AST::Block) : Nil
+
+  # These are all the notes that are unimplemented, and should raise a
+  # loud error upon encountering.
+
+  def visit(node : AST::PrimitiveTyp) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ClassTyp) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::Identifier) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::PackageDecl) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ImportDecl) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::Modifier) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::QualifiedName) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::FieldDecl) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::Param) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ExprInstanceOf) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ExprClassInit) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ExprThis) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ConstString) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ConstNull) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ExprArrayAccess) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::SimpleName) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ExprArrayInit) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::ParenExpr) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
+  def visit(node : AST::Variable) : Nil
+    raise Exception.new("unimplemented: #{node}")
+  end
+
 
 end
