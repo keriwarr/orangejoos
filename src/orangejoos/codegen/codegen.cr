@@ -724,6 +724,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     when AST::FieldDecl
       raise Exception.new("unimplemented: #{node}") unless ref.is_static?
       calculate_address(ref)
+      asm_mov Register::EAX, Register::EAX.as_address
     else
       raise Exception.new("unimplemented: #{node}")
     end
