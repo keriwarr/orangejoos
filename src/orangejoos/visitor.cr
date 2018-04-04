@@ -43,6 +43,7 @@ module Visitor
     abstract def visit(node : AST::CastExpr) : Nil
     abstract def visit(node : AST::ParenExpr) : Nil
     abstract def visit(node : AST::Variable) : Nil
+    abstract def visit(node : AST::ExprFieldAccess) : Nil
 
     def descend
       @depth += 1

@@ -152,6 +152,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property while_counter : Int32 = 0
   property for_counter : Int32 = 0
 
+  property! current_class : AST::ClassDecl
   property! current_method : AST::MethodDecl
 
   def initialize(@output_dir : String, @file : SourceFile, @verbose : Bool)
@@ -159,17 +160,42 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ClassDecl) : Nil
     source_path = @file.path
+    node.inst = ClassInstance.new(node)
+    self.current_class = node
 
     annotate "orangejoos generated Joos1W x86-32"
     annotate "interface: #{node.package}.#{node.name}" if node.is_a?(AST::InterfaceDecl)
     annotate "class: #{node.package}.#{node.name}" if node.is_a?(AST::ClassDecl)
     # FIXME(joey): This path is often munged, e.g. multiple //.
     annotate "source: #{source_path}"
+    extern ASM::Label::MALLOC
     raw "  SECTION .text\n\n\n"
 
-    # Generate code for all methods, static fields initializers, and
-    # field initializers.
-    node.body.each &.accept(self)
+    # Generate code field initialization, used in all constructors.
+    # field initializers. This creates an internal fcn and label.
+    label node.inst.init_label
+    indent {
+      comment "ESI contains `this`"
+      # TODO: (joey) support super fields. This should just be done by
+      # the implicit-super call instead, inside the constructors.
+      node.fields.each do |field|
+        comment "initializing field #{field.name}"
+        raise Exception.new("are non-initialized fields even allowed? field: #{field}") unless field.var.init?
+        comment "evaluating expr=#{field.var.init.to_s}"
+        # Load data into EAX.
+        field.var.init.accept(self)
+        comment_next_line "store into #{field.name}"
+        asm_mov node.inst.field_as_address(field), Register::EAX
+      end
+      asm_ret 0
+    }
+    newline
+
+    # Generate code for all constructors
+    node.constructors.each &.accept(self)
+
+    # Generate code for all methods.
+    node.methods.each &.accept(self)
 
     file_name = node.qualified_name.split(".").join("_") + ".s"
     path = File.join(output_dir, file_name)
@@ -495,14 +521,30 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       when node.name?
         # Recursive call to evaluate as other type (e.g. VarDeclStmt, Param, ...)
         calculate_address(node.name.ref)
-      else raise Exception.new("unhandled: #{node.inspect}")
+      else raise Exception.new("unhandled: #{node}")
       end
     when AST::VarDeclStmt
       comment_next_line "address for localvar {#{node.var.name}}"
       # Get pointer location of the variable.
       asm_mov Register::EAX, Register::EBP
       asm_add Register::EAX, stack_offset(node)
-    else raise Exception.new("unhandled: #{node.inspect}")
+    when AST::FieldDecl
+      comment_next_line "calc field #{node.var.name} using `this`"
+      asm_mov Register::EAX, Register::ESI
+      asm_add Register::EAX, current_class.inst.field_offset(node)
+    when AST::ExprFieldAccess
+      # This is when an explicit-object field access happens. This does
+      # not include implicit-object field access. For example:
+      #
+      #    a.field
+      raise Exception.new("unhandled, static field access: #{node}") if node.obj.get_type.is_static?
+      raise Exception.new("unhandled, array.length field access: #{node}") if node.obj.get_type.is_array
+      comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
+      node.obj.accept(self)
+      comment_next_line "calc field #{node.field_name}"
+      cls = node.obj.get_type.ref.as(AST::ClassDecl)
+      asm_add Register::EAX, cls.inst.field_offset(node.field)
+    else raise Exception.new("unhandled: #{node}")
     end
   end
 
@@ -546,6 +588,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       param_count = current_method.params.size
       offset = (param_count - index) * 4
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
+    else
+      raise Exception.new("unimplemented: #{node}")
     end
   end
 
@@ -559,16 +603,14 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
   end
 
-  def visit(node : AST::MethodInvoc) : Nil
-    typ = node.expr.get_type.ref.as(AST::TypeDecl)
-    method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
-    label = ASM::Label.from_method(method.parent.package, method.parent.name, method.name, method.params.map { |p| p.typ.to_type.to_s })
-
+  # For doing a backup and restore step around the block of generated
+  # ASM.
+  def safe_call(args : Array(AST::Expr), &block)
     # TODO: register allocation
-    # comment_next_line "Save all the registers. This is lazy and can be optimized"
-    # asm_pushad
+    comment "save registers"
+    asm_push Register::ESI
 
-    node.args.each_with_index do |arg, idx|
+    args.each_with_index do |arg, idx|
       # TODO: support different argument sizes
       arg.accept(self)
       comment_next_line "Argument ##{idx}"
@@ -580,7 +622,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     comment_next_line "set the new base pointer value"
     asm_mov Register::EBP, Register::ESP
 
-    asm_call label
+    yield
 
     # TODO: (joey) if we change calling convention so caller saves and
     # restores EBP, then we should instead use "RET n" to de-allocate
@@ -591,11 +633,20 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     asm_pop Register::EBP
 
     comment_next_line "remove arguments from stack"
-    asm_add Register::ESP, node.args.size * 4
+    asm_add Register::ESP, args.size * 4
 
     # TODO: register allocation
-    # comment_next_line "Restore all the registers"
-    # asm_popad
+    comment "restore registers"
+    asm_pop Register::ESI
+
+  end
+
+  def visit(node : AST::MethodInvoc) : Nil
+    typ = node.expr.get_type.ref.as(AST::TypeDecl)
+    method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
+    safe_call(node.args) do
+      asm_call method.label
+    end
   end
 
   def visit(node : AST::CastExpr) : Nil
@@ -644,15 +695,62 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstructorDecl) : Nil
+    raise Exception.new("unimplemented, constructor with >0 params: #{node}") if node.params.size > 0
+    cls = node.parent.as(AST::ClassDecl)
     method(node.label) do
-      # TODO: (joey) implement constructor declarations.
-      comment "TODO implement constructors"
+      comment "malloc #{cls.inst.size} bytes for instance of #{cls.qualified_name}"
+      # TODO: (joey) save any args before calling MALLOC as it will
+      # trample over registers.
+      asm_mov Register::EAX, cls.inst.size
+      asm_call ASM::Label::MALLOC
+      comment_next_line "move the instance ptr to ESI (as `this`)"
+      asm_mov Register::ESI, Register::EAX
+
+      # TODO: (joey) execute super constructor.
+
+      comment_next_line "initialize instance fields"
+      asm_call cls.inst.init_label
+      comment "execute constructor contents"
+      node.body.each &.accept(self)
+
+      # Put the instance ptr into EAX as the return value.
+      asm_mov Register::EAX, Register::ESI
+
+      asm_ret 0
     end
   end
 
   def visit(node : AST::InterfaceDecl) : Nil
     # We do not want to traverse through any content of an InterfaceDecl.
     # no super
+  end
+
+  def visit(node : AST::ExprClassInit) : Nil
+    safe_call(node.args) do
+      asm_call node.constructor.label
+    end
+  end
+
+  def visit(node : AST::ExprThis) : Nil
+    # This maintains the invariant that an expression will put the result
+    # into EAX.
+    # TODO: (joey) this is pretty inefficient, but is the lazy way to
+    # "return" the instance ptr for use further up the AST with the
+    # "expr returns EAX" invariant.
+    comment_next_line "load `this`"
+    asm_mov Register::EAX, Register::ESI
+  end
+
+  def visit(node : AST::ExprFieldAccess) : Nil
+    raise Exception.new("unhandled, static field access: #{node}") if node.obj.get_type.is_static?
+    raise Exception.new("unhandled, array.length field access: #{node}") if node.obj.get_type.is_array
+    cls = node.obj.get_type.ref.as(AST::ClassDecl)
+    offset = cls.inst.field_offset(node.field)
+
+    comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
+    node.obj.accept(self)
+    comment_next_line "calc field #{node.field_name}"
+    asm_mov Register::EAX, Register::EAX.as_address_offset(offset)
   end
 
   # These are all the nodes that we do not require an implementation
@@ -700,14 +798,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ExprInstanceOf) : Nil
-    raise Exception.new("unimplemented: #{node}")
-  end
-
-  def visit(node : AST::ExprClassInit) : Nil
-    raise Exception.new("unimplemented: #{node}")
-  end
-
-  def visit(node : AST::ExprThis) : Nil
     raise Exception.new("unimplemented: #{node}")
   end
 

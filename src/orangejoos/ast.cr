@@ -5,6 +5,7 @@ require "./visitor"
 require "./mutating_visitor"
 require "./typing"
 require "./codegen/labelled"
+require "./codegen/class_instance"
 require "asm/label"
 
 # Type checking constants.
@@ -351,6 +352,8 @@ module AST
     getter body : Array(MemberDecl) = [] of MemberDecl
 
     property is_inherited : Bool = false
+
+    property! inst : ClassInstance
 
     def initialize(@name : String, modifiers : Array(Identifier), @super_class : Name?, @interfaces : Array(Name), @body : Array(MemberDecl))
       self.modifiers = modifiers
@@ -947,6 +950,8 @@ module AST
     property typ : ClassTyp
     property args : Array(Expr) = [] of Expr
 
+    property! constructor : ConstructorDecl
+
     def initialize(@typ : ClassTyp, @args : Array(Expr))
     end
 
@@ -973,6 +978,8 @@ module AST
         raise TypeCheckStageError.new("cannot access protected constructor inside #{class_decl.qualified_name}")
       end
 
+      self.constructor = constructor
+
       return Typing::Type.new(Typing::Types::INSTANCE, class_decl)
     end
 
@@ -985,6 +992,8 @@ module AST
   class ExprFieldAccess < Expr
     property obj : Expr
     property field_name : String
+
+    property! field : FieldDecl
 
     def initialize(@obj : Expr, @field_name : String)
     end
@@ -1014,6 +1023,7 @@ module AST
           raise TypeCheckStageError.new("class {#{class_node.qualified_name}} has no static field {#{@field_name}}")
         end
         field.check_access(namespace.current_class, class_node)
+        self.field = field
         return field.not_nil!.typ.to_type
       elsif typ.is_object?
         class_node = typ.ref.as(ClassDecl)
@@ -1022,6 +1032,7 @@ module AST
           raise TypeCheckStageError.new("class #{class_node.name} has no non-static field #{@field_name}")
         end
         field.check_access(namespace.current_class, class_node)
+        self.field = field
         return field.not_nil!.typ.to_type
       else
         raise Exception.new("unhandled case: #{typ.to_s}")

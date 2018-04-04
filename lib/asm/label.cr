@@ -1,4 +1,7 @@
 class ASM::Label
+
+  MALLOC = Label.new("__malloc")
+
   property val : String
 
   def initialize(@val : String)
@@ -13,7 +16,11 @@ class ASM::Label
   end
 
   def self.from_ctor(path : String, class_name : String, types : Array(String)) : Label
-    return Label.new("method$#{path}$#{class_name}$#__CTOR##{types.join("#")}")
+    return Label.new("ctor$#{path}$#{class_name}##{types.join("#")}")
+  end
+
+  def self.from_class_for_init(path : String, class_name : String) : Label
+    return Label.new("internal$#{path}$#{class_name}$#__INIT")
   end
 
   def self.from_field(path : String, class_name : String, field : String) : Label
