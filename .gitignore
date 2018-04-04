@@ -8,6 +8,8 @@
 
 *.class
 
+run
+
 # Python
 *.pyc
 
