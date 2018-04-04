@@ -153,6 +153,10 @@ module ASM
       asm_binary_math("AND", r1, r2)
     end
 
+    def asm_or(r1 : Register, r2 : Register | Int32 | String) : Nil
+      asm_binary_math("OR", r1, r2)
+    end
+
     def asm_xor(r1 : Register, r2 : Register | Int32) : Nil
       asm_binary_math("XOR", r1, r2)
     end
@@ -189,6 +193,12 @@ module ASM
     end
 
     def asm_jne(lbl : Label) : Nil
+      i = Instruction.new("JNE", "#{lbl.to_s}")
+      # TODO: (joey) we may want to denote a control-flow jump
+      self.instr i
+    end
+
+    def asm_je(lbl : Label) : Nil
       i = Instruction.new("JNE", "#{lbl.to_s}")
       # TODO: (joey) we may want to denote a control-flow jump
       self.instr i

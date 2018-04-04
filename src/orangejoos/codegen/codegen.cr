@@ -157,6 +157,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property if_counter : Int32 = 0
   property while_counter : Int32 = 0
   property for_counter : Int32 = 0
+  property jmp_counter : Int32 = 0
 
   property! current_class : AST::ClassDecl
   property! current_method : AST::MethodDecl
@@ -227,11 +228,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::MethodDecl) : Nil
-    unless node.is_static?
-      STDERR.puts "unimplemented: non-static methods. not compiling #{node.parent.qualified_name} {#{node.name}}" if @verbose
-      return
-    end
-
     self.current_method = node
 
     # Collect all stack variables and their stack offsets.
@@ -445,7 +441,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # FIXME: (joey) when the LHS is for an address, we need to do
       # something specific to either keep it as an address or get the
       # value. Hence the separation between assignment and the rest.
-      if op_sig[0] == "=" && op_sig[1]?.try &.is_number? && op_sig[2]?.try &.is_number?
+      case {node.op, node.operands[0].get_type, node.operands[1].get_type}
+      when {"=", .is_number?, .is_number?}
         # Add code for LHS.
         calculate_address(node.operands[0])
         # Push the LHS address (EAX) to the stack.
@@ -460,6 +457,40 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line  "assigning #{node.operands[0].to_s} = #{node.operands[1].to_s}"
         asm_mov Register::EBX.as_address, Register::EAX
         # NOTE: the result is in EAX, as desired as '=' is an expression.
+        return
+      when {"&&", .is_boolean?, .is_boolean?}
+        # && and || are handled specially as they will short-circuit.
+        and_short_circuit_label = ASM::Label.new("and_short_circuit_#{jmp_counter}")
+        and_end_label = ASM::Label.new("and_end_#{jmp_counter}")
+        self.jmp_counter += 1
+
+        node.operands[0].accept(self)
+        asm_cmp Register::EAX, 0
+        asm_jne and_end_label
+
+        node.operands[0].accept(self)
+        asm_jmp and_end_label
+
+        label and_short_circuit_label
+        asm_mov Register::EAX, 0
+        label and_end_label
+        return
+      when {"||", .is_boolean?, .is_boolean?}
+        # && and || are handled specially as they will short-circuit.
+        or_short_circuit_label = ASM::Label.new("or_short_circuit_#{jmp_counter}")
+        or_end_label = ASM::Label.new("or_end_#{jmp_counter}")
+        self.jmp_counter += 1
+
+        node.operands[0].accept(self)
+        asm_cmp Register::EAX, 1
+        asm_je or_short_circuit_label
+
+        node.operands[0].accept(self)
+        asm_jmp or_end_label
+
+        label or_short_circuit_label
+        asm_mov Register::EAX, 1
+        label or_end_label
         return
       end
 
@@ -526,6 +557,12 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
         asm_setcc Condition::Equal, Register::AL
+      when {"|", .is_boolean?, .is_boolean?}
+        comment_next_line node.to_s
+        asm_or Register::EAX, Register::EBX
+      when {"&", .is_boolean?, .is_boolean?}
+        comment_next_line node.to_s
+        asm_or Register::EAX, Register::EBX
       when {"==", .is_object?, .is_object?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX

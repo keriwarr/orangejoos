@@ -131,6 +131,7 @@ describe "Codegen" do
         # 1.b compile the asm to object files.
         asm_files = Dir.glob("#{COMPILATION_OUTPUT_DIR}/*.s")
         asm_files.each {|f| compile_asm(f) }
+        compile_asm("pub/stdlib/5.0/runtime.s")
         # 1.c link the object files to a binary.
         link_object_files
 
