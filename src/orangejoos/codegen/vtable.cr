@@ -27,13 +27,17 @@ class VTable
   property methods    : Methods = Methods.new       # class methods
   property offsets    : Offsets = Offsets.new       # offsets for all the things
 
+  property exported_methods = Array(ASM::Label).new
+
   # Initialize creates the column and adds all the methods to it.
   # If the node has a super_class it will recurse up the extension tree and create
   # those columns first.
   def initialize(@vtables : VTableMap, @node : AST::ClassDecl)
     # If node has a super class we copy its methods, otherwise start from a base VTable with just interfaces.
     if @node.super_class? && !@node.super_class.ref.as(AST::ClassDecl).is_java_object?
-      copy_methods(@vtables.new_vtable(@node.super_class.ref.as(AST::ClassDecl)))
+      super_class = @node.super_class.ref.as(AST::ClassDecl)
+      copy_methods(@vtables.new_vtable(super_class))
+      @exported_methods += @vtables.exported_methods(super_class)
     else
       @vtables.interfaces.each do |i|
         @interfaces.push(i, OrderedHash(AST::MethodDecl, AST::MethodDecl?).new)
@@ -45,6 +49,7 @@ class VTable
     # Replaces superclass interface implementations if the method overrides.
     self_methods = OrderedHash(AST::MethodDecl, AST::MethodDecl?).new
     @node.methods.each do |method|
+      @exported_methods.push(method.label) unless method.is_static? || method.is_protected? || @node.is_java_object?
       # we don't care about static methods since we know where those are at compile time
       next if method.is_static?
       # add interface implementations
@@ -235,6 +240,17 @@ class VTableMap
     return @interface_table[{ typ, method.signature }]
     # this should probably never happen
     raise "Failed to get offset for #{method.to_s}."
+  end
+
+  def exported_methods(node : AST::ClassDecl) : Array(ASM::Label)
+    if node.super_class? && !node.super_class.ref.as(AST::ClassDecl).is_java_object?
+      return @class_vtables[node.super_class.ref.as(AST::ClassDecl)].exported_methods
+    end
+    return Array(ASM::Label).new
+  end
+
+  def label(node : AST::ClassDecl) : ASM::Label
+    @class_vtables[node].label
   end
 
   # asm outputs the VTable for node to the given FileDSL

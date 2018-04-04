@@ -43,4 +43,8 @@ module ASM
       return ASM::Address.new(self, offset)
     end
   end
+
+  enum Size
+    BYTE, WORD, DWORD
+  end
 end

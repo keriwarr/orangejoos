@@ -16,7 +16,7 @@ public class Foo extends Bar implements Fooer {
 
   public int foo() {
     // return x + y;
-    return 0;
+    return 120;
   }
 
   public void foobar() {}

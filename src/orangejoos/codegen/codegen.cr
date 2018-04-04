@@ -192,7 +192,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
     section_data
     newline
-    newline
 
     node.static_fields.each do |field|
       global field.label
@@ -204,7 +203,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       newline
     end
     newline
-
 
     section_text
     newline
@@ -232,12 +230,22 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       newline
     }
 
-
-
     # extern ALL vtables cause we lazy af
     @vtables.each { |clas, table| extern table.label unless clas == node }
 
+    externs = ExternLabelCollector.new
+    @file.ast.accept(externs)
+
     extern ASM::Label::MALLOC
+    newline
+    comment "[ VTABLE LABELS ]"
+    @vtables.each { |clas, table| extern table.label unless node == clas }
+    comment "[ VTABLE SUPERCLASS METHODS ]"
+    @vtables.exported_methods(node).each { |label| extern label }
+    comment "[ CONSTRUCTOR LABELS ]"
+    externs.ctors.each { |ctor| extern ctor }
+    comment "[ STATIC METHOD LABELS ]"
+    externs.statics.each { |static| extern static }
     newline
 
     indent{ section_text }
@@ -785,12 +793,17 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
   end
 
-  # For doing a backup and restore step around the block of generated
-  # ASM.
-  def safe_call(args : Array(AST::Expr), &block)
+  # For doing a backup and restore step around the block of generated ASM.
+  # The address of the object should be in EAX.
+  def safe_call(args : Array(AST::Expr), ctor? : Bool, &block)
     # TODO: register allocation
     comment "save registers"
     asm_push Register::ESI
+
+    unless ctor?
+      comment_next_line "move address of invokee to ESI as \"this\""
+      asm_mov Register::ESI, Register::EAX
+    end
 
     args.each_with_index do |arg, idx|
       # TODO: support different argument sizes
@@ -826,8 +839,23 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::MethodInvoc) : Nil
     typ = node.expr.get_type.ref.as(AST::TypeDecl)
     method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
-    safe_call(node.args) do
-      asm_call method.label
+
+    comment "[ Method Invocation: #{method.signature.to_s} ]"
+    if method.is_static?
+      safe_call(node.args, true) do
+        comment_next_line "call static function"
+        asm_call method.label
+      end
+    else
+      offset = @vtables.get_offset(typ, method.signature)
+      node.expr.accept(self) if node.expr.get_type.is_object? # puts the address of the object in EAX
+
+      safe_call(node.args, false) do
+        comment_next_line "load vptr"
+        asm_mov  Register::EAX, Register::ESI.as_address_offset(VPTR_OFFSET)
+        comment_next_line "call vtable function at offset"
+        asm_call Register::EAX, offset
+      end
     end
   end
 
@@ -880,11 +908,15 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     raise Exception.new("unimplemented, constructor with >0 params: #{node}") if node.params.size > 0
     cls = node.parent.as(AST::ClassDecl)
     method(node.label) do
-      comment "malloc #{cls.inst.size} bytes for instance of #{cls.qualified_name}"
+      comment_next_line "malloc #{cls.inst.size} bytes for instance of #{cls.qualified_name}"
       # FIXME: (joey) once we handle arguments, save any args in EAX and
       # EBX as MALLOC trample them.
       asm_mov Register::EAX, cls.inst.size
       asm_call ASM::Label::MALLOC
+      comment_next_line "load the address of the vtable into the ptr"
+      asm_mov Register::EAX.as_address, @vtables.label(cls), Size::DWORD
+      comment_next_line "add 4 to the instance ptr to account for vptr"
+      asm_add Register::EAX, 4
       comment_next_line "move the instance ptr to ESI (as `this`)"
       asm_mov Register::ESI, Register::EAX
       # FIXME: (joey) execute super constructor.
@@ -906,7 +938,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ExprClassInit) : Nil
-    safe_call(node.args) do
+    safe_call(node.args, true) do
       asm_call node.constructor.label
     end
   end
@@ -1038,4 +1070,17 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
 
+end
+
+class ExternLabelCollector < Visitor::GenericVisitor
+  getter ctors = Array(ASM::Label).new
+  getter statics = Array(ASM::Label).new
+
+  def visit(node : AST::ExprClassInit)
+    ctors.push(node.constructor.label)
+  end
+
+  def visit(node : AST::MethodInvoc)
+    statics.push(node.method_decl.label)
+  end
 end
