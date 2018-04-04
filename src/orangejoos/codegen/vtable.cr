@@ -3,51 +3,6 @@ require "../ast"
 require "asm/label"
 require "ordered_hash"
 
-# VTableMap is a hash of class declarations to their corresponding VTables.
-class VTableMap
-  @class_vtables = {} of AST::ClassDecl => VTable
-  @interface_table = OrderedHash(Tuple(AST::InterfaceDecl, AST::MethodSignature), Int32).new
-  # a collection of all interfaces in all ASTs.
-  getter interfaces = [] of AST::InterfaceDecl
-
-
-  # the entire VTable is set up upon creation
-  def initialize(@sources : Array(SourceFile))
-    # Populate all interfaces methods so we can easily pop them into vtable columns.
-    @sources.each { |file| file.ast.accept(InterfaceCollector.new(self)) }
-    # Create a neato table for just the interfaces.
-    offset = -4
-    @interfaces.each { |i| i.methods.each {|m| @interface_table.push({i,m.signature}, offset += 4) }}
-    # Add VTable entries for each class in each file
-    @sources.each { |file| file.ast.accept(VTableCreator.new(self)) }
-  end
-
-  # new_vtable creates a new vtable and adds it to the table hash if it doesn't already exist, and returns
-  # the table.
-  def new_vtable(node : AST::ClassDecl) : VTable
-    return @class_vtables[node] if @class_vtables[node]?       # check if node already has a VTable (created by subclass)
-    return @class_vtables[node] = VTable.new(self, node) # otherwise create a new table for the node
-  end
-
-  # get_offset returns the offset of the given method in the vtable for typ
-  def get_offset(typ : AST::TypeDecl, method : AST::MethodSignature) : Int32
-    return @class_vtables[typ].get_offset(method)
-    return @interface_table[{ typ, method.signature }]
-    # this should probably never happen
-    raise "Failed to get offset for #{method.to_s}."
-  end
-
-  # asm outputs the VTable for node to the given FileDSL
-  def asm(dsl : ASM::FileDSL, node : AST::ClassDecl)
-    @class_vtables[node].asm(dsl)
-  end
-
-  # pprint prints each VTable in the map all pretty like.
-  def pprint
-    @class_vtables.each { |_, vtable| vtable.pprint }
-  end
-end
-
 # VTable represents the virtual table for a specific AST::ClassDecl.
 # In general the format is as follows:
 #
@@ -247,6 +202,56 @@ class VTable
     end
   end
 end
+
+# VTableMap is a hash of class declarations to their corresponding VTables.
+class VTableMap
+  include Enumerable({AST::ClassDecl, VTable})
+
+  @class_vtables = {} of AST::ClassDecl => VTable
+  @interface_table = OrderedHash(Tuple(AST::InterfaceDecl, AST::MethodSignature), Int32).new
+  getter interfaces = [] of AST::InterfaceDecl # a collection of all interfaces in all ASTs.
+
+  # the entire VTable is set up upon creation
+  def initialize(@sources : Array(SourceFile))
+    # Populate all interfaces methods so we can easily pop them into vtable columns.
+    @sources.each { |file| file.ast.accept(InterfaceCollector.new(self)) }
+    # Create a neato table for just the interfaces.
+    offset = -4
+    @interfaces.each { |i| i.methods.each {|m| @interface_table.push({i,m.signature}, offset += 4) }}
+    # Add VTable entries for each class in each file
+    @sources.each { |file| file.ast.accept(VTableCreator.new(self)) }
+  end
+
+  # new_vtable creates a new vtable and adds it to the table hash if it doesn't already exist, and returns
+  # the table.
+  def new_vtable(node : AST::ClassDecl) : VTable
+    return @class_vtables[node] if @class_vtables[node]?       # check if node already has a VTable (created by subclass)
+    return @class_vtables[node] = VTable.new(self, node) # otherwise create a new table for the node
+  end
+
+  # get_offset returns the offset of the given method in the vtable for typ
+  def get_offset(typ : AST::TypeDecl, method : AST::MethodSignature) : Int32
+    return @class_vtables[typ].get_offset(method)
+    return @interface_table[{ typ, method.signature }]
+    # this should probably never happen
+    raise "Failed to get offset for #{method.to_s}."
+  end
+
+  # asm outputs the VTable for node to the given FileDSL
+  def asm(dsl : ASM::FileDSL, node : AST::ClassDecl)
+    @class_vtables[node].asm(dsl)
+  end
+
+  # pprint prints each VTable in the map all pretty like.
+  def pprint
+    @class_vtables.each { |_, vtable| vtable.pprint }
+  end
+
+  def each
+    @class_vtables.each { |k,v| yield k, v }
+  end
+end
+
 
 # InterfaceCollector collects all interfaces in the AST.
 class InterfaceCollector < Visitor::GenericVisitor

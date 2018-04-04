@@ -174,6 +174,10 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     annotate "class: #{node.package}.#{node.name}" if node.is_a?(AST::ClassDecl)
     # FIXME(joey): This path is often munged, e.g. multiple //.
     annotate "source: #{source_path}"
+
+    # extern ALL vtables cause we lazy af
+    @vtables.each { |_, table| extern table.label }
+
     extern ASM::Label::MALLOC
     newline
 
