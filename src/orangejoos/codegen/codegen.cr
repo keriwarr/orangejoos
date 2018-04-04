@@ -3,6 +3,11 @@ require "asm/register"
 
 include ASM
 
+# FIXME: (joey) refactor out the array logic.
+BASE_ARRAY_SIZE = 4
+
+NULL_CONST = "0xDEADBEEF"
+
 class CodeGenerator
   include ASM::FileDSL
 
@@ -439,11 +444,13 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         # Put result into address.
         # TODO: (joey) in the case of a Param or VarDeclStmt, we can elide
         # the address computation and embed the offset directly here.
+        comment_next_line  "assigning #{node.operands[0].to_s} = #{node.operands[1].to_s}"
         asm_mov Register::EBX.as_address, Register::EAX
         # NOTE: the result is in EAX, as desired as '=' is an expression.
         return
       end
 
+      comment "compute LHS: #{node.operands[0].to_s}"
       # Add code for LHS.
       node.operands[0].accept(self)
       # TODO: (joey) if the operand is a constant, we can alide the load
@@ -451,7 +458,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       comment_next_line "store result of first arguments"
       asm_push Register::EAX
 
-      comment_next_line "compute RHS: #{node.operands[1].to_s}"
+      comment "compute RHS: #{node.operands[1].to_s}"
       node.operands[1].accept(self)
       comment_next_line "move result of second argument"
       asm_mov Register::EBX, Register::EAX
@@ -514,14 +521,31 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
   end
 
+  # TODO: (joey) if `calculate_address` returns the string of the address
+  # for use in `mov` instructions, then this will cut down on one
+  # instruction per assignment. For example:
+  #
+  #    mov EAX, EBP-8 ; calculate address for stack variable
+  #    mov [EAX], EXPR_RESULT ; store the result into the stack address
+  #
+  # It will simply become:
+  #
+  #    mov [EBP-8], EXPR_RESULT
+  #
+  # The same can be done for arrays and fields in order to omit one
+  # instruction.
   def calculate_address(node : AST::Node) : Nil
     case node
     when AST::Variable
+      # TODO: (joey) add explicit-object field access.
       case
       when node.name?
         # Recursive call to evaluate as other type (e.g. VarDeclStmt, Param, ...)
         calculate_address(node.name.ref)
-      else raise Exception.new("unhandled: #{node}")
+      when node.array_access?
+        # Recursive call to evaluate as ArrayAccess type.
+        calculate_address(node.array_access)
+      else raise Exception.new("unhandled: #{node.to_s}")
       end
     when AST::VarDeclStmt
       comment_next_line "address for localvar {#{node.var.name}}"
@@ -544,6 +568,29 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       comment_next_line "calc field #{node.field_name}"
       cls = node.obj.get_type.ref.as(AST::ClassDecl)
       asm_add Register::EAX, cls.inst.field_offset(node.field)
+    when AST::ExprArrayAccess
+      comment "calculate array ptr"
+      node.expr.accept(self)
+      # FIXME: (joey) I think we need to do a null check on the array
+      # ptr.
+      comment_next_line "save array ptr"
+      asm_push Register::EAX
+      comment "calcuate array idx for access"
+      node.index.accept(self)
+      # FIXME: (joey) I think we need to do a null check on the index.
+      comment_next_line "recover array ptr"
+      asm_pop Register::EBX
+      # TODO: (joey) all of this arithmetic can be reduced down to a
+      # single line, if the interface around ptr usage changes and if
+      # the array data starts from the array pointer. If both of those
+      # are changed, array data can be used as such:
+      #
+      #    MOV EAX, [EAX + 4*EBX] ; fetch array:EAX[index:EBX] into EAX
+      #    MOV [EAX + 4*EBX], EDX ; store EDX into array:EAX[index:EBX]
+      comment_next_line "multiply index offset by 4 (double-word)"
+      asm_imul Register::EAX, 4
+      comment_next_line "offset ptr by index and store in EAX for expr returning"
+      asm_add Register::EAX, Register::EBX
     else raise Exception.new("unhandled: #{node}")
     end
   end
@@ -556,6 +603,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::ConstChar) : Nil
     comment_next_line "load char(#{node.val})"
     asm_mov Register::EAX, node.val.ord
+  end
+
+  def visit(node : AST::ConstNull) : Nil
+    comment_next_line "load null"
+    asm_mov Register::EAX, NULL_CONST
   end
 
   def visit(node : AST::ConstBool) : Nil
@@ -597,8 +649,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     if node.var.init?
       comment "compute init for {#{node.var.name}}"
       node.var.init.accept(self)
-      comment_next_line "store value into {#{node.var.name}}"
       offset = stack_offset(node)
+      comment_next_line "store value into {#{node.var.name}}"
       asm_mov Register::EBP.as_address_offset(offset), Register::EAX
     end
   end
@@ -684,7 +736,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # NOTE: the offset is shifted by -8, _BASE_OFFSET_, as the first
     # item on the EBP is the caller's EIP. This is a byproduct of the
     # caller setting the EBP prior to calling without offsetting it.
-    # FIXME: (joey) not sure why it's -8 instead of -4...
+    # TODO: (joey) not sure why it's -8 instead of -4...
     base_offset = -8
     return base_offset - stack_variables[node.var.name]
   end
@@ -699,15 +751,13 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     cls = node.parent.as(AST::ClassDecl)
     method(node.label) do
       comment "malloc #{cls.inst.size} bytes for instance of #{cls.qualified_name}"
-      # TODO: (joey) save any args before calling MALLOC as it will
-      # trample over registers.
+      # FIXME: (joey) once we handle arguments, save any args in EAX and
+      # EBX as MALLOC trample them.
       asm_mov Register::EAX, cls.inst.size
       asm_call ASM::Label::MALLOC
       comment_next_line "move the instance ptr to ESI (as `this`)"
       asm_mov Register::ESI, Register::EAX
-
-      # TODO: (joey) execute super constructor.
-
+      # FIXME: (joey) execute super constructor.
       comment_next_line "initialize instance fields"
       asm_call cls.inst.init_label
       comment "execute constructor contents"
@@ -731,6 +781,27 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
   end
 
+  def visit(node : AST::ExprArrayInit) : Nil
+    comment "calculate array expr={#{node.dim.to_s}}"
+    node.dim.accept(self)
+    # FIXME: (joey) I think we need to assert EAX is > 0 at runtime.
+    comment_next_line "save array size"
+    asm_push Register::EAX
+    comment_next_line "add base-array size for final size"
+    asm_add Register::EAX, BASE_ARRAY_SIZE
+    comment_next_line "allocate the array"
+    asm_call ASM::Label::MALLOC
+    comment_next_line "pop computed array size"
+    asm_pop Register::EBX
+    comment_next_line "set the psuedo-field array.length"
+    asm_mov Register::EAX.as_address, Register::EBX
+    comment_next_line "shift the array ptr so the first item is data"
+    asm_add Register::EAX, BASE_ARRAY_SIZE
+    comment "ExprArrayInit returning ptr in EAX"
+    # FIXME: (joey) do we need to zero initialize the data? It may be
+    # zero'd by malloc. as EAX.
+  end
+
   def visit(node : AST::ExprThis) : Nil
     # This maintains the invariant that an expression will put the result
     # into EAX.
@@ -743,14 +814,31 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   def visit(node : AST::ExprFieldAccess) : Nil
     raise Exception.new("unhandled, static field access: #{node}") if node.obj.get_type.is_static?
-    raise Exception.new("unhandled, array.length field access: #{node}") if node.obj.get_type.is_array
-    cls = node.obj.get_type.ref.as(AST::ClassDecl)
-    offset = cls.inst.field_offset(node.field)
+    if node.obj.get_type.is_array
+      comment "get address for array {#{node.obj.to_s}}"
+      node.obj.accept(self)
+      # FIXME: (joey) I think we need to do a null check before accessing
+      # the field.
+      comment_next_line "fetch array.length for array {#{node.obj.to_s}}"
+      asm_mov Register::EAX, Register::EAX.as_address_offset(-4)
+    else
+      cls = node.obj.get_type.ref.as(AST::ClassDecl)
+      offset = cls.inst.field_offset(node.field)
 
-    comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
-    node.obj.accept(self)
-    comment_next_line "calc field #{node.field_name}"
-    asm_mov Register::EAX, Register::EAX.as_address_offset(offset)
+      comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
+      node.obj.accept(self)
+      # FIXME: (joey) I think we need to do a null check before accessing
+      # the field.
+      comment_next_line "calc field #{node.field_name}"
+      asm_mov Register::EAX, Register::EAX.as_address_offset(offset)
+    end
+  end
+
+  def visit(node : AST::ExprArrayAccess) : Nil
+    comment "call calculate_address(ArrayAccess)"
+    calculate_address(node)
+    comment_next_line "fetch data for expr={#{node.to_s}}"
+    asm_mov Register::EAX, Register::EAX.as_address
   end
 
   # These are all the nodes that we do not require an implementation
@@ -805,19 +893,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     raise Exception.new("unimplemented: #{node}")
   end
 
-  def visit(node : AST::ConstNull) : Nil
-    raise Exception.new("unimplemented: #{node}")
-  end
-
-  def visit(node : AST::ExprArrayAccess) : Nil
-    raise Exception.new("unimplemented: #{node}")
-  end
-
   def visit(node : AST::SimpleName) : Nil
-    raise Exception.new("unimplemented: #{node}")
-  end
-
-  def visit(node : AST::ExprArrayInit) : Nil
     raise Exception.new("unimplemented: #{node}")
   end
 
