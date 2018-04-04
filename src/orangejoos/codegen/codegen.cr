@@ -176,7 +176,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     annotate "source: #{source_path}"
 
     # extern ALL vtables cause we lazy af
-    @vtables.each { |_, table| extern table.label }
+    @vtables.each { |clas, table| extern table.label unless node == clas }
 
     extern ASM::Label::MALLOC
     newline
