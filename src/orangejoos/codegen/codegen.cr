@@ -37,6 +37,7 @@ class CodeGenerator
       section_text
       newline
       newline
+
       extern entry_label
       newline
       comment_next_line "MacOS (macho) entry point"
@@ -48,6 +49,19 @@ class CodeGenerator
     label macos_start_lbl
     label linux_start_lbl
     indent {
+
+      # TODO: stack pointer? what data do these initializations have access to
+      files.each do |file|
+        static_init_lbl = ASM::Label.from_static_init(
+          file.ast.decl(file.class_name).package,
+          file.class_name
+        )
+        extern static_init_lbl
+        comment_next_line "Initialize static fields for class #{file.class_name}"
+        asm_call static_init_lbl
+        newline
+      end
+
       comment_next_line "set up initial EBP"
       asm_mov Register::EBP, Register::ESP
       asm_call entry_label
@@ -175,8 +189,50 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # FIXME(joey): This path is often munged, e.g. multiple //.
     annotate "source: #{source_path}"
 
+    section_data
+    newline
+    newline
+
+    node.static_fields.each do |field|
+      global field.label
+      label field.label
+      comment_next_line "#{field.typ.to_s} #{field.var.name}"
+      indent {
+        asm_dd 0
+      }
+      newline
+    end
+    newline
+
+
+    section_text
+    newline
+    newline
+
+    static_init_lbl = ASM::Label.from_static_init(node.package, node.name)
+
+    global static_init_lbl
+    label static_init_lbl
+
+    indent {
+      node.static_fields.each do |field|
+        field.accept(self)
+        comment_next_line "save value of static field"
+        asm_push Register::EAX
+        comment_next_line "get location of static field"
+        asm_mov Register::EAX, field.label
+        comment_next_line "recover value of static field"
+        asm_pop Register::EBX
+        comment_next_line "assign value of static field"
+        asm_mov Address.new(Register::EAX), Register::EBX
+        newline
+      end
+    }
+
+
+
     # extern ALL vtables cause we lazy af
-    @vtables.each { |clas, table| extern table.label unless node == clas }
+    @vtables.each { |clas, table| extern table.label unless clas == node }
 
     extern ASM::Label::MALLOC
     newline
@@ -574,13 +630,20 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # not include implicit-object field access. For example:
       #
       #    a.field
-      raise Exception.new("unhandled, static field access: #{node}") if node.obj.get_type.is_static?
       raise Exception.new("unhandled, array.length field access: #{node}") if node.obj.get_type.is_array
-      comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
-      node.obj.accept(self)
-      comment_next_line "calc field #{node.field_name}"
-      cls = node.obj.get_type.ref.as(AST::ClassDecl)
-      asm_add Register::EAX, cls.inst.field_offset(node.field)
+
+      if node.field.is_static?
+        comment_next_line "get the label of the field"
+        asm_mov Register::EAX, node.field.label
+        comment_next_line "load the value of the field"
+        asm_mov Register::EAX, Address.new(Register::EAX)
+      else
+        comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
+        node.obj.accept(self)
+        comment_next_line "calc field #{node.field_name}"
+        cls = node.obj.get_type.ref.as(AST::ClassDecl)
+        asm_add Register::EAX, cls.inst.field_offset(node.field)
+      end
     when AST::ExprArrayAccess
       comment "calculate array ptr"
       node.expr.accept(self)
@@ -826,7 +889,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ExprFieldAccess) : Nil
-    raise Exception.new("unhandled, static field access: #{node}") if node.obj.get_type.is_static?
     if node.obj.get_type.is_array
       comment "get address for array {#{node.obj.to_s}}"
       node.obj.accept(self)
@@ -834,6 +896,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # the field.
       comment_next_line "fetch array.length for array {#{node.obj.to_s}}"
       asm_mov Register::EAX, Register::EAX.as_address_offset(-4)
+    elsif node.field.is_static?
+      calculate_address(node)
+
     else
       cls = node.obj.get_type.ref.as(AST::ClassDecl)
       offset = cls.inst.field_offset(node.field)
@@ -891,7 +956,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::FieldDecl) : Nil
-    raise Exception.new("unimplemented: #{node}")
+    node.var.init.accept(self)
   end
 
   def visit(node : AST::Param) : Nil
