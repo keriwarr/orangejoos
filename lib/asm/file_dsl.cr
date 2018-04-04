@@ -157,7 +157,7 @@ module ASM
       asm_unary_math("NEG", r1)
     end
 
-    def asm_imul(r1 : Register, r2 : Register) : Nil
+    def asm_imul(r1 : Register, r2 : Register | Int32) : Nil
       asm_binary_math("IMUL", r1, r2)
     end
 
@@ -233,7 +233,7 @@ module ASM
       self.instr i
     end
 
-    def asm_mov(dest : Register | Address, src : Register | Address | Int32) : Nil
+    def asm_mov(dest : Register | Address, src : Register | Address | Int32 | String) : Nil
       i = Instruction.new("MOV", "#{dest.to_s}, #{src.to_s}")
       i.read_registers.add(src) if src.is_a?(Register)
       i.read_registers.add(src.register) if src.is_a?(Address)
