@@ -227,6 +227,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         asm_mov Address.new(Register::EAX), Register::EBX
         newline
       end
+      asm_ret 0
+      newline
     }
 
 
@@ -622,9 +624,14 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       asm_mov Register::EAX, Register::EBP
       asm_add Register::EAX, stack_offset(node)
     when AST::FieldDecl
-      comment_next_line "calc field #{node.var.name} using `this`"
-      asm_mov Register::EAX, Register::ESI
-      asm_add Register::EAX, current_class.inst.field_offset(node)
+      if node.is_static?
+        comment_next_line "get the label of the field"
+        asm_mov Register::EAX, node.label
+      else
+        comment_next_line "calc field #{node.var.name} using `this`"
+        asm_mov Register::EAX, Register::ESI
+        asm_add Register::EAX, current_class.inst.field_offset(node)
+      end
     when AST::ExprFieldAccess
       # This is when an explicit-object field access happens. This does
       # not include implicit-object field access. For example:
@@ -635,8 +642,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       if node.field.is_static?
         comment_next_line "get the label of the field"
         asm_mov Register::EAX, node.field.label
-        comment_next_line "load the value of the field"
-        asm_mov Register::EAX, Address.new(Register::EAX)
       else
         comment "address for instance {#{node.obj.get_type.ref.name}} obj={#{node.obj.to_s}}"
         node.obj.accept(self)
@@ -716,6 +721,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       param_count = current_method.params.size
       offset = (param_count - index) * 4
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
+    when AST::FieldDecl
+      raise Exception.new("unimplemented: #{node}") unless ref.is_static?
+      calculate_address(ref)
     else
       raise Exception.new("unimplemented: #{node}")
     end
@@ -898,7 +906,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       asm_mov Register::EAX, Register::EAX.as_address_offset(-4)
     elsif node.field.is_static?
       calculate_address(node)
-
+      asm_mov Register::EAX, Register::EAX.as_address
     else
       cls = node.obj.get_type.ref.as(AST::ClassDecl)
       offset = cls.inst.field_offset(node.field)
