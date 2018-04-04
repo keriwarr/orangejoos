@@ -18,6 +18,7 @@ if [ $ASSN == "5" ]; then
       output_file="${file%.s}.o"
       nasm -O1 -f macho -F dwarf -g $file -o $output_file
     done
+    nasm -O1 -f macho -F dwarf -g pub/stdlib/5.0/runtime.s -o output/__runtime.o
     ld -o output/main output/*.o
     ./output/main
     echo $?
@@ -27,6 +28,7 @@ if [ $ASSN == "5" ]; then
       output_file="${file%.s}.o"
       nasm -O1 -f elf -g -F dwarf $file -o $output_file
     done
+    nasm -O1 -f elf -g -F dwarf pub/stdlib/5.0/runtime.s -o output/__runtime.o
     ld  -melf_i386 -o output/main output/*.o
     ./output/main
     echo $?
