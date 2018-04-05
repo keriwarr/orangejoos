@@ -154,6 +154,46 @@ class LocalVariableCollector < Visitor::GenericVisitor
   end
 end
 
+class StringLiteralGenVisitor < Visitor::GenericVisitor
+  include ASM::FileDSL
+
+  property defined : Hash(String, Bool) = Hash(String, Bool).new
+
+  def initialize(dsl : ASM::FileDSL)
+    @buf = dsl.buf
+    @next_comment = dsl.next_comment
+    @annotating = dsl.annotating
+    @indentation = dsl.indentation
+  end
+
+  def visit(node : AST::ConstString)
+    return if defined[node.val]?
+    defined[node.val] = true
+
+    literal_lbl = ASM::Label.from_string_literal(node.val)
+    object_pointer_lbl = ASM::Label.from_string_object_pointer(node.val)
+
+    indent {
+      comment_next_line "string literal length"
+      asm_dd node.val.size
+      # comment_next_line "string literal un-needed vptr"
+      # asm_dd 0
+    }
+    label literal_lbl
+    indent {
+      node.val.bytes.each do |b|
+        asm_dd b.to_i32
+      end
+    }
+    label object_pointer_lbl
+    indent {
+      comment_next_line "string object pointer"
+      asm_dd NULL_CONST
+    }
+    newline
+  end
+end
+
 # `CodeCreationVisitor`
 # FIXME(joey): CodeGenerationVisitor can only handle files with a single
 # entity. We will need to change this DSL/generator to handle otherwise.
@@ -172,6 +212,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   property while_counter : Int32 = 0
   property for_counter : Int32 = 0
   property jmp_counter : Int32 = 0
+  property string_counter : Int32 = 0
 
   property! current_class : AST::ClassDecl
   property! current_method : AST::MethodDecl
@@ -205,6 +246,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
     newline
 
+    file.ast.accept(StringLiteralGenVisitor.new(self))
+    newline
 
     section_text
     newline
@@ -787,15 +830,23 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   # For doing a backup and restore step around the block of generated
   # ASM.
-  def safe_call(args : Array(AST::Expr), &block)
+  def safe_call(args : Array(AST::Expr) | Label, &block)
     # TODO: register allocation
     comment "save registers"
     asm_push Register::ESI
 
-    args.each_with_index do |arg, idx|
-      # TODO: support different argument sizes
-      arg.accept(self)
-      comment_next_line "Argument ##{idx}"
+    if args.is_a?(Array(AST::Expr))
+      args.each_with_index do |arg, idx|
+        # TODO: support different argument sizes
+        arg.accept(self)
+        comment_next_line "Argument ##{idx}"
+        asm_push Register::EAX
+      end
+    else
+      # just hacky things
+      comment_next_line "load label argument"
+      asm_mov Register::EAX, args.as(Label)
+      comment_next_line "put label argument on stack"
       asm_push Register::EAX
     end
 
@@ -814,8 +865,14 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     comment_next_line "restore callers base pointer"
     asm_pop Register::EBP
 
-    comment_next_line "remove arguments from stack"
-    asm_add Register::ESP, args.size * 4
+    if args.is_a?(Array(AST::Expr))
+      comment_next_line "remove arguments from stack"
+      asm_add Register::ESP, args.size * 4
+    else
+
+      comment_next_line "remove argument from stack"
+      asm_add Register::ESP, 4
+    end
 
     # TODO: register allocation
     comment "restore registers"
@@ -1022,7 +1079,31 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstString) : Nil
-    raise Exception.new("unimplemented: #{node}")
+    literal_lbl = ASM::Label.from_string_literal(node.val)
+    object_pointer_lbl = ASM::Label.from_string_object_pointer(node.val)
+    instantiate_lbl = ASM::Label.new("string_instantiate_#{string_counter}")
+    done_lbl = ASM::Label.new("string_done_#{string_counter}")
+
+    indent {
+      asm_mov Register::EAX, object_pointer_lbl
+      asm_mov Register::EAX, Register::EAX.as_address
+      asm_cmp Register::EAX, NULL_CONST
+      asm_jne done_lbl
+  }
+
+    label instantiate_lbl
+    indent {
+      safe_call(literal_lbl) do
+        asm_call node.get_type.ref.as(AST::ClassDecl).constructor?([
+          Typing::Type.new(Typing::Types::CHAR,
+          true
+        )]).not_nil!.label
+      end
+    }
+
+    label done_lbl
+
+    self.string_counter += 1
   end
 
   def visit(node : AST::SimpleName) : Nil
@@ -1036,6 +1117,4 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::Variable) : Nil
     raise Exception.new("unimplemented: #{node}")
   end
-
-
 end

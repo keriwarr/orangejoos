@@ -38,4 +38,12 @@ class ASM::Label
   def self.from_static_init(path : String, class_name : String) : Label
     return Label.new("STATIC_INIT$#{path}$#{class_name}")
   end
+
+  def self.from_string_literal(literal : String) : Label
+    return Label.new("STRING_LITERAL$#{literal}")
+  end
+
+  def self.from_string_object_pointer(literal : String) : Label
+    return Label.new("STRING_OBJECT_POINTER$#{literal}")
+  end
 end
