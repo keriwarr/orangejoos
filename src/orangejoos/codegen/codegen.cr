@@ -294,6 +294,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::MethodDecl) : Nil
+    return unless node.body?
     self.current_method = node
 
     # Collect all stack variables and their stack offsets.
