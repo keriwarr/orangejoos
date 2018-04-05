@@ -174,7 +174,10 @@ class StringLiteralGenVisitor < Visitor::GenericVisitor
     object_pointer_lbl = ASM::Label.from_string_object_pointer(node.val)
 
     indent {
+      comment_next_line "string literal length"
       asm_dd node.val.size
+      # comment_next_line "string literal un-needed vptr"
+      # asm_dd 0
     }
     label literal_lbl
     indent {
@@ -184,6 +187,7 @@ class StringLiteralGenVisitor < Visitor::GenericVisitor
     }
     label object_pointer_lbl
     indent {
+      comment_next_line "string object pointer"
       asm_dd NULL_CONST
     }
     newline
