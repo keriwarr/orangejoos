@@ -127,7 +127,7 @@ module ASM
       self.instr i
     end
 
-    def asm_binary_math(op : String, r1 : Register, imm : Int32 | String) : Nil
+    def asm_binary_math(op : String, r1 : Register, imm : Int32 | String | Address) : Nil
       # FIXME: (joey) it would be great to have static checking for the
       # size of IMM with respect to the size of the register used.
       i = Instruction.new("#{op}", "#{r1}, #{imm.to_s}")
@@ -137,7 +137,7 @@ module ASM
       self.instr i
     end
 
-    def asm_add(r1 : Register, r2 : Register | Int32) : Nil
+    def asm_add(r1 : Register, r2 : Register | Int32 | Address) : Nil
       asm_binary_math("ADD", r1, r2)
     end
 
