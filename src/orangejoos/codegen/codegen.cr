@@ -170,8 +170,10 @@ class StringLiteralGenVisitor < Visitor::GenericVisitor
     return if defined[node.val]?
     defined[node.val] = true
 
-    literal_lbl = ASM::Label.from_string_literal(node.val)
-    object_pointer_lbl = ASM::Label.from_string_object_pointer(node.val)
+    safe_name = node.val.gsub(/[^a-zA-Z\d]/, "_")
+
+    literal_lbl = ASM::Label.from_string_literal(safe_name)
+    object_pointer_lbl = ASM::Label.from_string_object_pointer(safe_name)
 
     indent {
       comment_next_line "string literal length"
@@ -286,7 +288,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     @vtables.each { |clas, table| extern table.label unless node == clas }
     comment "[ VTABLE SUPERCLASS METHODS ]"
     @vtables.exported_methods(node).each { |label| extern label }
-    comment "[ CONSTRUCTOR LABELS ]"
+    comment "[ CONUCTOR LABELS ]"
     externs.ctors.each { |ctor| extern ctor }
     comment "[ STATIC METHOD LABELS ]"
     externs.statics.each { |static| extern static }
@@ -330,6 +332,8 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     indent { section_data }
     newline
     @vtables.asm(self, node)
+
+    extern ASM::Label.new("CTOR$java.lang$String#char_arr") if node.qualified_name != "java.lang.String"
 
     file_name = node.qualified_name.split(".").join("_") + ".s"
     path = File.join(output_dir, file_name)
@@ -1200,8 +1204,10 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstString) : Nil
-    literal_lbl = ASM::Label.from_string_literal(node.val)
-    object_pointer_lbl = ASM::Label.from_string_object_pointer(node.val)
+    safe_name = node.val.gsub(/[^a-zA-Z\d]/, "_")
+
+    literal_lbl = ASM::Label.from_string_literal(safe_name)
+    object_pointer_lbl = ASM::Label.from_string_object_pointer(safe_name)
     instantiate_lbl = ASM::Label.new("string_instantiate_#{string_counter}")
     done_lbl = ASM::Label.new("string_done_#{string_counter}")
 
@@ -1214,7 +1220,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
     label instantiate_lbl
     indent {
-      safe_call(literal_lbl) do
+      safe_call(literal_lbl, true) do
         asm_call node.get_type.ref.as(AST::ClassDecl).constructor?([
           Typing::Type.new(Typing::Types::CHAR,
           true
