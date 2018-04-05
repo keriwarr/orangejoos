@@ -230,9 +230,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       newline
     }
 
-    # extern ALL vtables cause we lazy af
-    @vtables.each { |clas, table| extern table.label unless clas == node }
-
     externs = ExternLabelCollector.new
     @file.ast.accept(externs)
 
@@ -1081,6 +1078,6 @@ class ExternLabelCollector < Visitor::GenericVisitor
   end
 
   def visit(node : AST::MethodInvoc)
-    statics.push(node.method_decl.label)
+    statics.push(node.method_decl.label) if node.method_decl.is_static?
   end
 end
