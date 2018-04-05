@@ -50,6 +50,8 @@ class CodeGenerator
 
       # TODO: stack pointer? what data do these initializations have access to
       files.each do |file|
+        next if file.ast.decls.size == 1 && file.ast.decls[0].is_a?(AST::InterfaceDecl)
+
         static_init_lbl = ASM::Label.from_static_init(
           file.ast.decl(file.class_name).package,
           file.class_name
@@ -1158,15 +1160,16 @@ class ExternLabelCollector < Visitor::GenericVisitor
   getter statics = Array(ASM::Label).new
 
   def initialize(@node : AST::ClassDecl)
-
   end
 
   def visit(node : AST::ExprClassInit)
-    ctors.push(node.constructor.label) # if !@node.method?(node.constructor)
+    ctors.push(node.constructor.label) if @node.qualified_name != node.get_type.ref.as(AST::ClassDecl).qualified_name
+    super
   end
 
   def visit(node : AST::MethodInvoc)
     method_decl = node.method_decl
     statics.push(method_decl.label) if !@node.method?(method_decl) && method_decl.is_static?
+    super
   end
 end
