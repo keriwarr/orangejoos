@@ -127,7 +127,7 @@ module ASM
       self.instr i
     end
 
-    def asm_binary_math(op : String, r1 : Register, imm : Int32 | String) : Nil
+    def asm_binary_math(op : String, r1 : Register, imm : Int32 | String | Address) : Nil
       # FIXME: (joey) it would be great to have static checking for the
       # size of IMM with respect to the size of the register used.
       i = Instruction.new("#{op}", "#{r1}, #{imm.to_s}")
@@ -137,7 +137,7 @@ module ASM
       self.instr i
     end
 
-    def asm_add(r1 : Register, r2 : Register | Int32) : Nil
+    def asm_add(r1 : Register, r2 : Register | Int32 | Address) : Nil
       asm_binary_math("ADD", r1, r2)
     end
 
@@ -243,8 +243,8 @@ module ASM
       self.instr i
     end
 
-    def asm_mov(dest : Register | Address, src : Register | Address | Int32 | String | Label) : Nil
-      i = Instruction.new("MOV", "#{dest.to_s}, #{src.to_s}")
+    def asm_mov(dest : Register | Address, src : Register | Address | Int32 | String | Label, size : Size? = nil) : Nil
+      i = Instruction.new("MOV", "#{size.nil? ? "" : "#{size.to_s} "}#{dest.to_s}, #{src.to_s}")
       i.read_registers.add(src) if src.is_a?(Register)
       i.read_registers.add(src.register) if src.is_a?(Address)
       i.read_registers.add(dest.register) if dest.is_a?(Address)
@@ -279,7 +279,13 @@ module ASM
     end
 
     def asm_call(lbl : Label) : Nil
-      i = Instruction.new("CALL", "#{lbl.to_s}")
+      i = Instruction.new("CALL", lbl.to_s)
+      self.instr i
+    end
+
+    def asm_call(r : Register, offset : Int32) : Nil
+      i = Instruction.new("CALL", "[#{r} + #{offset}]")
+      i.read_registers.add(r)
       self.instr i
     end
 

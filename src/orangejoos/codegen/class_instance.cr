@@ -1,8 +1,8 @@
 # The size of the base class, prior to the fields in the layout.
 # TODO: (joey) As we currently do not have the vptr or type in the
 # layout, this is 0.
-BASE_SIZE = 0
-VPTR_OFFSET = 0
+BASE_SIZE = 4
+VPTR_OFFSET = -4
 TYP_OFFSET = 0
 
 

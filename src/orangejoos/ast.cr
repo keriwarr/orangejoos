@@ -24,7 +24,7 @@ NUM_CMP_OPS    = Set(String).new([">", "<", "<=", ">=", "!=", "=="])
 # There are a few other noteworthy AST nodes such as `Typ`, `Name`, and
 # `Const`.
 module AST
-  class MethodSignature
+  struct MethodSignature
     getter name : String
     getter params : Array(Typing::Type)
 
@@ -42,17 +42,17 @@ module AST
 
     # Similar checks if the method signature is similar, i.e. it has
     # the same name.
-    def similar(other : MethodSignature)
+    def similar(other : MethodSignature) : Bool
       self.name == other.name
     end
 
     # Equiv checks if the function signature is equivilant, i.e. the
     # name and formal parameters are equal.
-    def equiv(other : MethodSignature)
+    def equiv(other : MethodSignature) : Bool
       similar(other) && params_equiv(other)
     end
 
-    def params_equiv(other : MethodSignature)
+    def params_equiv(other : MethodSignature) : Bool
       params.size == other.params.size && params.zip(other.params).all? { |a, b| a.equiv(b) }
     end
 
@@ -1251,6 +1251,11 @@ module AST
 
     def ast_children : Array(Node)
       [expr.as(Node), args.map &.as(Node)].flatten.compact
+    end
+
+    def method_decl : AST::MethodDecl
+      typ = @expr.get_type.ref.as(AST::TypeDecl)
+      return typ.method?(@name, @args.map &.get_type.as(Typing::Type)).not_nil!
     end
   end
 

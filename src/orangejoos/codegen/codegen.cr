@@ -19,8 +19,6 @@ class CodeGenerator
   end
 
   def generate(file : SourceFile)
-    # Skip all stdlib files for now.
-    return if file.ast.package? && file.ast.package.path.name.includes?("java")
     file.ast.accept(CodeGenerationVisitor.new(vtables, output_dir, file, @verbose))
   end
 
@@ -52,6 +50,8 @@ class CodeGenerator
 
       # TODO: stack pointer? what data do these initializations have access to
       files.each do |file|
+        next if file.ast.decls.size == 1 && file.ast.decls[0].is_a?(AST::InterfaceDecl)
+
         static_init_lbl = ASM::Label.from_static_init(
           file.ast.decl(file.class_name).package,
           file.class_name
@@ -175,6 +175,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property! current_class : AST::ClassDecl
   property! current_method : AST::MethodDecl
+  property! current_ctor : AST::ConstructorDecl
 
   def initialize(@vtables : VTableMap, @output_dir : String, @file : SourceFile, @verbose : Bool)
   end
@@ -190,8 +191,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     # FIXME(joey): This path is often munged, e.g. multiple //.
     annotate "source: #{source_path}"
 
+    extern ASM::Label.new("NATIVEjava.io.OutputStream.nativeWrite")
+
     section_data
-    newline
     newline
 
     node.static_fields.each do |field|
@@ -204,7 +206,6 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       newline
     end
     newline
-
 
     section_text
     newline
@@ -232,12 +233,19 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       newline
     }
 
-
-
-    # extern ALL vtables cause we lazy af
-    @vtables.each { |clas, table| extern table.label unless clas == node }
+    externs = ExternLabelCollector.new(node)
+    @file.ast.accept(externs)
 
     extern ASM::Label::MALLOC
+    newline
+    comment "[ VTABLE LABELS ]"
+    @vtables.each { |clas, table| extern table.label unless node == clas }
+    comment "[ VTABLE SUPERCLASS METHODS ]"
+    @vtables.exported_methods(node).each { |label| extern label }
+    comment "[ CONSTRUCTOR LABELS ]"
+    externs.ctors.each { |ctor| extern ctor }
+    comment "[ STATIC METHOD LABELS ]"
+    externs.statics.each { |static| extern static }
     newline
 
     indent{ section_text }
@@ -252,10 +260,15 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # the implicit-super call instead, inside the constructors.
       node.fields.each do |field|
         comment "initializing field #{field.name}"
-        raise Exception.new("are non-initialized fields even allowed? field: #{field}") unless field.var.init?
-        comment "evaluating expr=#{field.var.init.to_s}"
-        # Load data into EAX.
-        field.var.init.accept(self)
+        if field.var.init?
+          comment "evaluating expr=#{field.var.init.to_s}"
+          # Load data into EAX.
+          field.var.init.accept(self)
+        else
+          # Initialize field to 0.
+          # FIXME: (joey) make sure zero-ing is the correct action here.
+          asm_mov Register::EAX, 0
+        end
         comment_next_line "store into #{field.name}"
         asm_mov node.inst.field_as_address(field), Register::EAX
       end
@@ -286,6 +299,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::MethodDecl) : Nil
+    # If the method is native, even if there is not body we will embed a
+    # call.
+    return unless node.body? || node.is_native?
     self.current_method = node
 
     # Collect all stack variables and their stack offsets.
@@ -308,14 +324,27 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         comment_next_line "init space for localvar {#{var}}"
         asm_push 0
       end
-      # Only traverse down the body. Ignore typ and params, as they do
-      # not need code generation.
-      # NOTE: only methods with bodies should be generated, hence the
-      # `not_nil!` assert.
-      node.body.each &.accept(self)
+
+      if node.is_native?
+        # Move the first arg into EAX for the native call.
+        index = 1
+        param_count = 1
+        offset = (param_count - index) * 4
+        asm_mov Register::EAX, Register::EBP
+        asm_add Register::EAX, Register::EAX.as_address_offset(offset)
+        # Super hard-coded native call.
+        asm_call ASM::Label.new("NATIVEjava.io.OutputStream.nativeWrite")
+      else
+        node.body.each &.accept(self)
+      end
     end
+
+    @stack_variables = nil
   rescue ex : CompilerError
     ex.register("method_name", node.name)
+    raise ex
+  rescue ex : Exception
+    STDERR.puts "exception in method #{node.name} args=#{node.params}"
     raise ex
   end
 
@@ -496,11 +525,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     elsif node.operands.size == 2
       op_sig = {node.op, node.operands[0].get_type, node.operands[1].get_type}
 
-      # FIXME: (joey) when the LHS is for an address, we need to do
-      # something specific to either keep it as an address or get the
-      # value. Hence the separation between assignment and the rest.
-      case {node.op, node.operands[0].get_type, node.operands[1].get_type}
-      when {"=", .is_number?, .is_number?}
+      if op_sig[0] == "=" && op_sig[1].equiv(op_sig[2])
         # Add code for LHS.
         calculate_address(node.operands[0])
         # Push the LHS address (EAX) to the stack.
@@ -516,8 +541,11 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         asm_mov Register::EBX.as_address, Register::EAX
         # NOTE: the result is in EAX, as desired as '=' is an expression.
         return
+      end
+
+      # && and || are handled specially as they will short-circuit.
+      case {node.op, node.operands[0].get_type, node.operands[1].get_type}
       when {"&&", .is_boolean?, .is_boolean?}
-        # && and || are handled specially as they will short-circuit.
         and_short_circuit_label = ASM::Label.new("and_short_circuit_#{jmp_counter}")
         and_end_label = ASM::Label.new("and_end_#{jmp_counter}")
         self.jmp_counter += 1
@@ -661,8 +689,29 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       when node.array_access?
         # Recursive call to evaluate as ArrayAccess type.
         calculate_address(node.array_access)
-      else raise Exception.new("unhandled: #{node.to_s}")
+      when node.field_access?
+        # Recursive call to evaluate as FieldAccess type.
+        calculate_address(node.field_access)
+      else raise Exception.new("unhandled: #{node.to_s} #{node}")
       end
+    when AST::Param
+      comment_next_line "fetch parameter {#{node.name}}"
+      if current_method?
+        index = current_method.params.index(&.== node)
+      else
+        index = current_ctor.params.index(&.== node)
+      end
+      if (index.nil?)
+        raise CodegenError.new("Could not find parameter #{node.name} in list")
+      end
+      if current_method?
+        param_count = current_method.params.size
+      else
+        param_count = current_ctor.params.size
+      end
+      offset = (param_count - index) * 4
+      asm_mov Register::EAX, Register::EBP
+      asm_add Register::EAX, offset
     when AST::VarDeclStmt
       comment_next_line "address for localvar {#{node.var.name}}"
       # Get pointer location of the variable.
@@ -727,7 +776,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstChar) : Nil
-    comment_next_line "load char(#{node.val})"
+    comment_next_line "load char(#{node.val.ord})"
     asm_mov Register::EAX, node.val.ord
   end
 
@@ -751,27 +800,49 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     if name.ref?.nil?
       return
     end
-    ref = name.ref
+    get_value_from_node(name.ref)
+  end
+
+  def visit(node : AST::Variable) : Nil
+    if node.name?
+      get_value_from_node(node.name.ref)
+    elsif node.array_access?
+      get_value_from_node(node.array_access)
+    elsif node.field_access
+      get_value_from_node(node.field_access)
+    else
+      raise Exception.new("unexpected: #{node}")
+    end
+  end
+
+  def get_value_from_node(ref : AST::Node) : Nil
     case ref
     when AST::VarDeclStmt
-      comment_next_line "fetch localvar {#{name.name}}"
+      comment_next_line "fetch localvar {#{ref.var.name}}"
       offset = stack_offset(ref)
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
     when AST::Param
-      comment_next_line "fetch parameter {#{name.name}}"
-      index = current_method.params.index(&.== ref)
-      if (index.nil?)
-        raise CodegenError.new("Could not find parameter #{name.name} in list")
+      comment_next_line "fetch parameter {#{ref.name}}"
+      if current_method?
+        index = current_method.params.index(&.== ref)
+      else
+        index = current_ctor.params.index(&.== ref)
       end
-      param_count = current_method.params.size
+      if (index.nil?)
+        raise CodegenError.new("Could not find parameter #{ref.name} in list")
+      end
+      if current_method?
+        param_count = current_method.params.size
+      else
+        param_count = current_ctor.params.size
+      end
       offset = (param_count - index) * 4
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
     when AST::FieldDecl
-      raise Exception.new("unimplemented: #{node}") unless ref.is_static?
       calculate_address(ref)
       asm_mov Register::EAX, Register::EAX.as_address
     else
-      raise Exception.new("unimplemented: #{node}")
+      raise Exception.new("unimplemented: #{ref}")
     end
   end
 
@@ -785,12 +856,17 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
     end
   end
 
-  # For doing a backup and restore step around the block of generated
-  # ASM.
-  def safe_call(args : Array(AST::Expr), &block)
+  # For doing a backup and restore step around the block of generated ASM.
+  # The address of the object should be in EAX.
+  def safe_call(args : Array(AST::Expr), ctor? : Bool, &block)
     # TODO: register allocation
     comment "save registers"
     asm_push Register::ESI
+
+    unless ctor?
+      comment_next_line "move address of invokee to ESI as \"this\""
+      asm_mov Register::ESI, Register::EAX
+    end
 
     args.each_with_index do |arg, idx|
       # TODO: support different argument sizes
@@ -826,8 +902,23 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::MethodInvoc) : Nil
     typ = node.expr.get_type.ref.as(AST::TypeDecl)
     method = typ.method?(node.name, node.args.map &.get_type.as(Typing::Type)).not_nil!
-    safe_call(node.args) do
-      asm_call method.label
+
+    comment "[ Method Invocation: #{method.signature.to_s} ]"
+    if method.is_static?
+      safe_call(node.args, true) do
+        comment_next_line "call static function"
+        asm_call method.label
+      end
+    else
+      offset = @vtables.get_offset(typ, method.signature)
+      node.expr.accept(self) if node.expr.get_type.is_object? # puts the address of the object in EAX
+
+      safe_call(node.args, false) do
+        comment_next_line "load vptr"
+        asm_mov  Register::EAX, Register::ESI.as_address_offset(VPTR_OFFSET)
+        comment_next_line "call vtable function at offset"
+        asm_call Register::EAX, offset
+      end
     end
   end
 
@@ -845,7 +936,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # Truncate to 1 byte.
       node.rhs.accept(self)
       asm_and Register::EAX, 0xFF
-    elsif cast_typ.is_number? &&
+    elsif cast_typ.typ == Typing::Types::INT && from_typ.typ == Typing::Types::CHAR
+      node.rhs.accept(self)
+    elsif cast_typ.is_number? && cast_typ.is_number?
       # load the RHS expr
       node.rhs.accept(self)
       if cast_typ.typ == Typing::Types::BYTE || from_typ.typ == Typing::Types::BYTE
@@ -857,6 +950,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       else
         # Do nothing. Casting from an INT to INT will do nothing.
       end
+    elsif cast_typ.is_object? && cast_typ.ref.qualified_name == "java.lang.String" && from_typ.is_object?
     else
       raise Exception.new("unimplemented, casts for: cast=#{cast_typ.to_s} from=#{from_typ.to_s}")
     end
@@ -877,14 +971,39 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstructorDecl) : Nil
-    raise Exception.new("unimplemented, constructor with >0 params: #{node}") if node.params.size > 0
+    self.current_ctor = node
+
+    # Collect all stack variables and their stack offsets.
+    self.stack_variables = Hash(String, Int32).new
+    node.accept(LocalVariableCollector.new(stack_variables))
+    # TODO: (joey) this assumes every variale is a double-word size.
+    self.stack_size = self.stack_variables.sum { |_| 4 }
+
     cls = node.parent.as(AST::ClassDecl)
     method(node.label) do
+      # Initialize the stack frame of the method. This involves
+      # initializing the stack data for local variables.
+      stack_variables.each do |var, size|
+        # TODO: (joey) for now every type supported is a double-word
+        # (32bits). For Joos1W, we may not need to support other sized
+        # types.
+        # TODO: (joey) we may not need to `PUSH 0`, and we may just be
+        # able to do a one-shot SUB offset as memory may not need to be
+        # zero'd. Realistically, all variables require an initializer so
+        # it will be initialized on the block entry.
+        comment_next_line "init space for localvar {#{var}}"
+        asm_push 0
+      end
+
       comment "malloc #{cls.inst.size} bytes for instance of #{cls.qualified_name}"
       # FIXME: (joey) once we handle arguments, save any args in EAX and
       # EBX as MALLOC trample them.
       asm_mov Register::EAX, cls.inst.size
       asm_call ASM::Label::MALLOC
+      comment_next_line "load the address of the vtable into the ptr"
+      asm_mov Register::EAX.as_address, @vtables.label(cls), Size::DWORD
+      comment_next_line "add 4 to the instance ptr to account for vptr"
+      asm_add Register::EAX, 4
       comment_next_line "move the instance ptr to ESI (as `this`)"
       asm_mov Register::ESI, Register::EAX
       # FIXME: (joey) execute super constructor.
@@ -906,7 +1025,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ExprClassInit) : Nil
-    safe_call(node.args) do
+    safe_call(node.args, true) do
       asm_call node.constructor.label
     end
   end
@@ -1018,11 +1137,13 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ExprInstanceOf) : Nil
-    raise Exception.new("unimplemented: #{node}")
+    # FIXME: (joey) not implemented at all.
+    # raise Exception.new("unimplemented: #{node}")
   end
 
   def visit(node : AST::ConstString) : Nil
-    raise Exception.new("unimplemented: #{node}")
+    # FIXME: (joey) not implemented at all.
+    # raise Exception.new("unimplemented: #{node}")
   end
 
   def visit(node : AST::SimpleName) : Nil
@@ -1032,10 +1153,23 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   def visit(node : AST::ParenExpr) : Nil
     raise Exception.new("unimplemented: #{node}")
   end
+end
 
-  def visit(node : AST::Variable) : Nil
-    raise Exception.new("unimplemented: #{node}")
+class ExternLabelCollector < Visitor::GenericVisitor
+  getter ctors = Array(ASM::Label).new
+  getter statics = Array(ASM::Label).new
+
+  def initialize(@node : AST::ClassDecl)
   end
 
+  def visit(node : AST::ExprClassInit)
+    ctors.push(node.constructor.label) if @node.qualified_name != node.get_type.ref.as(AST::ClassDecl).qualified_name
+    super
+  end
 
+  def visit(node : AST::MethodInvoc)
+    method_decl = node.method_decl
+    statics.push(method_decl.label) if !@node.method?(method_decl) && method_decl.is_static?
+    super
+  end
 end
