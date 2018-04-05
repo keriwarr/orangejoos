@@ -234,9 +234,9 @@ module Typing
 
     def to_s : String
       if ref?
-        "#{ref.qualified_name}#{is_array ? "[]" : ""}"
+        "#{ref.qualified_name}#{is_array ? "_arr" : ""}"
       else
-        "#{typ.to_s.downcase}#{is_array ? "[]" : ""}"
+        "#{typ.to_s.downcase}#{is_array ? "_arr" : ""}"
       end
     end
   end
