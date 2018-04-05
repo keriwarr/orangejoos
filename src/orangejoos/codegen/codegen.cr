@@ -883,7 +883,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # Truncate to 1 byte.
       node.rhs.accept(self)
       asm_and Register::EAX, 0xFF
-    elsif cast_typ.is_number? &&
+    elsif cast_typ.typ == Typing::Types::INT && from_typ.typ == Typing::Types::CHAR
+      node.rhs.accept(self)
+    elsif cast_typ.is_number? && cast_typ.is_number?
       # load the RHS expr
       node.rhs.accept(self)
       if cast_typ.typ == Typing::Types::BYTE || from_typ.typ == Typing::Types::BYTE
