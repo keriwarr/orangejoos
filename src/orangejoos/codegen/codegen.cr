@@ -562,7 +562,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
         asm_or Register::EAX, Register::EBX
       when {"&", .is_boolean?, .is_boolean?}
         comment_next_line node.to_s
-        asm_or Register::EAX, Register::EBX
+        asm_and Register::EAX, Register::EBX
       when {"==", .is_object?, .is_object?}
         comment_next_line node.to_s
         asm_cmp Register::EAX, Register::EBX
