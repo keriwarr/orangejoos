@@ -341,6 +341,9 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   rescue ex : CompilerError
     ex.register("method_name", node.name)
     raise ex
+  rescue ex : Exception
+    STDERR.puts "exception in method #{node.name} args=#{node.params}"
+    raise ex
   end
 
   def visit(node : AST::ReturnStmt) : Nil

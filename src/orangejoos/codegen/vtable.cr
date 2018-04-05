@@ -225,6 +225,7 @@ class VTableMap
     @interfaces.each { |i| i.methods.each {|m| @interface_table.push({i,m.signature}, offset += 4) }}
     # Add VTable entries for each class in each file
     @sources.each { |file| file.ast.accept(VTableCreator.new(self)) }
+    self.pprint
   end
 
   # new_vtable creates a new vtable and adds it to the table hash if it doesn't already exist, and returns
