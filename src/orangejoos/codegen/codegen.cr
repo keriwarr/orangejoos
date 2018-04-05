@@ -255,10 +255,15 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       # the implicit-super call instead, inside the constructors.
       node.fields.each do |field|
         comment "initializing field #{field.name}"
-        raise Exception.new("are non-initialized fields even allowed? field: #{field}") unless field.var.init?
-        comment "evaluating expr=#{field.var.init.to_s}"
-        # Load data into EAX.
-        field.var.init.accept(self)
+        if field.var.init?
+          comment "evaluating expr=#{field.var.init.to_s}"
+          # Load data into EAX.
+          field.var.init.accept(self)
+        else
+          # Initialize field to 0.
+          # FIXME: (joey) make sure zero-ing is the correct action here.
+          asm_mov Register::EAX, 0
+        end
         comment_next_line "store into #{field.name}"
         asm_mov node.inst.field_as_address(field), Register::EAX
       end
