@@ -173,6 +173,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
 
   property! current_class : AST::ClassDecl
   property! current_method : AST::MethodDecl
+  property! current_ctor : AST::ConstructorDecl
 
   def initialize(@vtables : VTableMap, @output_dir : String, @file : SourceFile, @verbose : Bool)
   end
@@ -768,11 +769,19 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
     when AST::Param
       comment_next_line "fetch parameter {#{name.name}}"
-      index = current_method.params.index(&.== ref)
+      if current_method?
+        index = current_method.params.index(&.== ref)
+      else
+        index = current_constructor.params.index(&.== ref)
+      end
       if (index.nil?)
         raise CodegenError.new("Could not find parameter #{name.name} in list")
       end
-      param_count = current_method.params.size
+      if current_method?
+        param_count = current_method.params.size
+      else
+        param_count = current_constructor.params.size
+      end
       offset = (param_count - index) * 4
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
     when AST::FieldDecl
@@ -906,7 +915,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstructorDecl) : Nil
-    raise Exception.new("unimplemented, constructor with >0 params: #{node}") if node.params.size > 0
+    self.current_ctor = node
     cls = node.parent.as(AST::ClassDecl)
     method(node.label) do
       comment_next_line "malloc #{cls.inst.size} bytes for instance of #{cls.qualified_name}"
