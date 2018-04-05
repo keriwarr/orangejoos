@@ -657,8 +657,8 @@ module AST
     end
 
     def label : ASM::Label
-      raise Exception.new("attempting to access label for non-static field #{parent.package}.#{parent.name} {#{var.name}}") unless self.has_mod?("static")
-      return ASM::Label.from_field(parent.package, parent.name, var.name)
+      raise Exception.new("attempting to access label for non-static field #{parent.package}.#{parent.name} {#{var.name}}") unless self.is_static?
+      return ASM::Label.from_static_field(parent.package, parent.name, var.name)
     end
 
     def ast_children : Array(Node)

@@ -31,7 +31,11 @@ class ASM::Label
     return Label.new("INTERNAL$#{path}$#{class_name}$#__INIT")
   end
 
-  def self.from_field(path : String, class_name : String, field : String) : Label
-    return Label.new("FIELD$#{path}$#{class_name}$#{field}")
+  def self.from_static_field(path : String, class_name : String, field : String) : Label
+    return Label.new("STATIC_FIELD$#{path}$#{class_name}$#{field}")
+  end
+
+  def self.from_static_init(path : String, class_name : String) : Label
+    return Label.new("STATIC_INIT$#{path}$#{class_name}")
   end
 end

@@ -111,10 +111,6 @@ module ASM
 
     # Instructions.
 
-    def asm_dd(data : Label | Int32) : Nil
-      self.instr Instruction.new("DD", data.to_s)
-    end
-
     def asm_binary_math(op : String, r1 : Register, r2 : Register) : Nil
       i = Instruction.new("#{op}", "#{r1}, #{r2}")
       i.write_registers.add(r1)
@@ -247,7 +243,7 @@ module ASM
       self.instr i
     end
 
-    def asm_mov(dest : Register | Address, src : Register | Address | Int32 | String) : Nil
+    def asm_mov(dest : Register | Address, src : Register | Address | Int32 | String | Label) : Nil
       i = Instruction.new("MOV", "#{dest.to_s}, #{src.to_s}")
       i.read_registers.add(src) if src.is_a?(Register)
       i.read_registers.add(src.register) if src.is_a?(Address)
@@ -304,6 +300,11 @@ module ASM
 
     def asm_jmp(lbl : Label) : Nil
       i = Instruction.new("JMP", lbl.to_s)
+      self.instr i
+    end
+
+    def asm_dd(data : Label | Int32) : Nil
+      i = Instruction.new("DD", data.to_s)
       self.instr i
     end
   end
