@@ -230,7 +230,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       newline
     }
 
-    externs = ExternLabelCollector.new
+    externs = ExternLabelCollector.new(node)
     @file.ast.accept(externs)
 
     extern ASM::Label::MALLOC
@@ -1073,11 +1073,16 @@ class ExternLabelCollector < Visitor::GenericVisitor
   getter ctors = Array(ASM::Label).new
   getter statics = Array(ASM::Label).new
 
+  def initialize(@node : AST::ClassDecl)
+
+  end
+
   def visit(node : AST::ExprClassInit)
-    ctors.push(node.constructor.label)
+    ctors.push(node.constructor.label) # if !@node.method?(node.constructor)
   end
 
   def visit(node : AST::MethodInvoc)
-    statics.push(node.method_decl.label) if node.method_decl.is_static?
+    method_decl = node.method_decl
+    statics.push(method_decl.label) if !@node.method?(method_decl) && method_decl.is_static?
   end
 end
