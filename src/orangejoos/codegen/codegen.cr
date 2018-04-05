@@ -19,8 +19,6 @@ class CodeGenerator
   end
 
   def generate(file : SourceFile)
-    # Skip all stdlib files for now.
-    return if file.ast.package? && file.ast.package.path.name.includes?("java")
     file.ast.accept(CodeGenerationVisitor.new(vtables, output_dir, file, @verbose))
   end
 
