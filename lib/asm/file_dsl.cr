@@ -174,10 +174,11 @@ module ASM
       self.instr i
     end
 
-    def asm_cmp(r1 : Register, r2 : Register) : Nil
+    def asm_cmp(r1 : Register, r2 : Register | String) : Nil
       i = Instruction.new("CMP", "#{r1}, #{r2}")
       i.write_registers.add(Register::FLAGS)
-      i.read_registers.add(r1).add(r2)
+      i.read_registers.add(r1)
+      i.read_registers.add(r2) if r2.is_a?(Register)
       self.instr i
     end
 
@@ -309,7 +310,7 @@ module ASM
       self.instr i
     end
 
-    def asm_dd(data : Label | Int32) : Nil
+    def asm_dd(data : Label | Int32 | String) : Nil
       i = Instruction.new("DD", data.to_s)
       self.instr i
     end
