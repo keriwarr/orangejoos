@@ -192,7 +192,7 @@ module Typing
     end
 
     def is_object? : Bool
-      return typ == Types::INSTANCE
+      return typ == Types::INSTANCE || typ == Types::NULL
     end
 
     def is_static? : Bool
