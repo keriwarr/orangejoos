@@ -772,7 +772,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       if current_method?
         index = current_method.params.index(&.== ref)
       else
-        index = current_constructor.params.index(&.== ref)
+        index = current_ctor.params.index(&.== ref)
       end
       if (index.nil?)
         raise CodegenError.new("Could not find parameter #{name.name} in list")
@@ -780,7 +780,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
       if current_method?
         param_count = current_method.params.size
       else
-        param_count = current_constructor.params.size
+        param_count = current_ctor.params.size
       end
       offset = (param_count - index) * 4
       asm_mov Register::EAX, Register::EBP.as_address_offset(offset)
@@ -1066,7 +1066,7 @@ class CodeGenerationVisitor < Visitor::GenericVisitor
   end
 
   def visit(node : AST::ConstString) : Nil
-    raise Exception.new("unimplemented: #{node}")
+    # raise Exception.new("unimplemented: #{node}")
   end
 
   def visit(node : AST::SimpleName) : Nil
