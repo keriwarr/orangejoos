@@ -132,7 +132,7 @@ class CodeGenerator
 end
 
 # Collects all variables for determining the stack layout.
-class LocalVariableCollector < Visitor::GenericVisitor
+class LocalVariableCollector < AST::Visitor
   property variables : Array(AST::VarDeclStmt) = Array(AST::VarDeclStmt).new
 
   def initialize(@variable_offsets : Hash(String, Int32))
@@ -157,7 +157,7 @@ end
 # `CodeCreationVisitor`
 # FIXME(joey): CodeGenerationVisitor can only handle files with a single
 # entity. We will need to change this DSL/generator to handle otherwise.
-class CodeGenerationVisitor < Visitor::GenericVisitor
+class CodeGenerationVisitor < AST::Visitor
   include ASM::FileDSL
 
   property vtables : VTableMap

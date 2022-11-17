@@ -1,4 +1,4 @@
-module Visitor
+module AST
   abstract class MutatingVisitor
     abstract def visit(node : AST::PrimativeTyp) : AST::Node
     abstract def visit(node : AST::ClassTyp) : AST::Node
@@ -273,6 +273,15 @@ module Visitor
     end
 
     def on_completion
+    end
+  end
+
+  abstract class Node
+    def accept(v : AST::MutatingVisitor) : Node
+      v.descend
+      result = v.visit(self)
+      v.ascend
+      return result
     end
   end
 end

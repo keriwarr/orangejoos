@@ -10,7 +10,7 @@ class StaticAnalysis
   end
 end
 
-class ConstantFoldingVisitor < Visitor::GenericMutatingVisitor
+class ConstantFoldingVisitor < AST::GenericMutatingVisitor
   def initialize(@namespace : ImportNamespace)
   end
 
@@ -120,7 +120,7 @@ module Reachability
   end
 
   # Performs all Reachability checks on the AST.
-  class ReachabilityVisitor < Visitor::GenericVisitor
+  class ReachabilityVisitor < AST::Visitor
     property in_set = Hash(AST::Stmt, Reachability).new
     property out_set = Hash(AST::Stmt, Reachability).new
 

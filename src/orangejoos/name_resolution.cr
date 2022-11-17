@@ -287,7 +287,7 @@ end
 
 # `InterfaceResolutionVisitor` populates all extended interfaces within
 # an `InterfaceDecl`.
-class InterfaceResolutionVisitor < Visitor::GenericVisitor
+class InterfaceResolutionVisitor < AST::Visitor
   @namespace : ImportNamespace
 
   def initialize(@namespace : ImportNamespace)
@@ -321,7 +321,7 @@ end
 
 # `ClassResolutionVisitor` populates the super class and all implemented
 # interface references within a `ClassDecl`.
-class ClassResolutionVisitor < Visitor::GenericVisitor
+class ClassResolutionVisitor < AST::Visitor
   @namespace : ImportNamespace
 
   def initialize(@namespace : ImportNamespace)
@@ -427,7 +427,7 @@ class CycleTracker
 end
 
 # `CycleVisitor` checks if there are interface cycles.
-class CycleVisitor < Visitor::GenericVisitor
+class CycleVisitor < AST::Visitor
   @cycle_tracker : CycleTracker
   @namespace : ImportNamespace
 
@@ -521,7 +521,7 @@ class DeclWrapper
   end
 end
 
-class MethodEnvironmentVisitor < Visitor::GenericVisitor
+class MethodEnvironmentVisitor < AST::Visitor
   @import_namespace : ImportNamespace
 
   # Namespace of the scope during AST traversal. It is populated as we
@@ -723,7 +723,7 @@ end
 
 # `DuplicateFieldVisitor` checks the correctness of a classes
 # declarations, also taking into account inheritance.
-class DuplicateFieldVisitor < Visitor::GenericVisitor
+class DuplicateFieldVisitor < AST::Visitor
   def visit(node : AST::ClassDecl) : Nil
     field_set = Set(String).new
     node.fields.each do |f|
@@ -739,7 +739,7 @@ end
 # `DuplicateFieldVisitor` checks the correctness of the method declarations
 # and constructor declarations of classes and interfaces,
 #  also taking into account inheritance.
-class MethodAndCtorVisitor < Visitor::GenericVisitor
+class MethodAndCtorVisitor < AST::Visitor
   def initialize(@objectMethodDecls : Array(AST::MethodDecl))
   end
 
@@ -836,7 +836,7 @@ class MethodAndCtorVisitor < Visitor::GenericVisitor
   end
 end
 
-class InheritanceCheckingVisitor < Visitor::GenericVisitor
+class InheritanceCheckingVisitor < AST::Visitor
   def visit(node : AST::ClassDecl) : Nil
     if node.super_class? && node.super_class.ref.is_a?(AST::ClassDecl) && node.super_class.ref.as(AST::ClassDecl).is_final?
       raise NameResolutionStageError.new("Class \"#{node.name}\" extends final class \"#{node.super_class.ref.as(AST::ClassDecl).name}\"")
@@ -846,7 +846,7 @@ end
 
 # `ClassTypResolutionVisitor` resolves the types in variable and
 # field declarations.
-class ClassTypResolutionVisitor < Visitor::GenericVisitor
+class ClassTypResolutionVisitor < AST::Visitor
   @namespace : ImportNamespace
 
   def initialize(@namespace : ImportNamespace)
@@ -891,7 +891,7 @@ end
 
 # `BackrefResolver` resolves backwards references for members to their
 # parent type decl.
-class BackrefResolver < Visitor::GenericVisitor
+class BackrefResolver < AST::Visitor
   def visit(node : AST::ClassDecl | AST::InterfaceDecl) : Nil
     node.body.each { |b| b.parent = node }
   end
@@ -912,7 +912,7 @@ end
 #
 # This visitor must run before `MethodEnvironmentVisitor`, because this
 # visitor may insert new `AST::ExprRef` that need to be resolved.
-class QualifiedNameDisambiguation < Visitor::GenericMutatingVisitor
+class QualifiedNameDisambiguation < AST::GenericMutatingVisitor
   def initialize(@namespace : ImportNamespace)
   end
 

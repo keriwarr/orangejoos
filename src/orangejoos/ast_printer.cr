@@ -15,7 +15,7 @@ module AST
   # to qualify with an explanation, you can print these by calling `print_child` with the
   # description, then call indent, then explicitly visit that a child, then call outdent.
   # See visit(AST::ForStmt) for an example of ths.
-  class ASTPrinterVisitor < Visitor::GenericVisitor
+  class ASTPrinterVisitor < AST::Visitor
     def print(str : String) : Nil
       # This should only be true for the top-level node: AST::File
       if @last_child_stack.size <= 1
@@ -148,7 +148,7 @@ module AST
 
     def visit(node : AST::VarDeclStmt) : Nil
       print "VarDeclStmt: typ={#{node.typ.to_s}}"
-      visit([node.var.as(Node)])
+      node.var.accept(self)
       # no super
     end
 
@@ -157,7 +157,7 @@ module AST
       if node.init?
         print_child("Init:")
         indent(false)
-        visit([node.init.as(Node)])
+        node.init.accept(self)
         outdent
       end
       print_child "Test: #{node.expr.to_s}" if node.expr?

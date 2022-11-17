@@ -113,18 +113,6 @@ module AST
 
   # `Node` is the root type of all `AST` elements.
   abstract class Node
-    def accept(v : Visitor::Visitor) : Nil
-      v.descend
-      v.visit(self)
-      v.ascend
-    end
-
-    def accept(v : Visitor::MutatingVisitor) : Node
-      v.descend
-      result = v.visit(self)
-      v.ascend
-      return result
-    end
 
     # Implementations of this method should return all properties of
     # this node which are themselves Nodes.

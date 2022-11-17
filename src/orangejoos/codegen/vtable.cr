@@ -254,7 +254,7 @@ end
 
 
 # InterfaceCollector collects all interfaces in the AST.
-class InterfaceCollector < Visitor::GenericVisitor
+class InterfaceCollector < AST::Visitor
   def initialize(@vtables : VTableMap)
   end
 
@@ -264,7 +264,7 @@ class InterfaceCollector < Visitor::GenericVisitor
 end
 
 # Visits each class and adds a VTable entry for that classes methods
-class VTableCreator < Visitor::GenericVisitor
+class VTableCreator < AST::Visitor
   def initialize(@vtables : VTableMap)
   end
 

@@ -281,7 +281,7 @@ end
 
 # `TypeResolutionVisitor` resolves all expression types. If there is a
 # type issues, an exception is raised by an AST's `resolve_type` method.
-class TypeResolutionVisitor < Visitor::GenericVisitor
+class TypeResolutionVisitor < AST::Visitor
   def initialize(@namespace : ImportNamespace)
   end
 
@@ -301,7 +301,7 @@ end
 
 # `StaticThisCheckVisitor` checks that there are no references to `this`
 # inside static methods or fields bodies.
-class StaticThisCheckVisitor < Visitor::GenericVisitor
+class StaticThisCheckVisitor < AST::Visitor
   property! current_class_name : String
   property! current_parent_name : String
 
@@ -330,7 +330,7 @@ end
 
 # `DefaultCtorCheckVisitor` checks if all classes have the
 # default constructor defined. This is a Joos1W requirement.
-class DefaultCtorCheckVisitor < Visitor::GenericVisitor
+class DefaultCtorCheckVisitor < AST::Visitor
   property! has_default_constructor : Bool
 
   def visit(node : AST::ClassDecl) : Nil
@@ -354,7 +354,7 @@ end
 #
 #   - The field is assigned earlier in an expression, and is not the
 #     current field.
-class FieldInitCheckVisitor < Visitor::GenericVisitor
+class FieldInitCheckVisitor < AST::Visitor
   property! accessible_fields : Array(String)
   property! class_name : String
   property! field_name : String
@@ -414,7 +414,7 @@ end
 # - For loop comparison clause.
 # - While loop comparison clause.
 # ...
-class StmtTypeCheckVisitor < Visitor::GenericVisitor
+class StmtTypeCheckVisitor < AST::Visitor
   def initialize(@namespace : ImportNamespace)
   end
 

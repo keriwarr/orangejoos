@@ -17,7 +17,7 @@ class Weeding
   end
 end
 
-class InterfaceDeclVisitor < Visitor::GenericVisitor
+class InterfaceDeclVisitor < AST::Visitor
   def visit(node : AST::InterfaceDecl) : Nil
     node.body.each do |b|
       if b.is_a?(AST::MethodDecl) && (b.is_static? || b.is_final? || b.is_native?)
@@ -30,7 +30,7 @@ class InterfaceDeclVisitor < Visitor::GenericVisitor
   end
 end
 
-class ClassDeclVisitor < Visitor::GenericVisitor
+class ClassDeclVisitor < AST::Visitor
   def visit(node : AST::ClassDecl) : Nil
     found_constructor = false
 
@@ -108,7 +108,7 @@ class ClassDeclVisitor < Visitor::GenericVisitor
   end
 end
 
-class PublicDeclVisitor < Visitor::GenericVisitor
+class PublicDeclVisitor < AST::Visitor
   @public_classes = [] of String
 
   def visit(node : AST::TypeDecl) : Nil
@@ -122,7 +122,7 @@ class PublicDeclVisitor < Visitor::GenericVisitor
   end
 end
 
-class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
+class CheckPublicDeclNameVisitor < AST::Visitor
   def initialize(@public_class_name : String)
   end
 
@@ -133,7 +133,7 @@ class CheckPublicDeclNameVisitor < Visitor::GenericVisitor
   end
 end
 
-class InvalidInstanceOfExpressionVisitor < Visitor::GenericVisitor
+class InvalidInstanceOfExpressionVisitor < AST::Visitor
   def visit(node : AST::ExprInstanceOf) : Nil
     typ_node = node.typ
     if typ_node.is_a?(AST::PrimitiveTyp) && typ_node.cardinality == 0
